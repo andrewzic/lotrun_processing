@@ -69,8 +69,8 @@ def main():
     args = parse_args()
     ms = args.ms
     timebin = args.timebin
-    if 'calB0' in msname:
-        new_msname = msname.replace('.calB0.ms', '.avg.calB0.ms')
+    if 'cal' in msname:
+        new_msname = msname.replace('.cal', '.avg.cal')
     else:
         new_msname = msname.replace('.ms', '.avg.ms')    
     do_average(ms, new_msname, timebin=timebin)

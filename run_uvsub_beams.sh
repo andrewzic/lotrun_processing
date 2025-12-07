@@ -22,6 +22,7 @@ SCRIPT=${SCRIPT:-uvsub_ms_beams.py}
 # uvsub parameters (override per submission as needed)
 OUT_PREFIX=${OUT_PREFIX:-"uvsub"}
 INDEX=${INDEX:-1}
+SELFCAL=${SELFCAL:-1}
 # ---------------------------------------------------------------------------
 
 module load apptainer
@@ -32,10 +33,19 @@ beam="${SLURM_ARRAY_TASK_ID}"
 printf -v beam2 "%02d" "${beam}"
 root="${DATA_ROOT}/${SBID}"
 glob="${PATTERN//\{beam:02d\}/$beam2}"
-if (( INDEX > 0 )); then
-    glob2="${glob/calB0/selfcal_${INDEX}}"
+if (( SELFCAL == 1 ))
+then
+    if (( INDEX > 0 )); then
+	glob2="${glob/calB0/selfcal_${INDEX}}"
+    else
+	glob2="${glob}"
+    fi
 else
-    glob2="${glob}"
+    if (( INDEX > 0 )); then
+	glob2="${glob/calB0/calG${INDEX}}"
+    else
+	glob2="${glob}"
+    fi
 fi
 search_glob="${root}/${glob2}"
 
@@ -59,11 +69,15 @@ if [[ ${#msnames[@]} -eq 0 ]]; then
   exit 0
 fi
 
-for ms in "${msnames[@]}"; do
-  echo "uvsub on: ${ms}"
-  apptainer exec --bind "${BIND_SRC}:${BIND_SRC}" "${FLINT_CASA_SIF}" \
-    python3 "${SCRIPT}" \
-      --ms "${ms}" \
-      --index "${INDEX}" \
-      --out-prefix "${OUT_PREFIX}" \
+for ms in "${msnames[@]}";
+do
+    echo "hi"
 done
+
+
+for ms in "${msnames[@]}"
+do
+    echo "uvsub on: ${ms}"
+    apptainer exec --bind "${BIND_SRC}:${BIND_SRC}" "${FLINT_CASA_SIF}" python3 "${SCRIPT}" --ms "${ms}" --index "${INDEX}" --out-prefix "${OUT_PREFIX}"
+done
+  

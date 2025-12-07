@@ -18,6 +18,7 @@ PATTERN=${PATTERN:-"*beam{beam:02d}*.avg.calB0.ms"}    # relative under data-roo
 CRYSTALBALL_ENV=${CRYSTALBALL_ENV:-/fred/oz451/azic/scripts/crystalball_env/}
 IMG_TAG=${IMG_TAG:-"initial"}
 INDEX=${INDEX:-0}
+SELFCAL=${SELFCAL:-1}
 
 # Crystalball runtime options (all optional; tune as needed)
 OUTPUT_COLUMN=${OUTPUT_COLUMN:-MODEL_DATA}          # crystalball -o
@@ -46,10 +47,19 @@ beam="${SLURM_ARRAY_TASK_ID}"
 printf -v beam2 "%02d" "${beam}"
 root="${DATA_ROOT}/${SBID}"
 glob="${PATTERN//\{beam:02d\}/$beam2}"
-if (( INDEX > 0 )); then
-    glob2="${glob/calB0/selfcal_${INDEX}}"
+if (( SELFCAL == 1 ))
+then
+    if (( INDEX > 0 )); then
+	glob2="${glob/calB0/selfcal_${INDEX}}"
+    else
+	glob2="${glob}"
+    fi
 else
-    glob2="${glob}"
+    if (( INDEX > 0 )); then
+	glob2="${glob/calB0/calG${INDEX}}"
+    else
+	glob2="${glob}"
+    fi
 fi
 search_glob="${root}/${glob2}"
 

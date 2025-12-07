@@ -4,6 +4,8 @@ import glob
 import os
 import sys
 import re
+from casatools import table
+from casatasks import applycal, split
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Run CASA applycal on MS files for specified beams (SBID-aware).")
@@ -15,6 +17,7 @@ def parse_args():
     parser.add_argument("--beams", default="all", help='Comma-separated list (e.g., "0,5,12") or "all" for 0..36')
     parser.add_argument("--extension", default="B0", help='Gain table extension (e.g. "B0", "G5" etc.) to specify which calibrationt table to apply for beams')
     parser.add_argument("--dry-run", action="store_true", help="List planned operations without running applycal")
+    parser.add_argument("--delete-previous", action="store_true", help="Delete previous generation ms split to save filesystem errors")
     return parser.parse_args()
 
 def ensure_casa_applycal() -> bool:
@@ -25,6 +28,20 @@ def ensure_casa_applycal() -> bool:
         print(f"ERROR: casatasks.applycal not available: {e}", file=sys.stderr)
         return False
 
+
+def _ms_nrows(ms_path: str) -> int:
+    """Return the number of rows in the main table of a Measurement Set."""
+    tb = table()
+    try:
+        tb.open(ms_path)
+        n = tb.nrows()
+    finally:
+        try:
+            tb.close()
+        except Exception:
+            pass
+    return int(n)
+    
 def find_ms_for_beam(data_root: str, sbid: str, pattern: str, beam: int) -> list:
     root = os.path.join(data_root, sbid)
     pat = os.path.join(root, pattern.format(beam=beam))
@@ -37,14 +54,64 @@ def find_caltable(data_root: str, sbid: str, cal_dir: str, beam: int, extension:
         raise FileNotFoundError(f"No cal table found in '{root}' for beam {beam:02d} matching '*beam{beam:02d}*.{extension}'")
     return matches[0]
 
-def run_applycal(msname: str, caltable: str, extension: str="B0"):
-    from casatasks import applycal, split
+def validate_and_clean_ms(msname: str, outputvis: str, delete_previous: bool=True) -> bool:
+    # Basic existence check
+    if not os.path.isdir(outputvis):
+        raise RuntimeError(f"Split did not produce output MS: {outputvis}")
+
+    # Validate row counts (must match)
+    old_rows = _ms_nrows(msname)
+    new_rows = _ms_nrows(outputvis)
+    print(f"Row count check: old={old_rows} new={new_rows}")
+
+    if new_rows != old_rows:
+        raise RuntimeError(
+            f"Row count mismatch after split: {msname} has {old_rows}, {outputvis} has {new_rows}"
+        )
+
+    # Optional additional size heuristic (can be enabled if desired)
+    # total_size_bytes = _dir_size_bytes(outputvis)  # implement if you want size checks
+
+    # Delete previous generation MS only after successful validation
+    if delete_previous:
+        try:
+            print(f"Removing previous MS: {msname}")
+            shutil.rmtree(msname)
+        except Exception as e:
+            # fail the whole task if deletion has filesystem hiccups
+            raise RuntimeError(f"ERROR: Failed to remove {msname}: {e}")
+
+    return True
+
+
+def run_applycal(msname: str, caltable: str, extension: str = "B0", delete_previous: bool = False) -> str:
+    """
+    Apply a calibration table to 'msname' and split the corrected data to a new MS
+    labeled with '.cal{extension}.ms'. If validation succeeds, delete the previous
+    generation MS ('msname') to control disk usage.
+
+    Returns:
+        The path to the newly created output MS.
+    """
     print(f"Applying cal: {caltable} -> {msname}")
-    # Interpolation list as per your example; adjust if you have multiple gaintables
-    applycal(vis=msname, gaintable=[caltable], interp=['nearest', 'linear'])
+    
+    time_interp = "nearest" if extension == "B0" else "linear"
+    freq_interp = "linear"
+    
+    applycal(vis=msname, gaintable=[caltable], interp=[time_interp, freq_interp])
     #replace e.g. .calG1.ms with .calG6
-    outputvis = re.sub(r'\.cal(?:B0|G\d+)\.ms', '.cal{extension}.ms', msname)
-    split(vis=msname, outputvis=outputvis, datacolumn="corrected")
+    if "cal" in msname:
+        outputvis = re.sub(r'\.cal(?:B0|G\d+)\.ms', f".cal{extension}.ms", msname)
+    else:
+        outputvis = msname.replace(".ms", f".cal{extension}.ms")
+    if outputvis == msname:
+        raise ValueError(f"Output measurement set name {outputvis} matches input {msname} ya nong.")
+    
+    split(vis=msname, outputvis=outputvis, datacolumn="corrected")    
+    success = validate_and_clean_ms(msname, outputvis, delete_previous=delete_previous)
+
+    print(f"Completed applycal+split: {outputvis}")
+    return outputvis
 
 def run_clearcal(msname: str):
     from casatasks import clearcal
@@ -75,7 +142,7 @@ def main():
             for msname in ms_list:
                 print(f"  MS: {msname}")
                 if not args.dry_run:
-                    run_applycal(msname, caltable)
+                    run_applycal(msname, caltable, extension=args.extension, delete_previous=args.delete_previous)
         except Exception as e:
             print(f"ERROR: Beam {beam:02d} failed: {e}", file=sys.stderr)
             exit_code = 2

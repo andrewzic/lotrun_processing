@@ -19,6 +19,7 @@ PATTERN=${PATTERN:-"*beam{beam:02d}*.avg.ms"}
 CAL_DIR=${CAL_DIR:-cal}
 EXTENSION=${EXTENSION:-"B0"}
 SCRIPT=${SCRIPT:-applycal_ms_beams.py}
+DELETE_PREVIOUS=${DELETE_PREVIOUS:-""} #set to --delete-previous if you want to delete previous gen
 # Apptainer CASA container (flint-containers_casa) default runner:
 CASA_SIF=${CASA_SIF:-/fred/oz451/azic/containers/flint-containers_casa.sif}
 BIND_SRC=${BIND_SRC:-/fred/oz451}
@@ -32,4 +33,4 @@ echo "SBID=$SBID DATA_ROOT=$DATA_ROOT CAL_DIR=$CAL_DIR BEAM=$SLURM_ARRAY_TASK_ID
 echo "Container: ${CASA_SIF}; Bind: ${BIND_SRC}"
 
 # Execute inside the CASA container
-$PYTHON "$SCRIPT" --sbid "$SBID" --data-root "$DATA_ROOT" --pattern "$PATTERN" --cal-dir "$CAL_DIR" --extension "${EXTENSION}" --beam "$SLURM_ARRAY_TASK_ID"
+$PYTHON "$SCRIPT" --sbid "$SBID" --data-root "$DATA_ROOT" --pattern "$PATTERN" --cal-dir "$CAL_DIR" --extension "${EXTENSION}" --beam "$SLURM_ARRAY_TASK_ID" ${DELETE_PREVIOUS:+--delete-previous}
