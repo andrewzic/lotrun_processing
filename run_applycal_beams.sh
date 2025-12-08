@@ -3,8 +3,8 @@
 #SBATCH --output=logs/applycal_%A_%a.out
 #SBATCH --error=logs/applycal_%A_%a.err
 #SBATCH --time=01:00:00
-#SBATCH --cpus-per-task=4
-#SBATCH --mem=4G
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=1G
 #SBATCH --array=0-36
 # Optional: #SBATCH --partition=standard
 
@@ -14,14 +14,14 @@ module load apptainer
 
 # -------- User-configurable via --export or edit defaults here --------
 SBID=${SBID:-SB77974}
-DATA_ROOT=${DATA_ROOT:-/fred/oz451/azic/data}
+DATA_ROOT=${DATA_ROOT:-/fred/oz451/${USER}/data}
 PATTERN=${PATTERN:-"*beam{beam:02d}*.avg.ms"}
 CAL_DIR=${CAL_DIR:-cal}
 EXTENSION=${EXTENSION:-"G6"}
 SCRIPT=${SCRIPT:-applycal_ms_beams.py}
 DELETE_PREVIOUS=${DELETE_PREVIOUS:-""} #set to --delete-previous if you want to delete previous gen
 # Apptainer CASA container (flint-containers_casa) default runner:
-CASA_SIF=${CASA_SIF:-/fred/oz451/azic/containers/flint-containers_casa.sif}
+CASA_SIF=${CASA_SIF:-/fred/oz451/${USER}/containers/flint-containers_casa.sif}
 BIND_SRC=${BIND_SRC:-/fred/oz451}
 PYTHON=${PYTHON:-apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CASA_SIF} python3}
 # ---------------------------------------------------------------------

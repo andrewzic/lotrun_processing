@@ -15,10 +15,10 @@ set -euo pipefail
 
 # -------------------- USER CONFIG --------------------
 SBID=${SBID:-SB77974}
-DATA_ROOT=${DATA_ROOT:-/fred/oz451/azic/data}
+DATA_ROOT=${DATA_ROOT:-/fred/oz451/${USER}/data}
 UVFITS_PATTERN=${UVFITS_PATTERN:-"20??*/*beam*.20????????????*.uvfits"}
 IMPORT_SCRIPT=${IMPORT_SCRIPT:-${PWD}/import_array.py}
-CONTAINER=${CONTAINER:-/fred/oz451/azic/containers/flint-containers_casa.sif}
+CONTAINER=${CONTAINER:-/fred/oz451/${USER}/containers/flint-containers_casa.sif}
 BIND_MOUNTS=${BIND_MOUNTS:-/fred/oz451:/fred/oz451}
 # -----------------------------------------------------
 

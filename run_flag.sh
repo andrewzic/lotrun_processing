@@ -17,9 +17,9 @@ set -euo pipefail
 # Path to the list of MS files (one per line)
 
 SBID=${SBID:-SB77974}
-DATA_ROOT=${DATA_ROOT:/fred/oz451/azic/data}
+DATA_ROOT=${DATA_ROOT:/fred/oz451/${USER}/data}
 PATTERN=${PATTERN:-"20??*/*beam*.20????????????*.ms"}   # relative under data-root/SBID
-SCRIPT_DIR=${SCRIPT_DIR:-/fred/oz451/azic/scripts/lotrun_processing}
+SCRIPT_DIR=${SCRIPT_DIR:-/fred/oz451/${USER}/scripts/lotrun_processing}
 # Path to flag.sh
 FLAG_SCRIPT=${FLAG_SCRIPT:-${SCRIPT_DIR}/flag.sh}
 
@@ -72,5 +72,5 @@ echo "script_dir: $script_dir"
 module load apptainer
 
 # Run the flagging
-apptainer exec --bind /fred/oz451:/fred/oz451 /fred/oz451/azic/containers/flint-containers_aoflagger.sif "$FLAG_SCRIPT" "$MSFILE" "$COLUMN" "${script_dir}"
+apptainer exec --bind /fred/oz451:/fred/oz451 /fred/oz451/${USER}/containers/flint-containers_aoflagger.sif "$FLAG_SCRIPT" "$MSFILE" "$COLUMN" "${script_dir}"
 

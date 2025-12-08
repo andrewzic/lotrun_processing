@@ -12,10 +12,10 @@ set -euo pipefail
 
 # -------- User-configurable via --export or edit defaults here --------
 SBID=${SBID:-SB77974}
-DATA_ROOT=${DATA_ROOT:-/fred/oz451/azic/data}
-OUT_ROOT=${OUT_ROOT:-/fred/oz451/azic/data}
+DATA_ROOT=${DATA_ROOT:-/fred/oz451/${USER}/data}
+OUT_ROOT=${OUT_ROOT:-/fred/oz451/${USER}/data}
 PATTERN=${PATTERN:-"20??*/*beam{beam:02d}*.20????????????.avg.ms"}   # relative under data-root/SBID
-PYTHON=${PYTHON:-'apptainer exec --bind /fred/oz451:/fred/oz451 /fred/oz451/azic/containers/flint-containers_casa.sif python3'}
+PYTHON=${PYTHON:-'apptainer exec --bind /fred/oz451:/fred/oz451 /fred/oz451/${USER}/containers/flint-containers_casa.sif python3'}
 SCRIPT=${SCRIPT:concat_ms_beams.py}
 # ---------------------------------------------------------------------
 

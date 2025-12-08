@@ -2,6 +2,7 @@
 import argparse
 import glob
 import os
+import shutil
 import sys
 import re
 from casatools import table
@@ -97,7 +98,7 @@ def run_applycal(msname: str, caltable: str, extension: str = "B0", delete_previ
     
     time_interp = "nearest" if extension == "B0" else "linear"
     freq_interp = "linear"
-    
+    print(f"applying caltable {caltable} to ms {msname}")    
     applycal(vis=msname, gaintable=[caltable], interp=[time_interp, freq_interp])
     #replace e.g. .calG1.ms with .calG6
     if "cal" in msname:
@@ -106,7 +107,11 @@ def run_applycal(msname: str, caltable: str, extension: str = "B0", delete_previ
         outputvis = msname.replace(".ms", f".cal{extension}.ms")
     if outputvis == msname:
         raise ValueError(f"Output measurement set name {outputvis} matches input {msname} ya nong.")
-    
+
+    if os.path.isdir(outputvis):
+        print(f"found existing copy of {outputvis}. removing prior to split")
+        shutil.rmtree(outputvis)
+    print(f"splitting corrected data from ms {msname} to {outputvis}")
     split(vis=msname, outputvis=outputvis, datacolumn="corrected")    
     success = validate_and_clean_ms(msname, outputvis, delete_previous=delete_previous)
 
@@ -140,7 +145,7 @@ def main():
             caltable = find_caltable(args.data_root, args.sbid, args.cal_dir, beam, extension=args.extension)
             print(f"Beam {beam:02d}: {len(ms_list)} MS found; using caltable: {caltable}")
             for msname in ms_list:
-                print(f"  MS: {msname}")
+                print(f"running applycal on  MS: {msname}")
                 if not args.dry_run:
                     run_applycal(msname, caltable, extension=args.extension, delete_previous=args.delete_previous)
         except Exception as e:

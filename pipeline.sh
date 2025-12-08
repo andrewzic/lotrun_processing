@@ -21,18 +21,18 @@ FLAG_SCRIPT=${FLAG_SCRIPT:-flag.sh}
 RUN_FLAG=${RUN_FLAG:-run_flag.sh}
 FLAG_CPUS=${FLAG_CPUS:-4}
 FLAG_MEM=${FLAG_MEM:-12G}
-SCRIPT_DIR=${SCRIPT_DIR:-/fred/oz451/azic/scripts/lotrun_processing}
+SCRIPT_DIR=${SCRIPT_DIR:-/fred/oz451/$USER/scripts/lotrun_processing}
 
 AVERAGE_SCRIPT=${AVERAGE_SCRIPT:-average_ms_beams.py}
-AVERAGE_PYTHON=${AVERAGE_PYTHON:-'apptainer exec --bind /fred/oz451:/fred/oz451 /fred/oz451/azic/containers/flint-containers_casa.sif python3'}
+AVERAGE_PYTHON=${AVERAGE_PYTHON:-'apptainer exec --bind /fred/oz451:/fred/oz451 /fred/oz451/$USER/containers/flint-containers_casa.sif python3'}
 TIMEBIN=${TIMEBIN:-"9.90s"}
 RUN_AVERAGE=${RUN_AVERAGE:-run_average.sh}
 AVERAGE_CPUS=${AVERAGE_CPUS:-4}
 AVERAGE_MEM=${AVERAGE_MEM:-12G}
 
-OUT_ROOT=${OUT_ROOT:-/fred/oz451/azic/data}
+OUT_ROOT=${OUT_ROOT:-/fred/oz451/$USER/data}
 PATTERN=${PATTERN:-"20??*/*beam{beam:02d}*.20????????????.avg.ms"}
-CONCAT_PYTHON=${CONCAT_PYTHON:-'apptainer exec --bind /fred/oz451:/fred/oz451 /fred/oz451/azic/containers/flint-containers_casa.sif python3'}
+CONCAT_PYTHON=${CONCAT_PYTHON:-'apptainer exec --bind /fred/oz451:/fred/oz451 /fred/oz451/$USER/containers/flint-containers_casa.sif python3'}
 CONCAT_SCRIPT=${CONCAT_SCRIPT:-concat_ms_beams.py}
 RUN_CONCAT=${RUN_CONCAT:-run_concat.sh}
 CONCAT_CPUS=${CONCAT_CPUS:-4}
@@ -46,6 +46,7 @@ RUN_SELFCAL=${RUN_SELFCAL:-run_selfcal_beams.sh}
 RUN_APPLYCAL=${RUN_APPLYCAL:-run_applycal_beams.sh}
 RUN_BANDPASS=${RUN_BANDPASS:-run_applycal_beams.sh}
 RUN_UVSUB=${RUN_UVSUB:-run_uvsub_beams.sh}
+RUN_FLINT_MASK=${RUN_FLINT_MASK:-run_flintmask_beams.sh}
 
 ARRAY_SPEC=${ARRAY_SPEC:-0-36}
 WSCLEAN_CPUS=${WSCLEAN_CPUS:-4}
@@ -54,6 +55,9 @@ CB_CPUS=${CB_CPUS:-8}
 CB_MEM=${CB_MEM:-24G}
 SC_CPUS=${SC_CPUS:-8}
 SC_MEM=${SC_MEM:-8G}
+FM_CPUS=${FM_CPUS:-1}
+FM_MEM=${FM_MEM:-1G}
+
 
 # Crystalball defaults
 CB_OUTPUT_COLUMN=${CB_OUTPUT_COLUMN:-MODEL_DATA}
@@ -61,6 +65,12 @@ CB_NUM_WORKERS=${CB_NUM_WORKERS:-8}
 CB_ROW_CHUNKS=${CB_ROW_CHUNKS:-0}
 CB_MODEL_CHUNKS=${CB_MODEL_CHUNKS:-0}
 CB_MEMORY_FRACTION=${CB_MEMORY_FRACTION:-0.8}
+
+#flint_masking defaults
+FLOOD_FILL_POSITIVE_SEED_CLIP=${FLOOD_FILL_POSITIVE_SEED_CLIP:-1.1}
+FLOOD_FILL_POSITIVE_FLOOD_CLIP=${FLOOD_FILL_POSITIVE_FLOOD_CLIP:-0.7}
+FLOOD_FILL_MAC_BOX_SIZE=${FLOOD_FILL_MAC_BOX_SIZE:-350}
+BEAM_SHAPE_ERODE_MIN_RESPONSE=${BEAM_SHAPE_ERODE_MIN_RESPONSE:-0.75}
 
 # CASA self-cal defaults
 SC_FIELD=${SC_FIELD:-""}
@@ -96,7 +106,7 @@ WSCLEAN_OPTS[6]="${WSCLEAN_OPTS6:-"-data-column DATA -save-source-list -multisca
 
 declare -a SC_INDEX=(1 2 3 4 5 6)
 declare -a SC_CALMODE=("p" "p" "p" "p" "ap" "ap")
-declare -a SC_SOLINT=("480s" "300s" "120s" "30s" "600s" "300s" )
+declare -a SC_SOLINT=("480s" "300s" "120s" "30s" "600s" "300s")
 declare -a SC_PREFIX=("selfcal1_p" "selfcal2_p" "selfcal3_p" "selfcal4_p" "selfcal5_ap" "selfcal6_ap" )
 
 # -------------------- HELPERS --------------------
@@ -132,11 +142,20 @@ submit_concat() {
 }
 
 submit_wsclean() {
-  local dep img_tag opts jid idx
-  dep="${1:-}"; img_tag="$2"; opts="$3"; idx="$4"
-  jid=$(sbatch --array="${ARRAY_SPEC}" --job-name=wsclean_ms --time=24:00:00 --cpus-per-task="${WSCLEAN_CPUS}" --mem="${WSCLEAN_MEM}" --output=logs/wsclean_%A_%a.out --error=logs/wsclean_%A_%a.err ${dep:+--dependency=afterok:$dep} --export=ALL,SBID="${SBID}",DATA_ROOT="${DATA_ROOT}",PATTERN="${PATTERN}",FLINT_WSCLEAN_SIF="${FLINT_WSCLEAN_SIF}",IMG_TAG="${img_tag}",INDEX="${idx}",BIND_SRC="${BIND_SRC}",WSCLEAN_OPTS="${opts}" "${RUN_WSCLEAN}" | awk '{print $4}')
+  local dep img_tag opts jid idx fits_mask_tag
+  dep="${1:-}"; img_tag="$2"; opts="$3"; idx="$4"; fits_mask_tag="${5:-}"
+  jid=$(sbatch --array="${ARRAY_SPEC}" --job-name=wsclean_ms --time=24:00:00 --cpus-per-task="${WSCLEAN_CPUS}" --mem="${WSCLEAN_MEM}" --output=logs/wsclean_%A_%a.out --error=logs/wsclean_%A_%a.err ${dep:+--dependency=afterok:$dep} --export=ALL,SBID="${SBID}",DATA_ROOT="${DATA_ROOT}",PATTERN="${PATTERN}",FLINT_WSCLEAN_SIF="${FLINT_WSCLEAN_SIF}",IMG_TAG="${img_tag}",INDEX="${idx}",BIND_SRC="${BIND_SRC}",WSCLEAN_OPTS="${opts}",FITS_MASK_TAG="${fits_mask_tag}" "${RUN_WSCLEAN}" | awk '{print $4}')
   echo "${jid}"
 }
+
+
+submit_flintmask() {
+    local dep img_tag jid idx selfcal_flag
+    dep="${1:-}"; img_tag="$2"; idx="$3"; selfcal_flag="$4";
+    jid=$(sbatch --array="${ARRAY_SPEC}" --job-name=flint_mask --time=00:30:00 --cpus-per-task="${FM_CPUS}" --mem="${FM_MEM}" --output=logs/flint_mask_%A_%a.out --error=logs/flint_mask_%A_%a.err ${dep:+--dependency=afterok:$dep} --export=ALL,SELFCAL="${selfcal_flag}",SBID="${SBID}",DATA_ROOT="${DATA_ROOT}",PATTERN="${PATTERN}",IMG_TAG="${img_tag}",INDEX="${idx}",FLOOD_FILL_POSITIVE_SEED_CLIP="${FLOOD_FILL_POSITIVE_SEED_CLIP}",FLOOD_FILL_POSITIVE_FLOOD_CLIP="${FLOOD_FILL_POSITIVE_FLOOD_CLIP}",FLOOD_FILL_MAC_BOX_SIZE="${FLOOD_FILL_MAC_BOX_SIZE}",BEAM_SHAPE_ERODE_MIN_RESPONSE="${BEAM_SHAPE_ERODE_MIN_RESPONSE}" "${RUN_FLINT_MASK}" | awk '{print $4}' )
+    echo "${jid}"
+}
+
 
 submit_crystalball() {
     local dep img_tag jid idx selfcal_flag
@@ -198,17 +217,26 @@ PATTERN="20??*/*beam{beam:02d}*.20????????????.avg.calB0.ms"    # relative under
 jid_fl2=$(submit_flag "${jid_av1}" )
 #7. run_concat_beams.sh (concat_ms_beams.py)
 jid_cat=$(submit_concat "${jid_fl2}" )
+
 PATTERN="*beam{beam:02d}*.avg.calB0.ms"
 echo ">>> Round 0: initial imaging -> predict -> self-cal"
-jid_img0=$(submit_wsclean "${jid_cat}" "${IMG_TAGS[0]}" "${WSCLEAN_OPTS[0]}" "$(( SC_INDEX[0]-1 ))")
+
+#initial image to generate mask
+jid_img_=$(submit_wsclean "${jid_cat}" "initial_scratch" "${WSCLEAN_OPTS[0]}" "$(( SC_INDEX[0]-1 ))")
 #jid_img0=""
-jid_cb0=$(submit_crystalball "${jid_img0}" "${IMG_TAGS[0]}" "$(( SC_INDEX[0]-1 ))" 1)
+jid_fm_=$(submit_flintmask "${jid_img_}" "initial_scratch" "$(( SC_INDEX[0]-1 ))" 1 )
+
+jid_img0=$(submit_wsclean "${jid_fm_}" "${IMG_TAGS[0]}" "${WSCLEAN_OPTS[0]}" "$(( SC_INDEX[0]-1 ))" "initial_scratch")
+jid_fm0=$(submit_flintmask "${jid_img0}" "${IMG_TAGS[0]}" "$(( SC_INDEX[1]-1 ))" 1 )
+
+jid_cb0=$(submit_crystalball "${jid_fm0}" "${IMG_TAGS[0]}" "$(( SC_INDEX[0]-1 ))" 1)
 #jid_cb0=""
 jid_sc1=$(submit_selfcal "${jid_cb0}" "${SC_INDEX[0]}" "${SC_CALMODE[0]}" "${SC_SOLINT[0]}" "${SC_PREFIX[0]}")
 #jid_sc1=""
 #after this step we should have a new measurement set called X.selfcal_1.ms
-jid_img1=$(submit_wsclean "${jid_sc1}" "${IMG_TAGS[1]}" "${WSCLEAN_OPTS[1]}" "$(( SC_INDEX[1]-1 ))")
-#jid_img1=""
+jid_img1=$(submit_wsclean "${jid_sc1}" "${IMG_TAGS[1]}" "${WSCLEAN_OPTS[1]}" "$(( SC_INDEX[1]-1 ))" "${IMG_TAGS[0]}")
+#jid_img1="
+jid_fm1=$(submit_flintmask "${jid_img1}" "${IMG_TAGS[1]}" "$(( SC_INDEX[1]-1 ))" 1 )
 
 echo ">>> Rounds 1..2..3: re-image deeper -> predict -> self-cal"
 # round 1 (phase-only, 60s)
@@ -216,34 +244,40 @@ jid_cb1=$(submit_crystalball "${jid_img1}" "${IMG_TAGS[1]}" "$(( SC_INDEX[1]-1 )
 #jid_cb1=""
 jid_sc2=$(submit_selfcal "${jid_cb1}" "${SC_INDEX[1]}" "${SC_CALMODE[1]}" "${SC_SOLINT[1]}" "${SC_PREFIX[1]}")
 #jid_sc2=""
-jid_img2=$(submit_wsclean "${jid_sc2}" "${IMG_TAGS[2]}" "${WSCLEAN_OPTS[2]}" "$(( SC_INDEX[2]-1 ))")
+jid_img2=$(submit_wsclean "${jid_sc2}" "${IMG_TAGS[2]}" "${WSCLEAN_OPTS[2]}" "$(( SC_INDEX[2]-1 ))" "${IMG_TAGS[1]}")
+jid_fm2=$(submit_flintmask "${jid_img2}" "${IMG_TAGS[2]}" "$(( SC_INDEX[2]-1 ))" 1 )
 #jid_img2=""
 #jid_cb1=""
 #jid_sc2=""
 
+
 # round 2 (phase-only, 30s)
-jid_cb2=$(submit_crystalball "${jid_img2}" "${IMG_TAGS[2]}" "$(( SC_INDEX[2]-1 ))" 1)
+jid_cb2=$(submit_crystalball "${jid_fm2}" "${IMG_TAGS[2]}" "$(( SC_INDEX[2]-1 ))" 1)
 jid_sc3=$(submit_selfcal "${jid_cb2}" "${SC_INDEX[2]}" "${SC_CALMODE[2]}" "${SC_SOLINT[2]}" "${SC_PREFIX[2]}")
-jid_img3=$(submit_wsclean "${jid_sc3}" "${IMG_TAGS[3]}" "${WSCLEAN_OPTS[3]}" "$(( SC_INDEX[3]-1 ))")
+jid_img3=$(submit_wsclean "${jid_sc3}" "${IMG_TAGS[3]}" "${WSCLEAN_OPTS[3]}" "$(( SC_INDEX[3]-1 ))" "${IMG_TAGS[2]}")
+jid_fm3=$(submit_flintmask "${jid_img3}" "${IMG_TAGS[3]}" "$(( SC_INDEX[3]-1 ))" 1 )
 
 # round 3 (phase-only, 30s)
-jid_cb3=$(submit_crystalball "${jid_img3}" "${IMG_TAGS[3]}" "$(( SC_INDEX[3]-1 ))" 1)
+jid_cb3=$(submit_crystalball "${jid_fm3}" "${IMG_TAGS[3]}" "$(( SC_INDEX[3]-1 ))" 1)
 jid_sc4=$(submit_selfcal "${jid_cb3}" "${SC_INDEX[3]}" "${SC_CALMODE[3]}" "${SC_SOLINT[3]}" "${SC_PREFIX[3]}")
-jid_img4=$(submit_wsclean "${jid_sc4}" "${IMG_TAGS[4]}" "${WSCLEAN_OPTS[4]}" "$(( SC_INDEX[4]-1 ))")
+jid_img4=$(submit_wsclean "${jid_sc4}" "${IMG_TAGS[4]}" "${WSCLEAN_OPTS[4]}" "$(( SC_INDEX[4]-1 ))" "${IMG_TAGS[3]}")
+jid_fm4=$(submit_flintmask "${jid_img4}" "${IMG_TAGS[4]}" "$(( SC_INDEX[4]-1 ))" 1 )
 
 #round 4 (amp+phase, 600s)
-jid_cb4=$(submit_crystalball "${jid_img4}" "${IMG_TAGS[4]}" "$(( SC_INDEX[4]-1 ))" 1)
+jid_cb4=$(submit_crystalball "${jid_fm4}" "${IMG_TAGS[4]}" "$(( SC_INDEX[4]-1 ))" 1)
 jid_sc5=$(submit_selfcal "${jid_cb4}" "${SC_INDEX[4]}" "${SC_CALMODE[4]}" "${SC_SOLINT[4]}" "${SC_PREFIX[4]}")
-jid_img5=$(submit_wsclean "${jid_sc5}" "${IMG_TAGS[5]}" "${WSCLEAN_OPTS[5]}" "$(( SC_INDEX[5]-1 ))")
+jid_img5=$(submit_wsclean "${jid_sc5}" "${IMG_TAGS[5]}" "${WSCLEAN_OPTS[5]}" "$(( SC_INDEX[5]-1 ))" "${IMG_TAGS[4]}")
+jid_fm5=$(submit_flintmask "${jid_img5}" "${IMG_TAGS[5]}" "$(( SC_INDEX[5]-1 ))" 1 )
 
 # #round 5 (amp+phase, 300s)
-jid_cb5=$(submit_crystalball "${jid_img5}" "${IMG_TAGS[5]}" "$(( SC_INDEX[5]-1 ))" 1)
+jid_cb5=$(submit_crystalball "${jid_fm5}" "${IMG_TAGS[5]}" "$(( SC_INDEX[5]-1 ))" 1)
 jid_sc6=$(submit_selfcal "${jid_cb5}" "${SC_INDEX[5]}" "${SC_CALMODE[5]}" "${SC_SOLINT[5]}" "${SC_PREFIX[5]}")
 #jid_sc6=""
 # re-image after A+P self-cal
-jid_img6=$(submit_wsclean "${jid_sc6}" "${IMG_TAGS[6]}" "${WSCLEAN_OPTS[6]}" "$(( SC_INDEX[5] ))")
+jid_img6=$(submit_wsclean "${jid_sc6}" "${IMG_TAGS[6]}" "${WSCLEAN_OPTS[6]}" "$(( SC_INDEX[5] ))" "${IMG_TAGS[5]}")
+jid_fm6=$(submit_flintmask "${jid_img6}" "${IMG_TAGS[6]}" "$(( SC_INDEX[5] ))" 1 )
 #final predict from latest source list
-jid_cb6=$(submit_crystalball "${jid_img6}" "${IMG_TAGS[6]}" "$(( SC_INDEX[5] ))" 1)
+jid_cb6=$(submit_crystalball "${jid_fm6}" "${IMG_TAGS[6]}" "$(( SC_INDEX[5] ))" 1)
 #jid_cb6=""
 #PATTERN=${PATTERN:-"*beam{beam:02d}*.avg.calG6.ms"}  # relative under data-root/SBID
 jid_sb7=$(submit_uvsub "${jid_cb6}" "${SC_INDEX[5]}" "${UVSUB_OUT_PREFIX}" "B0" "1" )
@@ -260,7 +294,6 @@ do
     if (( i > 1 ))
     then
 	dp="--delete-previous"
-
     else
 	dp=""
     fi

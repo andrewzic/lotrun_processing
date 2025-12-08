@@ -3,12 +3,12 @@ set -euo pipefail
 
 # -------------------- USER DEFAULTS (override via env or edit) --------------------
 SBID=${SBID:-SB77974}
-DATA_ROOT=${DATA_ROOT:-/fred/oz451/azic/data}
+DATA_ROOT=${DATA_ROOT:-/fred/oz451/${USER}/data}
 PATTERN=${PATTERN:-"*beam{beam:02d}*.avg.calB0.ms"}             # relative under DATA_ROOT/SBID
 BIND_SRC=${BIND_SRC:-/fred/oz451}
 
-FLINT_WSCLEAN_SIF=${FLINT_WSCLEAN_SIF:-/fred/oz451/azic/containers/flint-containers_wsclean.sif}
-FLINT_CASA_SIF=${FLINT_CASA_SIF:-/fred/oz451/azic/containers/flint-containers_casa.sif}
+FLINT_WSCLEAN_SIF=${FLINT_WSCLEAN_SIF:-/fred/oz451/${USER}/containers/flint-containers_wsclean.sif}
+FLINT_CASA_SIF=${FLINT_CASA_SIF:-/fred/oz451/${USER}/containers/flint-containers_casa.sif}
 
 RUN_WSCLEAN=${RUN_WSCLEAN:-run_wsclean_beams.sh}
 RUN_CB=${RUN_CB:-run_crystalball_beams.sh}
@@ -192,13 +192,14 @@ jid_ac_old=$jid_ac1
 PATTERN="20??*/*beam{beam:02d}*.20????????????.calB0.ms"    # relative under data-root/SBID
 for i in "${SC_INDEX[@]}";
 do
+    echo $i
     if (( i > 1 ))
     then
 	dp="--delete-previous"
-
     else
 	dp=""
     fi
+    echo $dp
     jid_ac=$(submit_applycal "${jid_ac_old}" "caltables" "G${i}" "${dp}")
     PATTERN="20??*/*beam{beam:02d}*.20????????????.calG${i}.ms"    # relative under data-root/SBID
     jid_ac_old=$jid_ac

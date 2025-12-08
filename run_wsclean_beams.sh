@@ -12,12 +12,13 @@ set -euo pipefail
 
 # -------------------- User-configurable via --export --------------------
 SBID=${SBID:-SB77974}
-DATA_ROOT=${DATA_ROOT:-/fred/oz451/azic/data}
+DATA_ROOT=${DATA_ROOT:-/fred/oz451/${USER}/data}
 PATTERN=${PATTERN:-"*beam{beam:02d}*.avg.calB0.ms"}   # relative under data-root/SBID
-FLINT_WSCLEAN_SIF=${FLINT_WSCLEAN_SIF:-/fred/oz451/azic/containers/flint-containers_wsclean.sif}
+FLINT_WSCLEAN_SIF=${FLINT_WSCLEAN_SIF:-/fred/oz451/${USER}/containers/flint-containers_wsclean.sif}
 BIND_SRC=${BIND_SRC:-/fred/oz451}
 # You can override WSCLEAN_OPTS to tune imaging parameters:
 WSCLEAN_OPTS=${WSCLEAN_OPTS:-"-save-source-list -multiscale -multiscale-scale-bias 0.8 -niter 100000 -pol xx -weight briggs 0.5 -scale 12asec -size 856 856 -auto-threshold 3 -auto-mask 8 -join-channels -channels-out 2 -fit-spectral-pol 1"}
+FITS_MASK_TAG=${FITS_MASK_TAG:-}
 IMG_TAG=${IMG_TAG:-"initial"}
 INDEX=${INDEX:-0}
 
@@ -56,6 +57,15 @@ fi
 # Run WSClean for each MS found for this beam
 for msname in "${msnames[@]}"; do
     outname="${msname%.ms}.${IMG_TAG}_img"
+    if [[ -n "${FITS_MASK_TAG}" ]]; then
+	FITS_MASK="${msname%.ms}.${FITS_MASK_TAG}_img-MFS-image.mask.fits"
+	WSCLEAN_OPTS="${WSCLEAN_OPTS} -fits-mask ${FITS_MASK}"
+    fi    
     echo "Running WSClean: MS=${msname} -> name=${outname}"
     apptainer exec --bind "${BIND_SRC}:${BIND_SRC}" "${FLINT_WSCLEAN_SIF}" wsclean -name "${outname}" ${WSCLEAN_OPTS} "${msname}"
+    rm -rf "${outname}*-00??-*.fits"
+    rm -rf "${outname}-MFS-dirty.fits"
+    rm -rf "${outname}-MFS-psf.fits"
+    rm -rf "${outname}-MFS-residual.fits"
+    rm -rf "${outname}-MFS-model.fits"
 done

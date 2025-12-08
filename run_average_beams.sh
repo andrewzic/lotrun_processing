@@ -17,12 +17,12 @@ set -euo pipefail
 # Path to the list of MS files (one per line)
 
 SBID=${SBID:-SB77974}
-DATA_ROOT=${DATA_ROOT:/fred/oz451/azic/data}
+DATA_ROOT=${DATA_ROOT:/fred/oz451/${USER}/data}
 PATTERN=${PATTERN:-"20??*/*beam*.20????????????.calB0.ms"}   # relative under data-root/SBID
-SCRIPT_DIR=${SCRIPT_DIR:-/fred/oz451/azic/scripts/lotrun_processing}
+SCRIPT_DIR=${SCRIPT_DIR:-/fred/oz451/${USER}/scripts/lotrun_processing}
 
 SCRIPT=${FLAG_SCRIPT:-${SCRIPT_DIR}/average_ms_beams.py}
-PYTHON=${PYTHON:-'apptainer exec --bind /fred/oz451:/fred/oz451 /fred/oz451/azic/containers/flint-containers_casa.sif python3'}
+PYTHON=${PYTHON:-'apptainer exec --bind /fred/oz451:/fred/oz451 /fred/oz451/${USER}/containers/flint-containers_casa.sif python3'}
 
 # Column to use in average ("DATA" default)
 TIMEBIN=${TIMEBIN:-"9.90s"}
