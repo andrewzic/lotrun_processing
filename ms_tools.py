@@ -3,6 +3,8 @@ import numpy as np
 from astropy.time import Time
 import astropy.units as u
 from typing import NamedTuple
+#import casaconfig
+#casaconfig.logfile = "/dev/null"
 
 class UniqueTimes(NamedTuple):
     """Structure to hold information about times from ms"""
@@ -34,7 +36,7 @@ def get_unique_times_from_ms(ms):
     tsamp = np.median(np.diff(times)).sec.item()
     return UniqueTimes(tsamp, nsub, times)
 
-def get_fast_imaging_intervals(ms, timestep):
+def get_fast_imaging_intervals(ms, timestep=None, verbose=False):
     """
     Get number of time-intervals from a measurement set for a given imaging timestep
     Convenience function for wsclean -intervals-out
@@ -53,14 +55,16 @@ def get_fast_imaging_intervals(ms, timestep):
     else:
         intervals_out = np.max([1, np.round(duration / timestep).astype(int)])
     real_timestep = duration / intervals_out
-    print(f"Got {intervals_out} intervals for {timestep} s")
-    print(f"Effective timestep is {real_timestep} s")
-
+    if verbose:
+        print(f"Got {intervals_out} intervals for {timestep} s")
+        print(f"Effective timestep is {real_timestep} s")
+    
     return intervals_out
 
 if __name__ == "__main__":
 
     import sys
     ms = sys.argv[1]
-    timestep = float(sys.argv[2])
-    intervals = get_fast_imaging_intervals(ms, timestep)
+    #timestep = float(sys.argv[2])
+    intervals = get_fast_imaging_intervals(ms)#, timestep)
+    print(intervals)

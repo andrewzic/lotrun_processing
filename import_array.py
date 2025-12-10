@@ -3,7 +3,10 @@
 import argparse
 import os
 import sys
+import shutil
 from casatasks import importuvfits
+import casaconfig
+casaconfig.logfile = "/dev/null"
 
 def main():
     parser = argparse.ArgumentParser(
@@ -23,6 +26,11 @@ def main():
         required=True,
         help="List of UVFITS files to process (space-separated)."
     )
+    parser.add_argument(
+        "--no-clobber",
+        action="store_true",
+        help="Do not clobber (overwrite) existing uvfits files"
+    )
 
     args = parser.parse_args()
     uvfitsfiles = sorted(args.files)
@@ -36,10 +44,14 @@ def main():
 
     msfile = uvfile.replace(".uvfits", ".ms")
 
-    if not os.path.exists(msfile):
-        importuvfits(fitsfile=uvfile, vis=msfile)
+    if os.path.exists(msfile):
+        if not args.no_clobber:
+            shutil.rmtree(msfile)
+            importuvfits(fitsfile=uvfile, vis=msfile)
+        else:
+            raise RuntimeError(f"no_clobber is set to {args.no_clobber} but {msfile} already exists")
     else:
-        print(f"MS already exists: {msfile}")
+        importuvfits(fitsfile=uvfile, vis=msfile)
 
 if __name__ == "__main__":
     main()

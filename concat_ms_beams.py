@@ -4,6 +4,8 @@ import glob
 import os
 import sys
 import re
+import casaconfig
+casaconfig.logfile = "/dev/null"
 
 def find_ms_files(data_root: str, sbid: str, beam: int, pattern: str) -> list:
     """

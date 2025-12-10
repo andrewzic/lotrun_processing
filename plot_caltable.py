@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+import casaconfig
+casaconfig.logfile = "/dev/null"
+
 def plot_solutions(caltable: str, figfile_base: str):
     """
     Plot calibration solutions using plotms (recommended in modern CASA).

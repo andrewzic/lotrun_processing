@@ -3,6 +3,8 @@ import argparse
 import os
 import sys
 from datetime import datetime
+import casaconfig
+casaconfig.logfile = "/dev/null"
 
 def parse_args():
     p = argparse.ArgumentParser(description="Phase-only self-calibration loop in CASA.")

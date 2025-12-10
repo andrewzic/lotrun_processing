@@ -2,9 +2,9 @@
 #SBATCH --job-name=importuvfits_array
 #SBATCH --output=logs/importuvfits_%A_%a.out
 #SBATCH --error=logs/importuvfits_%A_%a.err
-#SBATCH --time=04:00:00
-#SBATCH --cpus-per-task=4
-#SBATCH --mem=12G
+#SBATCH --time=00:10:00
+#SBATCH --cpus-per-task=2
+#SBATCH --mem=1G
 #SBATCH --array=0-500
 # Optional: set your partition/queue
 # #SBATCH --partition=standard
@@ -18,8 +18,9 @@ SBID=${SBID:-SB77974}
 DATA_ROOT=${DATA_ROOT:-/fred/oz451/${USER}/data}
 UVFITS_PATTERN=${UVFITS_PATTERN:-"20??*/*beam*.20????????????*.uvfits"}
 IMPORT_SCRIPT=${IMPORT_SCRIPT:-${PWD}/import_array.py}
-CONTAINER=${CONTAINER:-/fred/oz451/${USER}/containers/flint-containers_casa.sif}
-BIND_MOUNTS=${BIND_MOUNTS:-/fred/oz451:/fred/oz451}
+FLINT_CASA_SIF=${FLINT_CASA_SIF:-/fred/oz451/${USER}/containers/flint-containers_casa.sif}
+BIND_SRC=${BIND_SRC:-/fred/oz451}
+PYTHON=${PYTHON:-apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${FLINT_CASA_SIF} python3}
 # -----------------------------------------------------
 
 root="${DATA_ROOT}/${SBID}"
@@ -61,14 +62,6 @@ fi
 
 module load apptainer
 
-CMD=( python "${IMPORT_SCRIPT}" -i "${SLURM_ARRAY_TASK_ID}" -f "${uvfits[@]}" )
-
-if [[ -n "${CONTAINER}" ]]; then
-    echo "Running via Apptainer container: ${CONTAINER}"
-    apptainer exec --bind "${BIND_MOUNTS}" "${CONTAINER}" "${CMD[@]}"
-else
-    echo "Running via system Python (no container)"
-    "${CMD[@]}"
-fi
+$PYTHON "${IMPORT_SCRIPT}" -i "${SLURM_ARRAY_TASK_ID}" -f "${uvfits[@]}"
 
 echo "Job ${SLURM_JOB_ID}.${SLURM_ARRAY_TASK_ID} completed."

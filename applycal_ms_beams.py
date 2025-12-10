@@ -7,6 +7,8 @@ import sys
 import re
 from casatools import table
 from casatasks import applycal, split
+import casaconfig
+casaconfig.logfile = "/dev/null"
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Run CASA applycal on MS files for specified beams (SBID-aware).")
