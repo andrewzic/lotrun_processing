@@ -11,6 +11,7 @@ def parse_args():
     p = argparse.ArgumentParser(description="Phase-only self-calibration loop in CASA.")
     p.add_argument("--ms", required=True, help="Path to the measurement set.")
     p.add_argument("--timebin", default="9.90s", help="average time bin.")
+    return p.parse_args()    
 
 def find_ms_files(data_root: str, sbid: str, beam: int, pattern: str) -> list:
     """
@@ -64,18 +65,18 @@ def do_concat(msnames: list, output_path: str):
 def do_average(msname: str, outputvis: str, timebin: str='9.90s'):
     from casatasks import mstransform
     print(f"averaging {msname} -> {outputvis}")
-    mstransform(vis=msname, outputvis=new_msname, timeaverage=True, timebin=timebin, datacolumn='all')
+    mstransform(vis=msname, outputvis=outputvis, timeaverage=True, timebin=timebin, datacolumn='all')
     
 
 def main():
     args = parse_args()
-    ms = args.ms
+    msname = args.ms
     timebin = args.timebin
     if 'cal' in msname:
         new_msname = msname.replace('.cal', '.avg.cal')
     else:
         new_msname = msname.replace('.ms', '.avg.ms')    
-    do_average(ms, new_msname, timebin=timebin)
+    do_average(msname, new_msname, timebin=timebin)
 
 if __name__ == "__main__":
     main()

@@ -14,6 +14,7 @@ set -euo pipefail
 SBID=${SBID:-SB77974}
 DATA_ROOT=${DATA_ROOT:-/fred/oz451/${USER}/data}
 PATTERN=${PATTERN:-"*beam{beam:02d}*.avg.calB0.ms"}    # relative under data-root/SBID
+SOURCE_LIST_PATTERN=${SOURCE_LIST_PATTERN:-"*beam{beam:02d}*.avg.calB0.ms"}
 #BIND_SRC=${BIND_SRC:-/fred/oz451}
 CRYSTALBALL_ENV=${CRYSTALBALL_ENV:-/fred/oz451/${USER}/scripts/crystalball_env/}
 IMG_TAG=${IMG_TAG:-"initial"}
@@ -54,23 +55,34 @@ then
     else
 	glob2="${glob}"
     fi
+    #if in selfcal mode, match the source list to the measurement set
+    source_list_glob="${glob2}"
 else
     if (( INDEX > 0 )); then
 	glob2="${glob/calB0/calG${INDEX}}"
+	source_list_glob_="${SOURCE_LIST_PATTERN//\{beam:02d\}/$beam2}"
+	source_list_glob="${source_list_glob_/calB0/selfcal_${INDEX}}"
     else
 	glob2="${glob}"
+	source_list_glob="${SOURCE_LIST_PATTERN//\{beam:02d\}/$beam2}"	
     fi
 fi
 search_glob="${root}/${glob2}"
-
+source_list_search_glob="${root}/${source_list_glob}"
 # Discover MS files for this beam
 shopt -s nullglob
 msnames=( ${search_glob} )
 shopt -u nullglob
+shopt -s nullglob
+source_list_msnames=( ${source_list_search_glob} )
+shopt -u nullglob
+
+#assume there is only one source list relevant per beam
+source_list_msname=${source_list_msnames[0]}
 
 if [[ ${#msnames[@]} -eq 0 ]]; then
   echo "WARN: No MS found for SBID=$SBID beam=${beam2} using '${search_glob}'"
-  exit 0
+  exit 1
 fi
 
 # Build a reusable option string for crystalball
@@ -83,17 +95,31 @@ cb_opts=( "-o" "${OUTPUT_COLUMN}" "-j" "${NUM_WORKERS}" "-mf" "${MEMORY_FRACTION
 [[ "${NUM_BRIGHTEST_SOURCES}" -gt 0 ]] && cb_opts+=( "-ns" "${NUM_BRIGHTEST_SOURCES}" )
 
 for ms in "${msnames[@]}"; do
-  # Derive the WSClean source list path from the earlier -name "${ms%.ms}.img"
-  src_list="${ms%.ms}.${IMG_TAG}_img-sources.txt"
+    # Derive the WSClean source list path from the earlier -name "${ms%.ms}.img"
+    
+    # Discover MS files for this beam
+    shopt -s nullglob
+    msnames=( ${search_glob} )
+    shopt -u nullglob
+
+    if [[ ${#msnames[@]} -eq 0 ]]; then
+	echo "WARN: No MS found for SBID=$SBID beam=${beam2} using '${search_glob}'"
+	exit 1
+    fi
+    
+  src_list="${source_list_msname%.ms}.${IMG_TAG}_img-sources.txt"
   if [[ ! -f "${src_list}" ]]; then
-    echo "WARN: Source list not found for MS '${ms}': expected '${src_list}'"
-    continue
+      echo "WARN: Source list not found for MS '${ms}': expected '${src_list}'"
+      exit 1
+      #continue
   fi
   echo "Predicting model -> MS=${ms}"
   echo "Using source list: ${src_list}"
 
   # Execute crystalball CLI inside environment
-  ${CRYSTALBALL_ENV}/bin/crystalball "${ms}" -sm "${src_list}" "${cb_opts[@]}"  
+  echo "running:"
+  echo "${CRYSTALBALL_ENV}/bin/crystalball ${ms} -sm ${src_list} ${cb_opts[@]}"
+  ${CRYSTALBALL_ENV}/bin/crystalball ${ms} -sm ${src_list} ${cb_opts[@]}
   #apptainer exec --bind "${BIND_SRC}:${BIND_SRC}" "${CRYSTALBALL_SIF}" \
   #  crystalball "${ms}" -sm "${src_list}" "${cb_opts[@]}"
 done

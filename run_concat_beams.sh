@@ -14,9 +14,9 @@ set -euo pipefail
 SBID=${SBID:-SB77974}
 DATA_ROOT=${DATA_ROOT:-/fred/oz451/${USER}/data}
 OUT_ROOT=${OUT_ROOT:-/fred/oz451/${USER}/data}
-PATTERN=${PATTERN:-"20??*/*beam{beam:02d}*.20????????????.avg.ms"}   # relative under data-root/SBID
+PATTERN=${PATTERN:-"20??*/*beam{beam:02d}*.20????????????.avg.calB0.ms"}   # relative under data-root/SBID
 PYTHON=${PYTHON:-'apptainer exec --bind /fred/oz451:/fred/oz451 /fred/oz451/${USER}/containers/flint-containers_casa.sif python3'}
-SCRIPT=${SCRIPT:concat_ms_beams.py}
+SCRIPT=${SCRIPT:-concat_ms_beams.py}
 # ---------------------------------------------------------------------
 
 # Resolve the beam-specific glob by formatting {beam:02d}
@@ -29,6 +29,8 @@ mkdir -p logs
 
 echo "Job ${SLURM_JOB_ID}.${SLURM_ARRAY_TASK_ID} on $(hostname)"
 echo "SBID=$SBID DATA_ROOT=$DATA_ROOT OUT_ROOT=$OUT_ROOT BEAM=$SLURM_ARRAY_TASK_ID"
+
+module load apptainer
 
 # ------------------------- EXECUTION LINE -----------------------------
 $PYTHON "$SCRIPT" --sbid "$SBID" --data-root "$DATA_ROOT" --out-root "$OUT_ROOT" --pattern "${glob}" --beam "$SLURM_ARRAY_TASK_ID"

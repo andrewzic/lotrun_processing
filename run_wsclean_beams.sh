@@ -2,7 +2,7 @@
 #SBATCH --job-name=wsclean_ms
 #SBATCH --output=logs/wsclean_%A_%a.out
 #SBATCH --error=logs/wsclean_%A_%a.err
-#SBATCH --time=06:00:00
+#SBATCH --time=03:00:00
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=32G
 #SBATCH --array=0-36
@@ -51,21 +51,58 @@ shopt -u nullglob
 
 if [[ ${#msnames[@]} -eq 0 ]]; then
     echo "WARN: No MS found for SBID=$SBID beam=${beam2} using pattern '${search_glob}'"
-    exit 0
+    exit 1
 fi
 
+if [[ -n "${FITS_MASK_TAG}" ]]; then
+    
+    mask_glob="${PATTERN//\{beam:02d\}/$beam2}"
+    if (( INDEX > 1 )); then
+	mask_glob2="${mask_glob/calB0/selfcal_$((INDEX-1))}"
+    elif (( INDEX <= 1 )); then
+	mask_glob2="${mask_glob}"
+    fi
+    
+    mask_search_glob="${root}/${mask_glob2}"
+    echo "will search for fits mask using $mask_search_glob"
+    shopt -s nullglob
+    mask_msnames=( ${mask_search_glob} )
+    shopt -u nullglob
+    echo "found ${#mask_msnames[@]} masks"
+fi
 # Run WSClean for each MS found for this beam
-for msname in "${msnames[@]}"; do
+
+for i in "${!msnames[@]}"
+do
+    msname=${msnames[$i]}
+    echo "found msname=$msname"
+    if [[ -n "${FITS_MASK_TAG}" ]]; then    
+	mask_msname=${mask_msnames[$i]}
+	FITS_MASK="${mask_msname%.ms}.${FITS_MASK_TAG}_img-MFS-image.mask.fits"
+	echo "using $FITS_MASK as fits mask"
+	if [ ! -f ${FITS_MASK} ]; then
+	    echo "fits mask ${FITS_MASK} does not exist. exiting."
+	    exit 1
+	fi
+	NEW_WSCLEAN_OPTS="${WSCLEAN_OPTS} -fits-mask ${FITS_MASK}"
+    else
+	NEW_WSCLEAN_OPTS="${WSCLEAN_OPTS}"
+    fi
     outname="${msname%.ms}.${IMG_TAG}_img"
-    if [[ -n "${FITS_MASK_TAG}" ]]; then
-	FITS_MASK="${msname%.ms}.${FITS_MASK_TAG}_img-MFS-image.mask.fits"
-	WSCLEAN_OPTS="${WSCLEAN_OPTS} -fits-mask ${FITS_MASK}"
-    fi    
+    echo "outname is $outname"
     echo "Running WSClean: MS=${msname} -> name=${outname}"
-    apptainer exec --bind "${BIND_SRC}:${BIND_SRC}" "${FLINT_WSCLEAN_SIF}" wsclean -name "${outname}" ${WSCLEAN_OPTS} "${msname}"
-    rm -rf "${outname}*-00??-*.fits"
+    echo "apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${FLINT_WSCLEAN_SIF} wsclean -name ${outname} ${NEW_WSCLEAN_OPTS} ${msname}"
+    apptainer exec --bind "${BIND_SRC}:${BIND_SRC}" "${FLINT_WSCLEAN_SIF}" wsclean -name "${outname}" ${NEW_WSCLEAN_OPTS} "${msname}"
+    rm -rf "${outname}*-00*.fits"
     rm -rf "${outname}-MFS-dirty.fits"
     rm -rf "${outname}-MFS-psf.fits"
     rm -rf "${outname}-MFS-residual.fits"
-    rm -rf "${outname}-MFS-model.fits"
+    #rm -rf "${outname}-MFS-model.fits"
 done
+
+# for msname in "${msnames[@]}"; do
+
+	   
+#     fi    
+
+# done

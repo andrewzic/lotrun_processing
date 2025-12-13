@@ -25,7 +25,7 @@ FLAG_MEM=${FLAG_MEM:-12G}
 SCRIPT_DIR=${SCRIPT_DIR:-/fred/oz451/$USER/scripts/lotrun_processing}
 
 AVERAGE_SCRIPT=${AVERAGE_SCRIPT:-average_ms_beams.py}
-AVERAGE_PYTHON=${AVERAGE_PYTHON:-'apptainer exec --bind /fred/oz451:/fred/oz451 /fred/oz451/$USER/containers/flint-containers_casa.sif python3'}
+AVERAGE_PYTHON=${AVERAGE_PYTHON:-"apptainer exec --bind /fred/oz451:/fred/oz451 /fred/oz451/${USER}/containers/flint-containers_casa.sif python3"}
 TIMEBIN=${TIMEBIN:-"9.90s"}
 RUN_AVERAGE=${RUN_AVERAGE:-run_average_beams.sh}
 AVERAGE_CPUS=${AVERAGE_CPUS:-4}
@@ -33,7 +33,7 @@ AVERAGE_MEM=${AVERAGE_MEM:-4G}
 
 OUT_ROOT=${OUT_ROOT:-/fred/oz451/$USER/data}
 PATTERN=${PATTERN:-"20??*/*beam{beam:02d}*.20????????????.avg.ms"}
-CONCAT_PYTHON=${CONCAT_PYTHON:-'apptainer exec --bind /fred/oz451:/fred/oz451 /fred/oz451/$USER/containers/flint-containers_casa.sif python3'}
+CONCAT_PYTHON=${CONCAT_PYTHON:-"apptainer exec --bind /fred/oz451:/fred/oz451 /fred/oz451/$USER/containers/flint-containers_casa.sif python3"}
 CONCAT_SCRIPT=${CONCAT_SCRIPT:-concat_ms_beams.py}
 RUN_CONCAT=${RUN_CONCAT:-run_concat_beams.sh}
 CONCAT_CPUS=${CONCAT_CPUS:-4}
@@ -53,8 +53,6 @@ ARRAY_SPEC=${ARRAY_SPEC:-0-35}
 BIGARRAY_SPEC=${BIGARRAY_SPEC:-0-500}
 WSCLEAN_CPUS=${WSCLEAN_CPUS:-4}
 WSCLEAN_MEM=${WSCLEAN_MEM:-16G}
-CB_CPUS=${CB_CPUS:-8}
-CB_MEM=${CB_MEM:-12G}
 SC_CPUS=${SC_CPUS:-8}
 SC_MEM=${SC_MEM:-4G}
 FM_CPUS=${FM_CPUS:-1}
@@ -62,8 +60,11 @@ FM_MEM=${FM_MEM:-1G}
 
 
 # Crystalball defaults
+CB_TIME=${CB_TIME:-"03:15:00"}
+CB_CPUS=${CB_CPUS:-32}
+CB_MEM=${CB_MEM:-48G}
 CB_OUTPUT_COLUMN=${CB_OUTPUT_COLUMN:-MODEL_DATA}
-CB_NUM_WORKERS=${CB_NUM_WORKERS:-8}
+CB_NUM_WORKERS=${CB_NUM_WORKERS:-2048} #i have no clue why 2048 speeds up things despite only having 32 cpus but whtever
 CB_ROW_CHUNKS=${CB_ROW_CHUNKS:-0}
 CB_MODEL_CHUNKS=${CB_MODEL_CHUNKS:-0}
 CB_MEMORY_FRACTION=${CB_MEMORY_FRACTION:-0.8}
@@ -140,7 +141,7 @@ submit_flag() {
 submit_average() {
   local dep jid
   dep="${1:-}"
-  jid=$(sbatch --array="${ARRAY_SPEC}" --job-name=average_array --time=04:00:00 --cpus-per-task="${AVERAGE_CPUS}" --mem="${AVERAGE_MEM}" --output=logs/average_%A_%a.out --error=logs/average_%A_%a.err ${dep:+--dependency=afterok:${dep}} --export=ALL,SBID="${SBID}",DATA_ROOT="${DATA_ROOT}",PATTERN="${PATTERN}",SCRIPT_DIR="${SCRIPT_DIR}",SCRIPT="${AVERAGE_SCRIPT}",PYTHON="${AVERAGE_PYTHON}",TIMEBIN="${TIMEBIN}" "${RUN_AVERAGE}" | awk '{print $4}')
+  jid=$(sbatch --array="${BIGARRAY_SPEC}" --job-name=average_array --time=01:00:00 --cpus-per-task="${AVERAGE_CPUS}" --mem="${AVERAGE_MEM}" --output=logs/average_%A_%a.out --error=logs/average_%A_%a.err ${dep:+--dependency=afterok:${dep}} --export=ALL,SBID="${SBID}",DATA_ROOT="${DATA_ROOT}",PATTERN="${PATTERN}",SCRIPT_DIR="${SCRIPT_DIR}",SCRIPT="${AVERAGE_SCRIPT}",PYTHON="${AVERAGE_PYTHON}",TIMEBIN="${TIMEBIN}" "${RUN_AVERAGE}" | awk '{print $4}')
   echo "${jid}"
   if [ -z "${jid}" ]; then
     echo "sbatch not successful. exiting"
@@ -151,7 +152,7 @@ submit_average() {
 submit_concat() {
   local dep jid
   dep="${1:-}"
-  jid=$(sbatch --array="${ARRAY_SPEC}" --job-name=concat_ms --time=04:00:00 --cpus-per-task="${CONCAT_CPUS}" --mem="${CONCAT_MEM}" --output=logs/concat_%A_%a.out --error=logs/concat_%A_%a.err ${dep:+--dependency=afterok:${dep}} --export=ALL,SBID="${SBID}",DATA_ROOT="${DATA_ROOT}",OUT_ROOT="${OUT_ROOT}",PATTERN="${PATTERN}",PYTHON="${CONCAT_PYTHON}",SCRIPT="${CONCAT_SCRIPT}" "${RUN_CONCAT}" | awk '{print $4}')
+  jid=$(sbatch --array="${ARRAY_SPEC}" --job-name=concat_ms --time=01:00:00 --cpus-per-task="${CONCAT_CPUS}" --mem="${CONCAT_MEM}" --output=logs/concat_%A_%a.out --error=logs/concat_%A_%a.err ${dep:+--dependency=afterok:${dep}} --export=ALL,SBID="${SBID}",DATA_ROOT="${DATA_ROOT}",OUT_ROOT="${OUT_ROOT}",PATTERN="${PATTERN}",PYTHON="${CONCAT_PYTHON}",SCRIPT="${CONCAT_SCRIPT}" "${RUN_CONCAT}" | awk '{print $4}')
   echo "${jid}"
   if [ -z "${jid}" ]; then
     echo "sbatch not successful. exiting"
@@ -162,7 +163,7 @@ submit_concat() {
 submit_wsclean() {
   local dep img_tag opts jid idx fits_mask_tag
   dep="${1:-}"; img_tag="$2"; opts="$3"; idx="$4"; fits_mask_tag="${5:-}"
-  jid=$(sbatch --array="${ARRAY_SPEC}" --job-name=wsclean_ms --time=24:00:00 --cpus-per-task="${WSCLEAN_CPUS}" --mem="${WSCLEAN_MEM}" --output=logs/wsclean_%A_%a.out --error=logs/wsclean_%A_%a.err ${dep:+--dependency=afterok:${dep}} --export=ALL,SBID="${SBID}",DATA_ROOT="${DATA_ROOT}",PATTERN="${PATTERN}",FLINT_WSCLEAN_SIF="${FLINT_WSCLEAN_SIF}",IMG_TAG="${img_tag}",INDEX="${idx}",BIND_SRC="${BIND_SRC}",WSCLEAN_OPTS="${opts}",FITS_MASK_TAG="${fits_mask_tag}" "${RUN_WSCLEAN}" | awk '{print $4}')
+  jid=$(sbatch --array="${ARRAY_SPEC}" --job-name=wsclean_ms --time=04:00:00 --cpus-per-task="${WSCLEAN_CPUS}" --mem="${WSCLEAN_MEM}" --output=logs/wsclean_%A_%a.out --error=logs/wsclean_%A_%a.err ${dep:+--dependency=afterok:${dep}} --export=ALL,SBID="${SBID}",DATA_ROOT="${DATA_ROOT}",PATTERN="${PATTERN}",FLINT_WSCLEAN_SIF="${FLINT_WSCLEAN_SIF}",IMG_TAG="${img_tag}",INDEX="${idx}",BIND_SRC="${BIND_SRC}",WSCLEAN_OPTS="${opts}",FITS_MASK_TAG="${fits_mask_tag}" "${RUN_WSCLEAN}" | awk '{print $4}')
   echo "${jid}"
   if [ -z "${jid}" ]; then
     echo "sbatch not successful. exiting"
@@ -186,12 +187,12 @@ submit_flintmask() {
 submit_crystalball() {
     local dep img_tag jid idx selfcal_flag
     dep="${1:-}"; img_tag="$2"; idx="$3"; selfcal_flag="${4:-0}"
-    jid=$(sbatch --array="${ARRAY_SPEC}" --job-name=cb_predict --time=02:00:00 --cpus-per-task="${CB_CPUS}" --mem="${CB_MEM}" --output=logs/crystalball_%A_%a.out --error=logs/crystalball_%A_%a.err ${dep:+--dependency=afterok:${dep}} --export=ALL,SELFCAL="${selfcal_flag}",SBID="${SBID}",DATA_ROOT="${DATA_ROOT}",PATTERN="${PATTERN}",IMG_TAG="${img_tag}",OUTPUT_COLUMN="${CB_OUTPUT_COLUMN}",INDEX="${idx}",NUM_WORKERS="${CB_NUM_WORKERS}",ROW_CHUNKS="${CB_ROW_CHUNKS}",MODEL_CHUNKS="${CB_MODEL_CHUNKS}",MEMORY_FRACTION="${CB_MEMORY_FRACTION}" "${RUN_CB}" | awk '{print $4}')
+    jid=$(sbatch --array="${ARRAY_SPEC}" --job-name=cb_predict --time="${CB_TIME}" --cpus-per-task="${CB_CPUS}" --mem="${CB_MEM}" --output=logs/crystalball_%A_%a.out --error=logs/crystalball_%A_%a.err ${dep:+--dependency=afterok:${dep}} --export=ALL,SELFCAL="${selfcal_flag}",SBID="${SBID}",DATA_ROOT="${DATA_ROOT}",PATTERN="${PATTERN}",IMG_TAG="${img_tag}",OUTPUT_COLUMN="${CB_OUTPUT_COLUMN}",INDEX="${idx}",NUM_WORKERS="${CB_NUM_WORKERS}",ROW_CHUNKS="${CB_ROW_CHUNKS}",MODEL_CHUNKS="${CB_MODEL_CHUNKS}",MEMORY_FRACTION="${CB_MEMORY_FRACTION}" "${RUN_CB}" | awk '{print $4}')
     echo "${jid}"
-  if [ -z "${jid}" ]; then
-    echo "sbatch not successful. exiting"
-    exit
-  fi
+    if [ -z "${jid}" ]; then
+	echo "sbatch not successful. exiting"
+	exit
+    fi
 }
 
 
@@ -243,22 +244,22 @@ submit_uvsub() {
 
 # -------------------- PIPELINE EXECUTION --------------------
 mkdir -p logs plots
+n=$( ls -l ${DATA_ROOT}/${SBID}/202*/*.uvfits  | wc -l )
+BIGARRAY_SPEC="0-$((n-1))"
 ###
 #steps before selfcal, to add in here for automated processing
 #1. symlink uvfits
+####
 ./symlink_uvfits.sh "${SBID}"
-n=$( ls -l ${DATA_ROOT}/${SBID}/202*/*.uvfits  | wc -l )
-BIGARRAY_SPEC="0-$((n-1))"
+
 #2. import uvfits
 jid_imp=$(submit_importuvfits "" )
 echo "submitted importuvfits ${jid_imp}"
-#jid_imp=""
 
 #3. run_flag.sh on ms (flag.sh)
 PATTERN="20??*/*beam*.20????????????.ms"    # relative under data-root/SBID
 jid_fl1=$(submit_flag "${jid_imp}" )
 echo "submitted flag ${jid_fl1}"
-#jid_fl1=""
 
 PATTERN="20??*/*beam{beam:02d}*.20????????????.ms"    # relative under data-root/SBID
 #apply bandpass to the native res
@@ -269,6 +270,7 @@ echo "submitted bandpass ${jid_ac1}"
 PATTERN="20??*/*beam*.20????????????.calB0.ms"    # relative under data-root/SBID
 jid_fl2=$(submit_flag "${jid_ac1}" )
 echo "submitted flag ${jid_fl2}"
+####
 
 #6. run_average_beams.sh (average_ms_beams.py)
 jid_av1=$(submit_average "${jid_fl2}" )
@@ -278,32 +280,31 @@ PATTERN="20??*/*beam*.20????????????.avg.calB0.ms"    # relative under data-root
 jid_fl3=$(submit_flag "${jid_av1}" )
 echo "submitted flag ${jid_fl3}"
 
-PATTERN="20??*/*beam{beam:02d}*.20????????????.avg.ms"    # relative under data-root/SBID
+PATTERN="20??*/*beam{beam:02d}*.20????????????.avg.calB0.ms"    # relative under data-root/SBID
 #7. run_concat_beams.sh (concat_ms_beams.py)
 jid_cat=$(submit_concat "${jid_fl3}" )
 echo "submitted concat ${jid_cat}"
 
-PATTERN="*beam*.avg.calB0.ms"
+PATTERN="*beam{beam:02d}.avg.calB0.ms"
 echo ">>> Round 0: initial imaging -> predict -> self-cal"
 
 #initial image to generate mask
 jid_img_=$(submit_wsclean "${jid_cat}" "initial_scratch" "${WSCLEAN_OPTS[0]}" "$(( SC_INDEX[0]-1 ))")
 echo "submitted initial img ${jid_img_}"
-#jid_img0=""
 jid_fm_=$(submit_flintmask "${jid_img_}" "initial_scratch" "$(( SC_INDEX[0]-1 ))" 1 )
 echo "submitted initial mask ${jid_fm_}"
 
 jid_img0=$(submit_wsclean "${jid_fm_}" "${IMG_TAGS[0]}" "${WSCLEAN_OPTS[0]}" "$(( SC_INDEX[0]-1 ))" "initial_scratch")
 echo "submitted round 0 selfcal img ${jid_img0}"
-jid_fm0=$(submit_flintmask "${jid_img0}" "${IMG_TAGS[0]}" "$(( SC_INDEX[1]-1 ))" 1 )
+jid_fm0=$(submit_flintmask "${jid_img0}" "${IMG_TAGS[0]}" "$(( SC_INDEX[0]-1 ))" 1 )
 echo "submitted round 0 selfcal mask ${jid_fm0}"
 
 jid_cb0=$(submit_crystalball "${jid_fm0}" "${IMG_TAGS[0]}" "$(( SC_INDEX[0]-1 ))" 1)
 echo "submitted round 0 selfcal crystalball ${jid_cb0}"
-#jid_cb0=""
 jid_sc1=$(submit_selfcal "${jid_cb0}" "${SC_INDEX[0]}" "${SC_CALMODE[0]}" "${SC_SOLINT[0]}" "${SC_PREFIX[0]}")
 echo "submitted round 1 selfcal ${jid_sc1}"
-#jid_sc1=""
+
+jid_sc1=$jid_fm0
 #after this step we should have a new measurement set called X.selfcal_1.ms
 jid_img1=$(submit_wsclean "${jid_sc1}" "${IMG_TAGS[1]}" "${WSCLEAN_OPTS[1]}" "$(( SC_INDEX[1]-1 ))" "${IMG_TAGS[0]}")
 echo "submitted round 1 selfcal img ${jid_img1}"
@@ -315,18 +316,12 @@ echo "submitted round 1 selfcal mask ${jid_fm1}"
 # round 1 (phase-only, 60s)
 jid_cb1=$(submit_crystalball "${jid_img1}" "${IMG_TAGS[1]}" "$(( SC_INDEX[1]-1 ))" 1)
 echo "submitted round 1 selfcal crystalball ${jid_cb1}"
-#jid_cb1=""
 jid_sc2=$(submit_selfcal "${jid_cb1}" "${SC_INDEX[1]}" "${SC_CALMODE[1]}" "${SC_SOLINT[1]}" "${SC_PREFIX[1]}")
 echo "submitted round 2 selfcal ${jid_sc2}"
-#jid_sc2=""
 jid_img2=$(submit_wsclean "${jid_sc2}" "${IMG_TAGS[2]}" "${WSCLEAN_OPTS[2]}" "$(( SC_INDEX[2]-1 ))" "${IMG_TAGS[1]}")
 echo "submitted round 2 selfcal img ${jid_img2}"
 jid_fm2=$(submit_flintmask "${jid_img2}" "${IMG_TAGS[2]}" "$(( SC_INDEX[2]-1 ))" 1 )
 echo "submitted round 2 selfcal mask ${jid_fm2}"
-#jid_img2=""
-#jid_cb1=""
-#jid_sc2=""
-
 
 # round 2 (phase-only, 30s)
 jid_cb2=$(submit_crystalball "${jid_fm2}" "${IMG_TAGS[2]}" "$(( SC_INDEX[2]-1 ))" 1)
@@ -363,7 +358,6 @@ jid_cb5=$(submit_crystalball "${jid_fm5}" "${IMG_TAGS[5]}" "$(( SC_INDEX[5]-1 ))
 echo "submitted round 5 selfcal crystalball ${jid_cb5}"
 jid_sc6=$(submit_selfcal "${jid_cb5}" "${SC_INDEX[5]}" "${SC_CALMODE[5]}" "${SC_SOLINT[5]}" "${SC_PREFIX[5]}")
 echo "submitted round 6 selfcal ${jid_sc6}"
-#jid_sc6=""
 # re-image after A+P self-cal
 jid_img6=$(submit_wsclean "${jid_sc6}" "${IMG_TAGS[6]}" "${WSCLEAN_OPTS[6]}" "$(( SC_INDEX[5] ))" "${IMG_TAGS[5]}")
 echo "submitted round 6 selfcal img ${jid_img6}"
@@ -372,11 +366,9 @@ echo "submitted final selfcal mask ${jid_fm6}"
 #final predict from latest source list
 jid_cb6=$(submit_crystalball "${jid_fm6}" "${IMG_TAGS[6]}" "$(( SC_INDEX[5] ))" 1)
 echo "submitted round 6 selfcal crystalball ${jid_cb6}"
-#jid_cb6=""
 #PATTERN=${PATTERN:-"*beam{beam:02d}*.avg.calG6.ms"}  # relative under data-root/SBID
 jid_sb7=$(submit_uvsub "${jid_cb6}" "${SC_INDEX[5]}" "${UVSUB_OUT_PREFIX}" "B0" "1" )
 echo "submitted continuum uvsub ${jid_sb7}"
-#jid_sb7=""
 
 ###
 #now applycal selfcal onto highres visibilities, crystalball sky model, and uvsub
@@ -393,20 +385,19 @@ do
 	dp=""
     fi
     jid_ac=$(submit_applycal "${jid_ac_old}" "caltables" "G${i}" "${dp}")
-    echo "submitted craco applycal ${jid_ac}"    
+    echo "submitted craco applycal ${jid_ac}"
+    jid_ac_old=$jid_ac    
     PATTERN="20??*/*beam{beam:02d}*.20????????????.calG${i}.ms"    # relative under data-root/SBID
-    jid_ac_old=$jid_ac
 done
 
-#step 3: crystalball model from 2h continuyum beam onto native res beam
+echo $PATTERN
+#step : crystalball model from 2h continuyum beam onto native res beam
 jid_cb=$(submit_crystalball "${jid_ac_old}" "${IMG_TAGS[6]}" "$(( SC_INDEX[5] ))" "0" )
 echo "submitted craco crystalball ${jid_cb}"
 
-#step 4: uvsub
+#step : uvsub craco
 jid_uvs=$(submit_uvsub "${jid_cb}" "${SC_INDEX[5]}" "${UVSUB_OUT_PREFIX}" "G6" "0" )
 echo "submitted craco uvsub ${jid_uvs}"
 
 echo "Pipeline submitted."
-echo "Initial image JID: ${jid_img0}"
-echo "Final JID: ${jid_sb7}"
 

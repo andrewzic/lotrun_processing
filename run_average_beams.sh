@@ -5,7 +5,7 @@
 #SBATCH --time=04:00:00
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=12G
-#SBATCH --array=0-500 #usually about 350 craco ms per obs
+#SBATCH --array=0-323 #usually about 350 craco ms per obs
 # Optional: set your partition/queue
 # #SBATCH --partition=standard
 # Optional: limit concurrency to avoid filesystem contention
@@ -17,12 +17,13 @@ set -euo pipefail
 # Path to the list of MS files (one per line)
 
 SBID=${SBID:-SB77974}
-DATA_ROOT=${DATA_ROOT:/fred/oz451/${USER}/data}
+DATA_ROOT=${DATA_ROOT:-/fred/oz451/${USER}/data}
 PATTERN=${PATTERN:-"20??*/*beam*.20????????????.calB0.ms"}   # relative under data-root/SBID
-SCRIPT_DIR=${SCRIPT_DIR:-/fred/oz451/${USER}/scripts/lotrun_processing}
-
-SCRIPT=${FLAG_SCRIPT:-${SCRIPT_DIR}/average_ms_beams.py}
-PYTHON=${PYTHON:-'apptainer exec --bind /fred/oz451:/fred/oz451 /fred/oz451/${USER}/containers/flint-containers_casa.sif python3'}
+#SCRIPT_DIR=${SCRIPT_DIR:-/fred/oz451/${USER}/scripts/lotrun_processing}
+SCRIPT=${SCRIPT:-average_ms_beams.py}
+CASA_SIF=${CASA_SIF:-/fred/oz451/${USER}/containers/flint-containers_casa.sif}
+BIND_SRC=${BIND_SRC:-/fred/oz451}
+PYTHON=${PYTHON:-apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CASA_SIF} python3}
 
 # Column to use in average ("DATA" default)
 TIMEBIN=${TIMEBIN:-"9.90s"}
@@ -47,8 +48,8 @@ mkdir -p logs
 #     exit 1
 # fi
 
-if [[ ! -x "$FLAG_SCRIPT" ]]; then
-    echo "ERROR: FLAG_SCRIPT '$FLAG_SCRIPT' not found or not executable." >&2
+if [[ ! -f "$SCRIPT" ]]; then
+    echo "ERROR: SCRIPT '$SCRIPT' not found." >&2
     exit 1
 fi
 
@@ -69,5 +70,5 @@ echo "Averaging to time: $TIMEBIN"
 module load apptainer
 
 # Run the averaging
-$PYTHON "$SCRIPT" "$MSFILE" "${TIMEBIN}"
+$PYTHON "$SCRIPT" --ms "$MSFILE" --timebin "${TIMEBIN}"
 
