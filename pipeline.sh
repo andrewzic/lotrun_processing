@@ -48,6 +48,7 @@ RUN_APPLYCAL=${RUN_APPLYCAL:-run_applycal_beams.sh}
 RUN_BANDPASS=${RUN_BANDPASS:-run_applycal_beams.sh}
 RUN_UVSUB=${RUN_UVSUB:-run_uvsub_beams.sh}
 RUN_FLINT_MASK=${RUN_FLINT_MASK:-run_flintmask_beams.sh}
+RUN_CLEARCAL=${RUN_CLEARCAL:-run_clearcal_beams.sh}
 
 ARRAY_SPEC=${ARRAY_SPEC:-0-35}
 BIGARRAY_SPEC=${BIGARRAY_SPEC:-0-500}
@@ -62,7 +63,7 @@ FM_MEM=${FM_MEM:-1G}
 # Crystalball defaults
 CB_TIME=${CB_TIME:-"03:15:00"}
 CB_CPUS=${CB_CPUS:-32}
-CB_MEM=${CB_MEM:-48G}
+CB_MEM=${CB_MEM:-54G}
 CB_OUTPUT_COLUMN=${CB_OUTPUT_COLUMN:-MODEL_DATA}
 CB_NUM_WORKERS=${CB_NUM_WORKERS:-2048} #i have no clue why 2048 speeds up things despite only having 32 cpus but whtever
 CB_ROW_CHUNKS=${CB_ROW_CHUNKS:-0}
@@ -241,6 +242,17 @@ submit_uvsub() {
   fi
 }
 
+submit_clearcal() {
+  local dep extension jid
+  dep="${1:-}";  extension="$2"
+  jid=$(sbatch --array="${ARRAY_SPEC}" --job-name=clearcal_ms --time=02:00:00 --cpus-per-task="${SC_CPUS}" --mem="${SC_MEM}" --output=logs/clearcal_%A_%a.out --error=logs/clearcal_%A_%a.err ${dep:+--dependency=afterok:${dep}} --export=ALL,SBID="${SBID}",DATA_ROOT="${DATA_ROOT}",PATTERN="${PATTERN}",FLINT_CASA_SIF="${FLINT_CASA_SIF}",BIND_SRC="${BIND_SRC}",SCRIPT=clearcal_ms_beams.py,EXTENSION="${extension}" "${RUN_CLEARCAL}" | awk '{print $4}')
+  echo "${jid}"
+  if [ -z "${jid}" ]; then
+    echo "sbatch not successful. exiting"
+    exit
+  fi
+}
+
 
 # -------------------- PIPELINE EXECUTION --------------------
 mkdir -p logs plots
@@ -366,7 +378,8 @@ echo "submitted final selfcal mask ${jid_fm6}"
 #final predict from latest source list
 jid_cb6=$(submit_crystalball "${jid_fm6}" "${IMG_TAGS[6]}" "$(( SC_INDEX[5] ))" 1)
 echo "submitted round 6 selfcal crystalball ${jid_cb6}"
-#PATTERN=${PATTERN:-"*beam{beam:02d}*.avg.calG6.ms"}  # relative under data-root/SBID
+
+PATTERN=${PATTERN:-"*beam{beam:02d}*.avg.calG6.ms"}  # relative under data-root/SBID
 jid_sb7=$(submit_uvsub "${jid_cb6}" "${SC_INDEX[5]}" "${UVSUB_OUT_PREFIX}" "B0" "1" )
 echo "submitted continuum uvsub ${jid_sb7}"
 
@@ -384,12 +397,11 @@ do
     else
 	dp=""
     fi
-    jid_ac=$(submit_applycal "${jid_ac_old}" "caltables" "G${i}" "${dp}")
-    echo "submitted craco applycal ${jid_ac}"
+    #jid_ac=$(submit_applycal "${jid_ac_old}" "caltables" "G${i}" "${dp}")
+    #echo "submitted craco applycal ${jid_ac}"
     jid_ac_old=$jid_ac    
     PATTERN="20??*/*beam{beam:02d}*.20????????????.calG${i}.ms"    # relative under data-root/SBID
 done
-
 echo $PATTERN
 #step : crystalball model from 2h continuyum beam onto native res beam
 jid_cb=$(submit_crystalball "${jid_ac_old}" "${IMG_TAGS[6]}" "$(( SC_INDEX[5] ))" "0" )
