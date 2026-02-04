@@ -47,6 +47,7 @@ RUN_SELFCAL=${RUN_SELFCAL:-run_selfcal_beams.sh}
 RUN_APPLYCAL=${RUN_APPLYCAL:-run_applycal_beams.sh}
 RUN_BANDPASS=${RUN_BANDPASS:-run_applycal_beams.sh}
 RUN_UVSUB=${RUN_UVSUB:-run_uvsub_beams.sh}
+RUN_FASTDUCC=${RUN_FASTDUCC:-run_fastducc_beams.sh}
 RUN_FLINT_MASK=${RUN_FLINT_MASK:-run_flintmask_beams.sh}
 RUN_CLEARCAL=${RUN_CLEARCAL:-run_clearcal_beams.sh}
 
@@ -69,6 +70,14 @@ CB_NUM_WORKERS=${CB_NUM_WORKERS:-2048} #i have no clue why 2048 speeds up things
 CB_ROW_CHUNKS=${CB_ROW_CHUNKS:-0}
 CB_MODEL_CHUNKS=${CB_MODEL_CHUNKS:-0}
 CB_MEMORY_FRACTION=${CB_MEMORY_FRACTION:-0.8}
+
+# fastducc defaults
+FD_TIME=${FD_TIME:-"06:00:00"}
+FD_CPUS=${FD_CPUS:-1}
+FD_MEM=${FD_MEM:-32G}
+FD_OUTPUT_COLUMN=${FD_OUTPUT_COLUMN:-MODEL_DATA}
+
+
 
 #flint_masking defaults
 FLOOD_FILL_POSITIVE_SEED_CLIP=${FLOOD_FILL_POSITIVE_SEED_CLIP:-1.1}
@@ -243,9 +252,9 @@ submit_uvsub() {
 }
 
 submit_fastducc() {
-  local dep idx out_prefix ext jid selfcal_flag
+  local dep idx ext jid selfcal_flag
   dep="${1:-}"; idx="$2"; ext="$3"; selfcal_flag="$4";
-  jid=$(sbatch --array="${ARRAY_SPEC}" --job-name=fastducc_ms --time=02:00:00 --cpus-per-task="${SC_CPUS}" --mem="${SC_MEM}" --output=logs/fastducc_%A_%a.out --error=logs/fastducc_%A_%a.err ${dep:+--dependency=afterok:${dep}} --export=ALL,SELFCAL="${selfcal_flag}",SBID="${SBID}",DATA_ROOT="${DATA_ROOT}",PATTERN="${PATTERN}",FLINT_CASA_SIF="${FLINT_CASA_SIF}",BIND_SRC="${BIND_SRC}",SCRIPT=fastducc_ms_beams.py,INDEX="${idx}",EXTENSION="${ext}",OUT_PREFIX="${out_prefix}" "${RUN_FASTDUCC}" | awk '{print $4}')
+  jid=$(sbatch --array="${ARRAY_SPEC}" --job-name=fastducc_ms --time=06:00:00 --cpus-per-task="${FD_CPUS}" --mem="${FD_MEM}" --output=logs/fastducc_%A_%a.out --error=logs/fastducc_%A_%a.err ${dep:+--dependency=afterok:${dep}} --export=ALL,SELFCAL="${selfcal_flag}",SBID="${SBID}",DATA_ROOT="${DATA_ROOT}",PATTERN="${PATTERN}",BIND_SRC="${BIND_SRC}",INDEX="${idx}",EXTENSION="${ext}" "${RUN_FASTDUCC}" | awk '{print $4}')
   echo "${jid}"
   if [ -z "${jid}" ]; then
     echo "sbatch not successful. exiting"
@@ -278,123 +287,12 @@ BIGARRAY_SPEC="0-$((n-1))"
 ./symlink_uvfits.sh "${SBID}"
 
 #2. import uvfits
-jid_imp=$(submit_importuvfits "" )
-echo "submitted importuvfits ${jid_imp}"
+#jid_imp=$(submit_importuvfits "" )
 
-#3. run_flag.sh on ms (flag.sh)
-PATTERN="20??*/*beam*.20????????????.ms"    # relative under data-root/SBID
-jid_fl1=$(submit_flag "${jid_imp}" )
-echo "submitted flag ${jid_fl1}"
+#echo "submitted importuvfits ${jid_imp}"
 
-PATTERN="20??*/*beam{beam:02d}*.20????????????.ms"    # relative under data-root/SBID
-#apply bandpass to the native res
-jid_ac1=$(submit_bandpass "${jid_fl1}" "cal" "B0" "--delete-previous" )
-echo "submitted bandpass ${jid_ac1}"
 
-#now flag bandpass calibrated data
-PATTERN="20??*/*beam*.20????????????.calB0.ms"    # relative under data-root/SBID
-jid_fl2=$(submit_flag "${jid_ac1}" )
-echo "submitted flag ${jid_fl2}"
-####
-
-#6. run_average_beams.sh (average_ms_beams.py)
-jid_av1=$(submit_average "${jid_fl2}" )
-echo "submitted average ${jid_av1}"
-
-PATTERN="20??*/*beam*.20????????????.avg.calB0.ms"    # relative under data-root/SBID
-jid_fl3=$(submit_flag "${jid_av1}" )
-echo "submitted flag ${jid_fl3}"
-
-PATTERN="20??*/*beam{beam:02d}*.20????????????.avg.calB0.ms"    # relative under data-root/SBID
-#7. run_concat_beams.sh (concat_ms_beams.py)
-jid_cat=$(submit_concat "${jid_fl3}" )
-echo "submitted concat ${jid_cat}"
-
-PATTERN="*beam{beam:02d}.avg.calB0.ms"
-echo ">>> Round 0: initial imaging -> predict -> self-cal"
-
-#initial image to generate mask
-jid_img_=$(submit_wsclean "${jid_cat}" "initial_scratch" "${WSCLEAN_OPTS[0]}" "$(( SC_INDEX[0]-1 ))")
-echo "submitted initial img ${jid_img_}"
-jid_fm_=$(submit_flintmask "${jid_img_}" "initial_scratch" "$(( SC_INDEX[0]-1 ))" 1 )
-echo "submitted initial mask ${jid_fm_}"
-
-jid_img0=$(submit_wsclean "${jid_fm_}" "${IMG_TAGS[0]}" "${WSCLEAN_OPTS[0]}" "$(( SC_INDEX[0]-1 ))" "initial_scratch")
-echo "submitted round 0 selfcal img ${jid_img0}"
-jid_fm0=$(submit_flintmask "${jid_img0}" "${IMG_TAGS[0]}" "$(( SC_INDEX[0]-1 ))" 1 )
-echo "submitted round 0 selfcal mask ${jid_fm0}"
-
-jid_cb0=$(submit_crystalball "${jid_fm0}" "${IMG_TAGS[0]}" "$(( SC_INDEX[0]-1 ))" 1)
-echo "submitted round 0 selfcal crystalball ${jid_cb0}"
-jid_sc1=$(submit_selfcal "${jid_cb0}" "${SC_INDEX[0]}" "${SC_CALMODE[0]}" "${SC_SOLINT[0]}" "${SC_PREFIX[0]}")
-echo "submitted round 1 selfcal ${jid_sc1}"
-
-jid_sc1=$jid_fm0
-#after this step we should have a new measurement set called X.selfcal_1.ms
-jid_img1=$(submit_wsclean "${jid_sc1}" "${IMG_TAGS[1]}" "${WSCLEAN_OPTS[1]}" "$(( SC_INDEX[1]-1 ))" "${IMG_TAGS[0]}")
-echo "submitted round 1 selfcal img ${jid_img1}"
-#jid_img1="
-jid_fm1=$(submit_flintmask "${jid_img1}" "${IMG_TAGS[1]}" "$(( SC_INDEX[1]-1 ))" 1 )
-echo "submitted round 1 selfcal mask ${jid_fm1}"
-
-#echo ">>> Rounds 1..2..3: re-image deeper -> predict -> self-cal"
-# round 1 (phase-only, 60s)
-jid_cb1=$(submit_crystalball "${jid_img1}" "${IMG_TAGS[1]}" "$(( SC_INDEX[1]-1 ))" 1)
-echo "submitted round 1 selfcal crystalball ${jid_cb1}"
-jid_sc2=$(submit_selfcal "${jid_cb1}" "${SC_INDEX[1]}" "${SC_CALMODE[1]}" "${SC_SOLINT[1]}" "${SC_PREFIX[1]}")
-echo "submitted round 2 selfcal ${jid_sc2}"
-jid_img2=$(submit_wsclean "${jid_sc2}" "${IMG_TAGS[2]}" "${WSCLEAN_OPTS[2]}" "$(( SC_INDEX[2]-1 ))" "${IMG_TAGS[1]}")
-echo "submitted round 2 selfcal img ${jid_img2}"
-jid_fm2=$(submit_flintmask "${jid_img2}" "${IMG_TAGS[2]}" "$(( SC_INDEX[2]-1 ))" 1 )
-echo "submitted round 2 selfcal mask ${jid_fm2}"
-
-# round 2 (phase-only, 30s)
-jid_cb2=$(submit_crystalball "${jid_fm2}" "${IMG_TAGS[2]}" "$(( SC_INDEX[2]-1 ))" 1)
-echo "submitted round 2 selfcal crystalball ${jid_cb2}"
-jid_sc3=$(submit_selfcal "${jid_cb2}" "${SC_INDEX[2]}" "${SC_CALMODE[2]}" "${SC_SOLINT[2]}" "${SC_PREFIX[2]}")
-echo "submitted round 3 selfcal ${jid_sc3}"
-jid_img3=$(submit_wsclean "${jid_sc3}" "${IMG_TAGS[3]}" "${WSCLEAN_OPTS[3]}" "$(( SC_INDEX[3]-1 ))" "${IMG_TAGS[2]}")
-echo "submitted round 3 selfcal img ${jid_img3}"
-jid_fm3=$(submit_flintmask "${jid_img3}" "${IMG_TAGS[3]}" "$(( SC_INDEX[3]-1 ))" 1 )
-echo "submitted round 3 selfcal mask ${jid_fm3}"
-
-# round 3 (phase-only, 30s)
-jid_cb3=$(submit_crystalball "${jid_fm3}" "${IMG_TAGS[3]}" "$(( SC_INDEX[3]-1 ))" 1)
-echo "submitted round 3 selfcal crystalball ${jid_cb3}"
-jid_sc4=$(submit_selfcal "${jid_cb3}" "${SC_INDEX[3]}" "${SC_CALMODE[3]}" "${SC_SOLINT[3]}" "${SC_PREFIX[3]}")
-echo "submitted round 4 selfcal ${jid_sc4}"
-jid_img4=$(submit_wsclean "${jid_sc4}" "${IMG_TAGS[4]}" "${WSCLEAN_OPTS[4]}" "$(( SC_INDEX[4]-1 ))" "${IMG_TAGS[3]}")
-echo "submitted round 4 selfcal img ${jid_img4}"
-jid_fm4=$(submit_flintmask "${jid_img4}" "${IMG_TAGS[4]}" "$(( SC_INDEX[4]-1 ))" 1 )
-echo "submitted round 4 selfcal mask ${jid_fm4}"
-
-#round 4 (amp+phase, 600s)
-jid_cb4=$(submit_crystalball "${jid_fm4}" "${IMG_TAGS[4]}" "$(( SC_INDEX[4]-1 ))" 1)
-echo "submitted round 4 selfcal crystalball ${jid_cb4}"
-jid_sc5=$(submit_selfcal "${jid_cb4}" "${SC_INDEX[4]}" "${SC_CALMODE[4]}" "${SC_SOLINT[4]}" "${SC_PREFIX[4]}")
-echo "submitted round 5 selfcal ${jid_sc5}"
-jid_img5=$(submit_wsclean "${jid_sc5}" "${IMG_TAGS[5]}" "${WSCLEAN_OPTS[5]}" "$(( SC_INDEX[5]-1 ))" "${IMG_TAGS[4]}")
-echo "submitted round 5 selfcal img ${jid_img5}"
-jid_fm5=$(submit_flintmask "${jid_img5}" "${IMG_TAGS[5]}" "$(( SC_INDEX[5]-1 ))" 1 )
-echo "submitted round 5 selfcal mask ${jid_fm5}"
-
-# #round 5 (amp+phase, 300s)
-jid_cb5=$(submit_crystalball "${jid_fm5}" "${IMG_TAGS[5]}" "$(( SC_INDEX[5]-1 ))" 1)
-echo "submitted round 5 selfcal crystalball ${jid_cb5}"
-jid_sc6=$(submit_selfcal "${jid_cb5}" "${SC_INDEX[5]}" "${SC_CALMODE[5]}" "${SC_SOLINT[5]}" "${SC_PREFIX[5]}")
-echo "submitted round 6 selfcal ${jid_sc6}"
-# re-image after A+P self-cal
-jid_img6=$(submit_wsclean "${jid_sc6}" "${IMG_TAGS[6]}" "${WSCLEAN_OPTS[6]}" "$(( SC_INDEX[5] ))" "${IMG_TAGS[5]}")
-echo "submitted round 6 selfcal img ${jid_img6}"
-jid_fm6=$(submit_flintmask "${jid_img6}" "${IMG_TAGS[6]}" "$(( SC_INDEX[5] ))" 1 )
-echo "submitted final selfcal mask ${jid_fm6}"
-#final predict from latest source list
-jid_cb6=$(submit_crystalball "${jid_fm6}" "${IMG_TAGS[6]}" "$(( SC_INDEX[5] ))" 1)
-echo "submitted round 6 selfcal crystalball ${jid_cb6}"
-
-PATTERN=${PATTERN:-"*beam{beam:02d}*.avg.calG6.ms"}  # relative under data-root/SBID
-jid_sb7=$(submit_uvsub "${jid_cb6}" "${SC_INDEX[5]}" "${UVSUB_OUT_PREFIX}" "B0" "1" )
-echo "submitted continuum uvsub ${jid_sb7}"
+jid_sb7=""
 
 ###
 #now applycal selfcal onto highres visibilities, crystalball sky model, and uvsub
@@ -412,20 +310,22 @@ do
     fi
     #jid_ac=$(submit_applycal "${jid_ac_old}" "caltables" "G${i}" "${dp}")
     #echo "submitted craco applycal ${jid_ac}"
-    jid_ac_old=$jid_ac    
+    #jid_ac_old=$jid_ac    
     PATTERN="20??*/*beam{beam:02d}*.20????????????.calG${i}.ms"    # relative under data-root/SBID
 done
 echo $PATTERN
 #step : crystalball model from 2h continuyum beam onto native res beam
-jid_cb=$(submit_crystalball "${jid_ac_old}" "${IMG_TAGS[6]}" "$(( SC_INDEX[5] ))" "0" )
-echo "submitted craco crystalball ${jid_cb}"
+# jid_cb=$(submit_crystalball "${jid_ac_old}" "${IMG_TAGS[6]}" "$(( SC_INDEX[5] ))" "0" )
+# echo "submitted craco crystalball ${jid_cb}"
 
-#step : uvsub craco
-jid_uvs=$(submit_uvsub "${jid_cb}" "${SC_INDEX[5]}" "${UVSUB_OUT_PREFIX}" "G6" "0" )
-echo "submitted craco uvsub ${jid_uvs}"
+# #step : uvsub craco
+# jid_uvs=$(submit_uvsub "${jid_cb}" "${SC_INDEX[5]}" "${UVSUB_OUT_PREFIX}" "G6" "0" )
+# echo "submitted craco uvsub ${jid_uvs}"
+
+jid_uvs=""
 
 PATTERN="20??*/*beam{beam:02d}*.20????????????.calB0.uvsub.ms"    # relative under data-root/SBID
-
-jid_fastducc=$( submit_fastducc "${jid_uvs}" "${SC_INDEX[5]}" "${UVSUB_OUT_PREFIX}" "G6" "0" )
+#                               dep="${1:-}"; idx="$2"; ext="$3"; selfcal_flag="$4";
+jid_fastducc=$( submit_fastducc "${jid_uvs}" "${SC_INDEX[5]}" "G6" "0" )
 echo "Pipeline submitted."
 
