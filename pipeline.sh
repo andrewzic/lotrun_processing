@@ -41,6 +41,12 @@ CONCAT_MEM=${CONCAT_MEM:-16G}
 
 # -------------------------------------------------------
 
+RUN_FASTDUCC_AGG=${RUN_FASTDUCC_AGG:-run_fastducc_aggregate_chunks.sh}
+AGG_TIME=${AGG_TIME:-00:30:00}
+AGG_CPUS=${AGG_CPUS:-1}
+AGG_MEM=${AGG_MEM:-2G}
+CHUNK_GLOB=${CHUNK_GLOB:-202?*}
+
 RUN_WSCLEAN=${RUN_WSCLEAN:-run_wsclean_beams.sh}
 RUN_CB=${RUN_CB:-run_crystalball_beams.sh}
 RUN_SELFCAL=${RUN_SELFCAL:-run_selfcal_beams.sh}
@@ -58,7 +64,12 @@ SC_CPUS=${SC_CPUS:-8}
 SC_MEM=${SC_MEM:-4G}
 FM_CPUS=${FM_CPUS:-1}
 FM_MEM=${FM_MEM:-1G}
-
+n_chunks=$( ls -d ${DATA_ROOT}/${SBID}/${CHUNK_GLOB} 2>/dev/null | wc -l )
+if (( n_chunks > 0 )); then
+  CHUNK_ARRAY_SPEC="0-$((n_chunks-1))"
+else
+  CHUNK_ARRAY_SPEC="0-0"
+fi
 
 # Crystalball defaults
 CB_TIME=${CB_TIME:-"03:15:00"}
@@ -84,6 +95,7 @@ SC_COMBINE=${SC_COMBINE:-scan}
 SC_MINSNR=${SC_MINSNR:-3.0}
 SC_PARANG=${SC_PARANG:-""}          # set non-empty to enable
 SC_APPLY_CALWT=${SC_APPLY_CALWT:-False} #was True
+
 
 # -------------------- PIPELINE CONFIG (round-specific params) --------------------
 
@@ -250,6 +262,20 @@ submit_fastducc() {
   if [ -z "${jid}" ]; then
     echo "sbatch not successful. exiting"
     exit
+  fi
+}
+
+
+submit_fastducc_aggregate_chunks() {
+  local dep jid
+  dep="${1:-}"
+
+  jid=$( sbatch --array="${CHUNK_ARRAY_SPEC}" --job-name=fastducc_agg --time="${AGG_TIME}" --cpus-per-task="${AGG_CPUS}" --mem="${AGG_MEM}" --output=logs/fastducc_agg_%A_%a.out --error=logs/fastducc_agg_%A_%a.err ${dep:+--dependency=afterok:${dep}} --export=ALL,SBID="${SBID}",DATA_ROOT="${DATA_ROOT}",CHUNK_GLOB="${CHUNK_GLOB}" "${RUN_FASTDUCC_AGG}" | awk '{print $4}'  )
+
+  echo "${jid}"
+  if [[ -z "${jid}" ]]; then
+    echo "sbatch not successful. exiting"
+    exit 1
   fi
 }
 
@@ -425,7 +451,10 @@ jid_uvs=$(submit_uvsub "${jid_cb}" "${SC_INDEX[5]}" "${UVSUB_OUT_PREFIX}" "G6" "
 echo "submitted craco uvsub ${jid_uvs}"
 
 PATTERN="20??*/*beam{beam:02d}*.20????????????.calB0.uvsub.ms"    # relative under data-root/SBID
-
 jid_fastducc=$( submit_fastducc "${jid_uvs}" "${SC_INDEX[5]}" "${UVSUB_OUT_PREFIX}" "G6" "0" )
+
+jid_agg=$( submit_fastducc_aggregate_chunks "${jid_fastducc}" )
+echo "submitted fastducc aggregate chunks ${jid_agg}"
+
 echo "Pipeline submitted."
 
