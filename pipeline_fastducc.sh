@@ -43,6 +43,7 @@ CONCAT_MEM=${CONCAT_MEM:-16G}
 
 
 RUN_FASTDUCC_AGG=${RUN_FASTDUCC_AGG:-run_fastducc_aggregate_chunks.sh}
+RUN_FASTDUCC_OBSAGG=${RUN_FASTDUCC_OBSAGG:-run_fastducc_aggregate_obs.sh}
 AGG_TIME=${AGG_TIME:-00:30:00}
 AGG_CPUS=${AGG_CPUS:-1}
 AGG_MEM=${AGG_MEM:-2G}
@@ -292,6 +293,21 @@ submit_fastducc_aggregate_chunks() {
 
 
 
+submit_fastducc_aggregate_obs() {
+  local dep jid
+  dep="${1:-}"
+
+  jid=$( sbatch  --job-name=fastducc_agg --time="${AGG_TIME}" --cpus-per-task="${AGG_CPUS}" --mem="${AGG_MEM}" --output=logs/fastducc_obsagg_%A_%a.out --error=logs/fastducc_obsagg_%A_%a.err ${dep:+--dependency=afterok:${dep}} --export=ALL,SBID="${SBID}",DATA_ROOT="${DATA_ROOT}" "${RUN_FASTDUCC_OBS}" | awk '{print $4}'  )
+
+  echo "${jid}"
+  if [[ -z "${jid}" ]]; then
+    echo "sbatch not successful. exiting"
+    exit 1
+  fi
+}
+
+
+
 submit_clearcal() {
   local dep extension jid
   dep="${1:-}";  extension="$2"
@@ -354,10 +370,15 @@ jid_uvs=""
 
 PATTERN="20??*/*beam{beam:02d}*.20????????????.calB0.uvsub.ms"    # relative under data-root/SBID
 #                               dep="${1:-}"; idx="$2"; ext="$3"; selfcal_flag="$4";
-jid_fastducc=$( submit_fastducc "${jid_uvs}" "${SC_INDEX[5]}" "G6" "0" )
+# jid_fastducc=$( submit_fastducc "${jid_uvs}" "${SC_INDEX[5]}" "G6" "0" )
+
+jid_fastducc=""
 
 jid_agg=$( submit_fastducc_aggregate_chunks "${jid_fastducc}" )
 echo "submitted fastducc aggregate chunks ${jid_agg}"
+
+jid_obs=$( submit_fastducc_aggregate_obs "${jid_agg}" )
+echo "submitted fastducc aggregate chunks ${jid_obs}"
 
 echo "Pipeline submitted."
 
