@@ -294,7 +294,7 @@ submit_fastducc_aggregate_obs() {
   local dep jid
   dep="${1:-}"
 
-  jid=$( sbatch  --job-name=fastducc_agg --time="${AGG_TIME}" --cpus-per-task="${AGG_CPUS}" --mem="${AGG_MEM}" --output=logs/fastducc_obsagg_%A_%a.out --error=logs/fastducc_obsagg_%A_%a.err ${dep:+--dependency=afterok:${dep}} --export=ALL,SBID="${SBID}",DATA_ROOT="${DATA_ROOT}" "${RUN_FASTDUCC_OBSAGG}" | awk '{print $4}'  )
+  jid=$( sbatch  --job-name=fastducc_obsagg --time="${AGG_TIME}" --cpus-per-task="${AGG_CPUS}" --mem="${AGG_MEM}" --output=logs/fastducc_obsagg_%A_%a.out --error=logs/fastducc_obsagg_%A_%a.err ${dep:+--dependency=afterok:${dep}} --export=ALL,SBID="${SBID}",DATA_ROOT="${DATA_ROOT}" "${RUN_FASTDUCC_OBSAGG}" | awk '{print $4}'  )
 
   echo "${jid}"
   if [[ -z "${jid}" ]]; then
