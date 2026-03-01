@@ -68,13 +68,10 @@ except Exception:
     SLURMCluster = None
 
 # Optional Astropy for strict beam mapping
-try:
-    from astropy.table import Table
-    import astropy.units as u
-    from astropy.coordinates import SkyCoord
-except Exception:
-    Table = None
-    SkyCoord = None
+
+from astropy.table import Table
+import astropy.units as u
+from astropy.coordinates import SkyCoord
 
 @dataclass
 class ExtractTask:
@@ -173,10 +170,12 @@ def split_list(s: str) -> List[str]:
 def load_obs_catalogue(vot_path: Path, min_snr: Optional[float] = None, only_source_id: str = '') -> List[Dict[str, str]]:
     """Load obs-level super-summary from VOTable and return normalized rows.
     Expected columns (best-effort):
-      source_id, srcname, ra_deg, dec_deg, max_snr, scan_ids or scan_ids_all, beams_all
+      source_id, srcname, ra_deg, dec_deg, max_snr,
+        scan_ids or scan_ids_all, beams_all,
+        max_snr_beam, and optionally max_snr_time_center (boxcar)
     """
     t = Table.read(vot_path, format='votable')
-    rows: List[Dict[str, str]] = []
+    rows: List[Dict[str, str | List[str]]] = []
     # Column fallbacks
     col_sid = 'source_id' if 'source_id' in t.colnames else None
     col_name = 'srcname' if 'srcname' in t.colnames else None
@@ -185,6 +184,10 @@ def load_obs_catalogue(vot_path: Path, min_snr: Optional[float] = None, only_sou
     col_snr = 'max_snr' if 'max_snr' in t.colnames else None
     col_scans = 'scan_ids' if 'scan_ids' in t.colnames else ('scan_ids_all' if 'scan_ids_all' in t.colnames else None)
     col_beams = 'beams_all' if 'beams_all' in t.colnames else None
+    col_max_beam = 'max_snr_beam' if 'max_snr_beam' in t.colnames else None
+    col_max_time = 'max_snr_time_center' if 'max_snr_time_center' in t.colnames else None
+
+
 
     if not (col_sid and col_ra and col_dec and col_scans):
         raise ValueError('VOTable missing required columns (need at least source_id, ra_deg, dec_deg, scan_ids[_all])')
@@ -205,6 +208,13 @@ def load_obs_catalogue(vot_path: Path, min_snr: Optional[float] = None, only_sou
                 continue
             scan_ids = split_list(scans)
             beams_all = split_list(beams)
+            max_beam = (str(r[col_max_beam]).strip() if col_max_beam else '')
+            max_beam = max_beam.split(',')[0].split()[0] if max_beam else ''
+            if col_max_time:
+                try:
+                    max_time = float(r[col_max_time])
+                except Exception:
+                    max_time = None
             if not scan_ids:
                 continue
             rows.append({
@@ -214,6 +224,8 @@ def load_obs_catalogue(vot_path: Path, min_snr: Optional[float] = None, only_sou
                 'dec_deg': f"{dec:.9f}",
                 'scan_ids': scan_ids,
                 'beams_all': beams_all,
+                'max_snr_beam': max_beam,
+                'max_snr_time_center': max_time,
             })
         except Exception as e:
             print(f"[WARN] Skipping VOT row due to parse error: {e}")
@@ -390,15 +402,19 @@ def build_tasks(
         ra = float(row['ra_deg']); dec = float(row['dec_deg'])
         scan_ids = row['scan_ids']
         union_beams = row['beams_all']
+        max_beam = str(row.get('max_snr_beam', '') or '').strip()
         for sc in scan_ids:
             scan_dir = sbid_dir / sc
             if not scan_dir.is_dir():
                 print(f"[WARN] Missing scan dir: {scan_dir}")
                 continue
-            if beam_scope == 'strict':
-                beams = per_scan_beams_strict(sbid_dir, sc, ra, dec, kind, match_arcsec) or set(union_beams)
+            if max_beam:
+                beams = {max_beam}
             else:
-                beams = set(union_beams)
+                if beam_scope == 'strict':
+                    beams = per_scan_beams_strict(sbid_dir, sc, ra, dec, kind, match_arcsec) or set(union_beams)
+                else:
+                    beams = set(union_beams)
             for b in sorted(beams):
                 ms_list = find_ms_for_scan_beam(scan_dir, b, ms_glob_template)
                 if not ms_list:
