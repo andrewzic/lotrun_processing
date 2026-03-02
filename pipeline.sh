@@ -211,11 +211,20 @@ sbatch_submit() {
     export_str=""
   fi
 
-  local cmd=( sbatch --job-name="$name" --time="$time" --cpus-per-task="$cpus" --mem="$mem"
-              --output="logs/${name}_%A_%a.out" --error="logs/${name}_%A_%a.err"
-              --export=ALL${export_str:+,${export_str}} "$wrapper" )
-  [[ -n "$array" ]] && cmd=( "${cmd[@]:0:1}" "${cmd[@]:1}" --array="$array" )
-  [[ -n "$dep"   ]] && cmd=( "${cmd[@]:0:1}" "${cmd[@]:1}" --dependency="afterok:${dep}" )
+  # Assemble options then append wrapper
+  local -a cmd=( sbatch
+    --job-name="$name"
+    --time="$time"
+    --cpus-per-task="$cpus"
+    --mem="$mem"
+    --output="logs/${name}_%A_%a.out"
+    --error="logs/${name}_%A_%a.err"
+  )
+
+  [[ -n "$array" ]] && cmd+=( --array="$array" )
+  [[ -n "$dep"   ]] && cmd+=( --dependency="afterok:${dep}" )
+  cmd+=( "$export_str" "$wrapper" )
+
 
   if [[ "${DRY_RUN:-0}" == "1" ]]; then
       # Print the would-be command (to stderr so the caller can still capture JID from stdout)
