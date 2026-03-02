@@ -99,6 +99,9 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     # Beam mapping mode
     p.add_argument('--beam-scope', choices=['union','strict'], default='union',
                    help="Use obs-level union beams (union) or derive per-scan beams by matching per-scan super-summary VOTs (strict)")
+    
+    p.add_argument('--scan-scope', choices=['catalogue','all'], default='catalogue',
+                   help="Which scans to consider per candidate: those listed in the catalogue ('catalogue') or all scans found on disk under the SBID ('all').")
     p.add_argument('--match-arcsec', type=float, default=35.0, help='Sky match radius when --beam-scope=strict')
 
     # File discovery & outputs
@@ -241,6 +244,20 @@ def discover_catalogue(sbid_dir: Path, sbid: str, kind: str) -> Path:
     if not pats:
         raise FileNotFoundError(f"No VOTable found under {cand_dir} for kind={kind}")
     return pats[0]
+
+def discover_all_scans(sbid_dir: Path) -> list[str]:
+    """
+    Discover scan IDs under <SBID> using glob only.
+    Matches immediate subdirectories whose names are exactly 14 digits,
+    e.g. /.../SB77974/20251015072402
+    """
+    # Build a 14-digit glob: '[0-9]' repeated 14 times
+    pattern = ''.join(['[0-9]'] * 14)  # => '[0-9][0-9]...[0-9]' (14 times)
+    # Glob only immediate children; filter to directories
+    scans = [p.name for p in sbid_dir.glob(pattern) if p.is_dir()]
+    # Sort lexicographically (works naturally for yyyymmddHHMMSS)
+    scans.sort()
+    return scans
 
 
 def find_ms_for_scan_beam(scan_dir: Path, beam_id: str, ms_glob_template: str) -> List[Path]:
@@ -393,14 +410,17 @@ def build_tasks(
     *,
     fieldname: str,
     sbid: str,
+    scan_scope: str,
 ) -> List[ExtractTask]:
     tasks: List[ExtractTask] = []
+
+    all_scans = discover_all_scans(sbid_dir) if scan_scope == 'all' else None
     for row in rows:
         sid = row['source_id']
         name_raw = row['srcname']
         name = safe_name(name_raw)
         ra = float(row['ra_deg']); dec = float(row['dec_deg'])
-        scan_ids = row['scan_ids']
+        scan_ids = all_scans if (all_scans is not None) else row['scan_ids'] #choose according to scope
         union_beams = row['beams_all']
         max_beam = str(row.get('max_snr_beam', '') or '').strip()
         for sc in scan_ids:
@@ -408,13 +428,16 @@ def build_tasks(
             if not scan_dir.is_dir():
                 print(f"[WARN] Missing scan dir: {scan_dir}")
                 continue
+            # Always prefer the max S/N beam if present 
             if max_beam:
                 beams = {max_beam}
             else:
+                # legacy fallback (older catalogues)
                 if beam_scope == 'strict':
                     beams = per_scan_beams_strict(sbid_dir, sc, ra, dec, kind, match_arcsec) or set(union_beams)
                 else:
                     beams = set(union_beams)
+
             for b in sorted(beams):
                 ms_list = find_ms_for_scan_beam(scan_dir, b, ms_glob_template)
                 if not ms_list:
@@ -518,7 +541,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     tasks = build_tasks(
         rows, sbid_dir, args.ms_glob_template,
         args.beam_scope, args.kind, args.match_arcsec,
-        fieldname=fieldname, sbid=args.sbid,
+        fieldname=fieldname, sbid=args.sbid, scan_scope=args.scan_scope,
     )
     if not tasks:
         print('[INFO] No tasks to run (no MS found for requested combos).')
