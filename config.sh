@@ -22,6 +22,19 @@ CONTAINER_DIR="${CONTAINER_DIR:-/fred/oz451/${USER}/containers}"
 LOG_DIR="${LOG_DIR:-/fred/oz451/${USER}/lotrun_processing/logs}"
 SCRIPT_DIR="${SCRIPT_DIR:-/fred/oz451/$USER/scripts/lotrun_processing}"
 
+
+# -------------------- Dry-run controls --------------------
+# When DRY_RUN=1, no sbatch calls are made; commands are printed and fake JIDs returned.
+DRY_RUN="${DRY_RUN:-0}"
+
+# Start sequence for fake job IDs (array and non-array jobs alike).
+# Change this if you want different ranges per environment.
+DRY_FAKE_START="${DRY_FAKE_START:-490000}"
+
+# If set to 1, print the "DRY sbatch:" command lines (stderr).
+DRY_PRINT_CMDS="${DRY_PRINT_CMDS:-1}"
+
+
 # -------------------- Containers -----------------------
 FLINT_WSCLEAN_SIF="${FLINT_WSCLEAN_SIF:-${CONTAINER_DIR}/flint-containers_wsclean.sif}"
 FLINT_CASA_SIF="${FLINT_CASA_SIF:-${CONTAINER_DIR}/flint-containers_casa.sif}"
