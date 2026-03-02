@@ -371,9 +371,9 @@ PATTERN="20??*/*beam{beam:02d}*.20????????????.calB0.uvsub.ms"    # relative und
 
 jid_fastducc=""
 
-jid_agg=$( submit_fastducc_aggregate_chunks "${jid_fastducc}" )
-echo "submitted fastducc aggregate chunks ${jid_agg}"
-
+#jid_agg=$( submit_fastducc_aggregate_chunks "${jid_fastducc}" )
+#echo "submitted fastducc aggregate chunks ${jid_agg}"
+jid_agg=""
 jid_obs=$( submit_fastducc_aggregate_obs "${jid_agg}" )
 echo "submitted fastducc aggregate chunks ${jid_obs}"
 
