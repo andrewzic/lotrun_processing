@@ -68,10 +68,6 @@ CONCAT_SCRIPT="${CONCAT_SCRIPT:-concat_ms_beams.py}"
 AVERAGE_PYTHON="${AVERAGE_PYTHON:-apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CONTAINER_DIR}/flint-containers_casa.sif python3}"
 CONCAT_PYTHON="${CONCAT_PYTHON:-apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CONTAINER_DIR}/flint-containers_casa.sif python3}"
 
-# -------------------- Resource requests ----------------
-ARRAY_SPEC="${ARRAY_SPEC:-0-35}"
-BIGARRAY_SPEC="${BIGARRAY_SPEC:-0-500}"
-
 IMPORT_CPUS="${IMPORT_CPUS:-2}";      IMPORT_MEM="${IMPORT_MEM:-1G}"
 FLAG_CPUS="${FLAG_CPUS:-4}";          FLAG_MEM="${FLAG_MEM:-12G}"
 AVERAGE_CPUS="${AVERAGE_CPUS:-4}";    AVERAGE_MEM="${AVERAGE_MEM:-4G}"
@@ -95,6 +91,16 @@ UVSUB_OUT_PREFIX="${UVSUB_OUT_PREFIX:-uvsub}"
 CHUNK_GLOB="${CHUNK_GLOB:-202?*}"
 KIND="${KIND:-boxcar}"
 FLAG_COLUMN="${FLAG_COLUMN:-DATA}"
+
+# -------------------- Resource requests ----------------
+ARRAY_SPEC="${ARRAY_SPEC:-0-35}"
+BIGARRAY_SPEC="${BIGARRAY_SPEC:-0-500}"
+n_chunks=$( ls -d ${DATA_ROOT}/${SBID}/${CHUNK_GLOB} 2>/dev/null | wc -l )
+if (( n_chunks > 0 )); then
+  CHUNK_ARRAY_SPEC="0-$((n_chunks-1))"
+else
+  CHUNK_ARRAY_SPEC="0-0"
+fi
 
 # -------------------- Self-cal behaviour ----------------
 SC_FIELD="${SC_FIELD:-}"
