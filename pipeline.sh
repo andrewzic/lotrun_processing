@@ -18,6 +18,7 @@ else
   echo "Create one (e.g., pipeline.config.sh) or pass CONFIG=/path/to/file"
   exit 1
 fi
+__DRY_JID_SEQ="${DRY_FAKE_START:-490000}"
 
 # ----------- USER DEFAULTS (ideally edit config.sh to change these) -----------
 USER="${USER:-$(whoami)}"
@@ -192,8 +193,8 @@ DS_SCAN_SCOPE=${DS_SCAN_SCOPE:-all}   # 'all' or 'catalogue'
 # -------------------- GENERIC SUBMISSION + HELPERS --------------------
 log(){ printf '[%s] %s\n' "$(date +'%F %T')" "$*" >&2; }
 
-# sbatch_submit <name> <time> <cpus> <mem> <array_spec_or_empty> <wrapper> <dep_jid_or_empty> [KEY=VAL ...]
 sbatch_submit() {
+  # sbatch_submit <name> <time> <cpus> <mem> <array_spec_or_empty> <wrapper> <dep_jid_or_empty> [KEY=VAL ...]
   local name="$1" time="$2" cpus="$3" mem="$4" array="$5" wrapper="$6" dep="${7:-}"; shift 7
   local -a exports=( "$@" )
   local export_str
@@ -210,6 +211,27 @@ sbatch_submit() {
   [[ -n "$array" ]] && cmd=( "${cmd[@]:0:1}" "${cmd[@]:1}" --array="$array" )
   [[ -n "$dep"   ]] && cmd=( "${cmd[@]:0:1}" "${cmd[@]:1}" --dependency="afterok:${dep}" )
 
+  if [[ "${DRY_RUN:-0}" == "1" ]]; then
+      # Print the would-be command (to stderr so the caller can still capture JID from stdout)
+      if [[ "${DRY_PRINT_CMDS:-1}" == "1" ]]; then
+        printf 'DRY sbatch:' >&2
+        # printable/quoted rendering of the array
+        local part
+        for part in "${cmd[@]}"; do
+          # naive quoting; good enough for inspection
+          printf ' %q' "$part" >&2
+        done
+        printf '\n' >&2
+      fi
+
+      # Return a fake job ID (stdout) so dependency chaining continues to work
+      local fake_jid="$__DRY_JID_SEQ"
+      __DRY_JID_SEQ=$(( __DRY_JID_SEQ + 1 ))
+      echo "${fake_jid}"
+      return 0
+  fi
+
+  # Submit the job and print the job ID (stdout)
   "${cmd[@]}" | awk '{print $4}'
 }
 
@@ -230,7 +252,11 @@ n=$( ls -1d "${DATA_ROOT}/${SBID}"/${UVFITS_PATTERN} 2>/dev/null | wc -l )
 BIGARRAY_SPEC="0-$((n>0 ? n-1 : 0))"
 
 # 1) symlink uvfits
-./symlink_uvfits.sh "${SBID}"
+if [[ "${DRY_RUN:-0}" == "1" ]]; then
+  echo "DRY local: ./symlink_uvfits.sh ${SBID}" >&2
+else
+  ./symlink_uvfits.sh "${SBID}"
+fi
 
 # 2) import uvfits
 jid_imp=$( sbatch_submit "importuvfits_array" "00:10:00" "${IMPORT_CPUS}" "${IMPORT_MEM}" "${BIGARRAY_SPEC}" "${RUN_IMPORT}" "" \
