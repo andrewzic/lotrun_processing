@@ -199,54 +199,54 @@ DS_SCAN_SCOPE=${DS_SCAN_SCOPE:-all}   # 'all' or 'catalogue'
 # -------------------- GENERIC SUBMISSION + HELPERS --------------------
 log(){ printf '[%s] %s\n' "$(date +'%F %T')" "$*" >&2; }
 
+
 sbatch_submit() {
   # sbatch_submit <name> <time> <cpus> <mem> <array_spec_or_empty> <wrapper> <dep_jid_or_empty> [KEY=VAL ...]
   local name="$1" time="$2" cpus="$3" mem="$4" array="$5" wrapper="$6" dep="${7:-}"; shift 7
   local -a exports=( "$@" )
-  local export_str
+
+  # Build --export payload (no external tools, no trailing comma/newline)
+  local export_arg="--export=ALL"
   if ((${#exports[@]})); then
-    IFS=, read -r -d '' export_str <<<"$(printf "%s," "${exports[@]}")"$'\0'
-    export_str="${export_str%,}"
-  else
-    export_str=""
+    local joined="" kv
+    for kv in "${exports[@]}"; do
+      joined+="${joined:+,}${kv}"
+    done
+    export_arg="--export=ALL,${joined}"
   fi
 
-  # Assemble options then append wrapper
+  # Assemble options first, append wrapper last
   local -a cmd=( sbatch
-    --job-name="$name"
-    --time="$time"
-    --cpus-per-task="$cpus"
-    --mem="$mem"
-    --output="logs/${name}_%A_%a.out"
-    --error="logs/${name}_%A_%a.err"
-  )
+                 --job-name="$name"
+                 --time="$time"
+                 --cpus-per-task="$cpus"
+                 --mem="$mem"
+                 --output="logs/${name}_%A_%a.out"
+                 --error="logs/${name}_%A_%a.err" )
 
   [[ -n "$array" ]] && cmd+=( --array="$array" )
   [[ -n "$dep"   ]] && cmd+=( --dependency="afterok:${dep}" )
-  cmd+=( "$export_str" "$wrapper" )
-
+  cmd+=( "$export_arg" "$wrapper" )
 
   if [[ "${DRY_RUN:-0}" == "1" ]]; then
-      # Print the would-be command (to stderr so the caller can still capture JID from stdout)
-      if [[ "${DRY_PRINT_CMDS:-1}" == "1" ]]; then
-        printf 'DRY sbatch:' >&2
-        # printable/quoted rendering of the array
-        local part
-        for part in "${cmd[@]}"; do
-          # naive quoting; good enough for inspection
-          printf ' %q' "$part" >&2
-        done
-        printf '\n' >&2
-      fi
-
-      # Return a fake job ID (stdout) so dependency chaining continues to work
-      local fake_jid="$__DRY_JID_SEQ"
-      __DRY_JID_SEQ=$(( __DRY_JID_SEQ + 1 ))
-      echo "${fake_jid}"
-      return 0
+    if [[ "${DRY_PRINT_CMDS:-1}" == "1" ]]; then
+      # Print a readable command line (no $'...' artifacts)
+      printf 'DRY sbatch:'
+      for token in "${cmd[@]}"; do
+        case "$token" in
+          *[[:space:]]*) printf ' "%s"' "$token" ;;
+          *)              printf ' %s' "$token"  ;;
+        esac
+      done
+      printf '\n' >&2
+    fi
+    # deterministic fake JID
+    local fake_jid="$__DRY_JID_SEQ"
+    __DRY_JID_SEQ=$(( __DRY_JID_SEQ + 1 ))
+    echo "${fake_jid}"
+    return 0
   fi
 
-  # Submit the job and print the job ID (stdout)
   "${cmd[@]}" | awk '{print $4}'
 }
 
