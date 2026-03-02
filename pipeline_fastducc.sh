@@ -49,6 +49,42 @@ AGG_CPUS=${AGG_CPUS:-1}
 AGG_MEM=${AGG_MEM:-2G}
 CHUNK_GLOB=${CHUNK_GLOB:-202?*}
 
+KIND=${KIND:-boxcar}
+
+# -------------------- dstools extract-ds orchestrator --------------------
+# SLURM launcher that calls the orchestrator; same pattern as other RUN_* wrappers
+RUN_EXTRACT_DS=${RUN_EXTRACT_DS:-run_dstools_extract_cands.sh}
+# Resources for the launcher job (the orchestrator spawns Dask workers itself)
+EXTRACT_TIME=${EXTRACT_TIME:-01:00:00}
+EXTRACT_CPUS=${EXTRACT_CPUS:-1}
+EXTRACT_MEM=${EXTRACT_MEM:-4G}
+# Orchestrator/Dask worker sizing (forwarded to extract_ds_orchestrator via env)
+DS_N_WORKERS=${N_WORKERS:-48}
+DS_CPUS=${DS_CPUS:-1}
+DS_MEM=${DS_MEM:-8GB}
+DS_WALLTIME=${DS_WALLTIME:-01:00:00}
+DS_QUEUE=${DS_QUEUE:-}        # optional SLURM partition
+DS_PROJECT=${DS_PROJECT:-}    # optional SLURM account
+# Orchestrator behavior
+DS_MIN_SNR=${DS_MIN_SNR:-8.0}                 # e.g. 7.0 (blank to disable)
+DS_BATCH_SIZE=${DS_BATCH_SIZE:-200}
+DS_RETRIES=${DS_RETRIES:-1}
+DS_SLEEP_BETWEEN_BATCHES=${DS_SLEEP_BETWEEN_BATCHES:-0}
+DS_BEAM_SCOPE=${DS_BEAM_SCOPE:-union}       # ignored if max_snr_beam exists in catalogue
+DS_MATCH_ARCSEC=${DS_MATCH_ARCSEC:-35.0}
+DS_MS_GLOB_TEMPLATE=${DS_MS_GLOB_TEMPLATE:-**/cracoData*%s*uvsub.ms}
+DS_DATACOLUMN=${DS_DATACOLUMN:-data}
+DS_PRIMARY_BEAM=${DS_PRIMARY_BEAM:-}        # blank => no external PB image
+DS_NOFLAG=${DS_NOFLAG:-false}
+DS_BASELINE_AVERAGE=${DS_BASELINE_AVERAGE:-true}
+DS_MINUVDIST=${DS_MINUVDIST:-0.0}
+DS_VERBOSE=${DS_VERBOSE:-false}
+DS_OVERWRITE=${DS_OVERWRITE:-false}
+DS_DRY_RUN=${DS_DRY_RUN:-false}
+# If want to pin the catalogue path instead of auto-discovery, set:
+# DS_CATALOGUE="/fred/.../<field>.<SBID>_obs_${KIND}_super_summary.vot"
+DS_CATALOGUE=${DS_CATALOGUE:-}
+
 RUN_WSCLEAN=${RUN_WSCLEAN:-run_wsclean_beams.sh}
 RUN_CB=${RUN_CB:-run_crystalball_beams.sh}
 RUN_SELFCAL=${RUN_SELFCAL:-run_selfcal_beams.sh}
@@ -304,6 +340,52 @@ submit_fastducc_aggregate_obs() {
 }
 
 
+# -------------------- dstools extract-ds orchestrator --------------------
+submit_extract_ds() {
+  local dep jid
+  dep="${1:-}"
+  jid=$( sbatch --job-name=ds_extract \
+                --time="${EXTRACT_TIME}" \
+                --cpus-per-task="${EXTRACT_CPUS}" \
+                --mem="${EXTRACT_MEM}" \
+                --output=logs/dstools_extract_%A.out \
+                --error=logs/dstools_extract_%A.err \
+                ${dep:+--dependency=afterok:${dep}} \
+                --export=ALL, \
+                        SBID="${SBID}", \
+                        DATA_ROOT="${DATA_ROOT}", \
+                        KIND="${KIND}", \
+                        DS_N_WORKERS="${DS_N_WORKERS}", \
+                        DS_CPUS="${DS_CPUS}", \
+                        DS_MEM="${DS_MEM}", \
+                        DS_WALLTIME="${DS_WALLTIME}", \
+                        DS_MIN_SNR="${DS_MIN_SNR}" \
+                        DS_QUEUE="${DS_QUEUE}", \
+                        DS_PROJECT="${DS_PROJECT}", \
+                        DS_BATCH_SIZE="${DS_BATCH_SIZE}", \
+                        DS_RETRIES="${DS_RETRIES}", \
+                        DS_SLEEP_BETWEEN_BATCHES="${DS_SLEEP_BETWEEN_BATCHES}", \
+                        DS_BEAM_SCOPE="${DS_BEAM_SCOPE}", \
+                        DS_MATCH_ARCSEC="${DS_MATCH_ARCSEC}", \
+                        DS_MS_GLOB_TEMPLATE="${DS_MS_GLOB_TEMPLATE}", \
+                        DS_DATACOLUMN="${DS_DATACOLUMN}", \
+                        DS_PRIMARY_BEAM="${DS_PRIMARY_BEAM}", \
+                        DS_NOFLAG="${DS_NOFLAG}", \
+                        DS_BASELINE_AVERAGE="${DS_BASELINE_AVERAGE}", \
+                        DS_MINUVDIST="${DS_MINUVDIST}", \
+                        DS_VERBOSE="${DS_VERBOSE}", \
+                        DS_OVERWRITE="${DS_OVERWRITE}", \
+                        DS_DRY_RUN="${DS_DRY_RUN}", \
+                        DS_CATALOGUE="${DS_CATALOGUE:-}" \
+                "${RUN_EXTRACT_DS}" \
+        | awk '{print $4}' )
+  echo "${jid}"
+  if [[ -z "${jid}" ]]; then
+    echo "sbatch not successful. exiting"
+    exit 1
+  fi
+}
+
 
 submit_clearcal() {
   local dep extension jid
@@ -376,6 +458,17 @@ echo "submitted fastducc aggregate chunks ${jid_agg}"
 
 jid_obs=$( submit_fastducc_aggregate_obs "${jid_agg}" )
 echo "submitted fastducc aggregate chunks ${jid_obs}"
+
+jid_prev="$jid_obs"
+for kind in "boxcar" "variance"
+do
+    KIND="$kind"
+    jid_prev=$( submit_extract_ds "${jid_prev}" )
+    echo "submitted dstools extract-ds ${jid_prev} for kind ${kind}"
+done
+
+jid_ds="$jid_prev"
+
 
 echo "Pipeline submitted."
 

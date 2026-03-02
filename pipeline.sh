@@ -47,12 +47,49 @@ AGG_CPUS=${AGG_CPUS:-1}
 AGG_MEM=${AGG_MEM:-2G}
 CHUNK_GLOB=${CHUNK_GLOB:-202?*}
 
+KIND=${KIND:-boxcar}
+
+# -------------------- dstools extract-ds orchestrator --------------------
+# SLURM launcher that calls the orchestrator; same pattern as other RUN_* wrappers
+RUN_EXTRACT_DS=${RUN_EXTRACT_DS:-run_dstools_extract_cands.sh}
+# Resources for the launcher job (the orchestrator spawns Dask workers itself)
+EXTRACT_TIME=${EXTRACT_TIME:-01:00:00}
+EXTRACT_CPUS=${EXTRACT_CPUS:-1}
+EXTRACT_MEM=${EXTRACT_MEM:-4G}
+# Orchestrator/Dask worker sizing (forwarded to extract_ds_orchestrator via env)
+DS_N_WORKERS=${N_WORKERS:-48}
+DS_CPUS=${DS_CPUS:-1}
+DS_MEM=${DS_MEM:-8GB}
+DS_WALLTIME=${DS_WALLTIME:-01:00:00}
+DS_QUEUE=${DS_QUEUE:-}        # optional SLURM partition
+DS_PROJECT=${DS_PROJECT:-}    # optional SLURM account
+# Orchestrator behavior
+DS_MIN_SNR=${DS_MIN_SNR:-8.0}                 # e.g. 7.0 (blank to disable)
+DS_BATCH_SIZE=${DS_BATCH_SIZE:-200}
+DS_RETRIES=${DS_RETRIES:-1}
+DS_SLEEP_BETWEEN_BATCHES=${DS_SLEEP_BETWEEN_BATCHES:-0}
+DS_BEAM_SCOPE=${DS_BEAM_SCOPE:-union}       # ignored if max_snr_beam exists in catalogue
+DS_MATCH_ARCSEC=${DS_MATCH_ARCSEC:-35.0}
+DS_MS_GLOB_TEMPLATE=${DS_MS_GLOB_TEMPLATE:-**/cracoData*%s*uvsub.ms}
+DS_DATACOLUMN=${DS_DATACOLUMN:-data}
+DS_PRIMARY_BEAM=${DS_PRIMARY_BEAM:-}        # blank => no external PB image
+DS_NOFLAG=${DS_NOFLAG:-false}
+DS_BASELINE_AVERAGE=${DS_BASELINE_AVERAGE:-true}
+DS_MINUVDIST=${DS_MINUVDIST:-0.0}
+DS_VERBOSE=${DS_VERBOSE:-false}
+DS_OVERWRITE=${DS_OVERWRITE:-false}
+DS_DRY_RUN=${DS_DRY_RUN:-false}
+# If want to pin the catalogue path instead of auto-discovery, set:
+# DS_CATALOGUE="/fred/.../<field>.<SBID>_obs_${KIND}_super_summary.vot"
+DS_CATALOGUE=${DS_CATALOGUE:-}
+
 RUN_WSCLEAN=${RUN_WSCLEAN:-run_wsclean_beams.sh}
 RUN_CB=${RUN_CB:-run_crystalball_beams.sh}
 RUN_SELFCAL=${RUN_SELFCAL:-run_selfcal_beams.sh}
 RUN_APPLYCAL=${RUN_APPLYCAL:-run_applycal_beams.sh}
 RUN_BANDPASS=${RUN_BANDPASS:-run_applycal_beams.sh}
 RUN_UVSUB=${RUN_UVSUB:-run_uvsub_beams.sh}
+RUN_FASTDUCC=${RUN_FASTDUCC:-run_fastducc_beams.sh}
 RUN_FLINT_MASK=${RUN_FLINT_MASK:-run_flintmask_beams.sh}
 RUN_CLEARCAL=${RUN_CLEARCAL:-run_clearcal_beams.sh}
 
@@ -86,6 +123,11 @@ FLOOD_FILL_POSITIVE_SEED_CLIP=${FLOOD_FILL_POSITIVE_SEED_CLIP:-1.1}
 FLOOD_FILL_POSITIVE_FLOOD_CLIP=${FLOOD_FILL_POSITIVE_FLOOD_CLIP:-0.7}
 FLOOD_FILL_MAC_BOX_SIZE=${FLOOD_FILL_MAC_BOX_SIZE:-350}
 BEAM_SHAPE_ERODE_MIN_RESPONSE=${BEAM_SHAPE_ERODE_MIN_RESPONSE:-0.75}
+
+# fastducc defaults
+FD_TIME=${FD_TIME:-"06:00:00"}
+FD_CPUS=${FD_CPUS:-1}
+FD_MEM=${FD_MEM:-32G}
 
 # CASA self-cal defaults
 SC_FIELD=${SC_FIELD:-""}
@@ -255,9 +297,9 @@ submit_uvsub() {
 }
 
 submit_fastducc() {
-  local dep idx out_prefix ext jid selfcal_flag
+  local dep idx ext jid selfcal_flag
   dep="${1:-}"; idx="$2"; ext="$3"; selfcal_flag="$4";
-  jid=$(sbatch --array="${ARRAY_SPEC}" --job-name=fastducc_ms --time=02:00:00 --cpus-per-task="${SC_CPUS}" --mem="${SC_MEM}" --output=logs/fastducc_%A_%a.out --error=logs/fastducc_%A_%a.err ${dep:+--dependency=afterok:${dep}} --export=ALL,SELFCAL="${selfcal_flag}",SBID="${SBID}",DATA_ROOT="${DATA_ROOT}",PATTERN="${PATTERN}",FLINT_CASA_SIF="${FLINT_CASA_SIF}",BIND_SRC="${BIND_SRC}",SCRIPT=fastducc_ms_beams.py,INDEX="${idx}",EXTENSION="${ext}",OUT_PREFIX="${out_prefix}" "${RUN_FASTDUCC}" | awk '{print $4}')
+  jid=$(sbatch --array="${ARRAY_SPEC}" --job-name=fastducc_ms --time=06:00:00 --cpus-per-task="${FD_CPUS}" --mem="${FD_MEM}" --output=logs/fastducc_%A_%a.out --error=logs/fastducc_%A_%a.err ${dep:+--dependency=afterok:${dep}} --export=ALL,SELFCAL="${selfcal_flag}",SBID="${SBID}",DATA_ROOT="${DATA_ROOT}",PATTERN="${PATTERN}",BIND_SRC="${BIND_SRC}",INDEX="${idx}",EXTENSION="${ext}" "${RUN_FASTDUCC}" | awk '{print $4}')
   echo "${jid}"
   if [ -z "${jid}" ]; then
     echo "sbatch not successful. exiting"
@@ -281,6 +323,65 @@ submit_fastducc_aggregate_chunks() {
 
 
 
+submit_fastducc_aggregate_obs() {
+  local dep jid
+  dep="${1:-}"
+
+  jid=$( sbatch  --job-name=fastducc_obsagg --time="${AGG_TIME}" --cpus-per-task="${AGG_CPUS}" --mem="${AGG_MEM}" --output=logs/fastducc_obsagg_%A_%a.out --error=logs/fastducc_obsagg_%A_%a.err ${dep:+--dependency=afterok:${dep}} --export=ALL,SBID="${SBID}",DATA_ROOT="${DATA_ROOT}" "${RUN_FASTDUCC_OBSAGG}" | awk '{print $4}'  )
+
+  echo "${jid}"
+  if [[ -z "${jid}" ]]; then
+    echo "sbatch not successful. exiting"
+    exit 1
+  fi
+}
+
+
+# -------------------- dstools extract-ds orchestrator --------------------
+submit_extract_ds() {
+  local dep jid
+  dep="${1:-}"
+  jid=$( sbatch --job-name=ds_extract \
+                --time="${EXTRACT_TIME}" \
+                --cpus-per-task="${EXTRACT_CPUS}" \
+                --mem="${EXTRACT_MEM}" \
+                --output=logs/dstools_extract_%A.out \
+                --error=logs/dstools_extract_%A.err \
+                ${dep:+--dependency=afterok:${dep}} \
+                --export=ALL, \
+                        SBID="${SBID}", \
+                        DATA_ROOT="${DATA_ROOT}", \
+                        KIND="${KIND}", \
+                        DS_N_WORKERS="${DS_N_WORKERS}", \
+                        DS_CPUS="${DS_CPUS}", \
+                        DS_MEM="${DS_MEM}", \
+                        DS_WALLTIME="${DS_WALLTIME}", \
+                        DS_MIN_SNR="${DS_MIN_SNR}" \
+                        DS_QUEUE="${DS_QUEUE}", \
+                        DS_PROJECT="${DS_PROJECT}", \
+                        DS_BATCH_SIZE="${DS_BATCH_SIZE}", \
+                        DS_RETRIES="${DS_RETRIES}", \
+                        DS_SLEEP_BETWEEN_BATCHES="${DS_SLEEP_BETWEEN_BATCHES}", \
+                        DS_BEAM_SCOPE="${DS_BEAM_SCOPE}", \
+                        DS_MATCH_ARCSEC="${DS_MATCH_ARCSEC}", \
+                        DS_MS_GLOB_TEMPLATE="${DS_MS_GLOB_TEMPLATE}", \
+                        DS_DATACOLUMN="${DS_DATACOLUMN}", \
+                        DS_PRIMARY_BEAM="${DS_PRIMARY_BEAM}", \
+                        DS_NOFLAG="${DS_NOFLAG}", \
+                        DS_BASELINE_AVERAGE="${DS_BASELINE_AVERAGE}", \
+                        DS_MINUVDIST="${DS_MINUVDIST}", \
+                        DS_VERBOSE="${DS_VERBOSE}", \
+                        DS_OVERWRITE="${DS_OVERWRITE}", \
+                        DS_DRY_RUN="${DS_DRY_RUN}", \
+                        DS_CATALOGUE="${DS_CATALOGUE:-}" \
+                "${RUN_EXTRACT_DS}" \
+        | awk '{print $4}' )
+  echo "${jid}"
+  if [[ -z "${jid}" ]]; then
+    echo "sbatch not successful. exiting"
+    exit 1
+  fi
+}
 submit_clearcal() {
   local dep extension jid
   dep="${1:-}";  extension="$2"
@@ -436,7 +537,7 @@ do
     else
 	dp=""
     fi
-    #jid_ac=$(submit_applycal "${jid_ac_old}" "caltables" "G${i}" "${dp}")
+    jid_ac=$(submit_applycal "${jid_ac_old}" "caltables" "G${i}" "${dp}")
     #echo "submitted craco applycal ${jid_ac}"
     jid_ac_old=$jid_ac    
     PATTERN="20??*/*beam{beam:02d}*.20????????????.calG${i}.ms"    # relative under data-root/SBID
@@ -451,10 +552,25 @@ jid_uvs=$(submit_uvsub "${jid_cb}" "${SC_INDEX[5]}" "${UVSUB_OUT_PREFIX}" "G6" "
 echo "submitted craco uvsub ${jid_uvs}"
 
 PATTERN="20??*/*beam{beam:02d}*.20????????????.calB0.uvsub.ms"    # relative under data-root/SBID
-jid_fastducc=$( submit_fastducc "${jid_uvs}" "${SC_INDEX[5]}" "${UVSUB_OUT_PREFIX}" "G6" "0" )
+#                               dep="${1:-}"; idx="$2"; ext="$3"; selfcal_flag="$4";
+
+jid_fastducc=$( submit_fastducc "${jid_uvs}" "${SC_INDEX[5]}" "G6" "0" )
 
 jid_agg=$( submit_fastducc_aggregate_chunks "${jid_fastducc}" )
 echo "submitted fastducc aggregate chunks ${jid_agg}"
+
+jid_obs=$( submit_fastducc_aggregate_obs "${jid_agg}" )
+echo "submitted fastducc aggregate chunks ${jid_obs}"
+
+jid_prev="$jid_obs"
+for kind in "boxcar" "variance"
+do
+    KIND="$kind"
+    jid_prev=$( submit_extract_ds "${jid_prev}" )
+    echo "submitted dstools extract-ds ${jid_prev} for kind ${kind}"
+done
+
+jid_ds="$jid_prev"
 
 echo "Pipeline submitted."
 

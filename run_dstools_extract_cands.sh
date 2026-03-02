@@ -1,60 +1,109 @@
 #!/bin/bash
 #SBATCH --job-name=ds_extract
-#SBATCH --output=logs/dstools_extract_%A_%a.out
-#SBATCH --error=logs/dstools_extract_%A_%a.err
-#SBATCH --time=00:30:00
+#SBATCH --output=logs/dstools_extract_%j.out
+#SBATCH --error=logs/dstools_extract_%j.err
+#SBATCH --time=01:00:00
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=32G
+#SBATCH --mem=4G
+#SBATCH --parsable
 
 set -euo pipefail
 
-# Env overrides
-SBID=${SBID:-SB77974}
-DATA_ROOT=${DATA_ROOT:-/fred/oz451/${USER}/data}
-CHUNK_GLOB=${CHUNK_GLOB:-202?*}
-KIND=${KIND:-"boxcar"}
+# -------------------- User-tunable env (with defaults) --------------------
+# Observation selection
+export SBID="${SBID:-SB77974}"
+export DATA_ROOT="${DATA_ROOT:-/fred/oz451/${USER}/data}"
+export KIND="${KIND:-boxcar}"                 # 'boxcar' or 'variance'
+export DS_MIN_SNR="${DS_MIN_SNR:-8.0}"                 # e.g. 7.0 (blank to disable)
+export SOURCE_ID="${SOURCE_ID:-}"             # restrict to one source_id (blank to disable)
 
+# Dask/SLURM worker sizing (used by orchestrator's --scheduler slurm)
+export DS_N_WORKERS="${DS_N_WORKERS:-48}"           # total workers to scale to
+export DS_CPUS=${DS_CPUS:-1}
+export DS_MEM=${DS_MEM:-8GB}
+export DS_WALLTIME=${DS_WALLTIME:-01:00:00}
+export DS_QUEUE="${DS_QUEUE:-}"                     # e.g. 'workq' or cluster-specific
+export DS_PROJECT="${DS_PROJECT:-}"                 # SLURM account/project
 
+# Orchestrator knobs
+export DS_BATCH_SIZE="${DS_BATCH_SIZE:-200}"
+export DS_RETRIES="${DS_RETRIES:-1}"
+export DS_SLEEP_BETWEEN_BATCHES="${DS_SLEEP_BETWEEN_BATCHES:-0}"
+export DS_BEAM_SCOPE="${DS_BEAM_SCOPE:-union}"      # 'union' or 'strict' (will be ignored if max_snr_beam is present)
+export DS_MATCH_ARCSEC="${DS_MATCH_ARCSEC:-35.0}"
+export DS_MS_GLOB_TEMPLATE="${DS_MS_GLOB_TEMPLATE:-**/cracoData*%s*uvsub.ms}"
+export DS_DATACOLUMN="${DS_DATACOLUMN:-data}"
+export DS_PRIMARY_BEAM="${DS_PRIMARY_BEAM:-}"       # blank => no PB correction from file
+export DS_NOFLAG="${DS_NOFLAG:-false}"              # 'true' to drop flags, else false
+export DS_BASELINE_AVERAGE="${DS_BASELINE_AVERAGE:-true}"
+export DS_MINUVDIST="${DS_MINUVDIST:-0.0}"
+export DS_VERBOSE="${DS_VERBOSE:-false}"
+export DS_OVERWRITE="${DS_OVERWRITE:-false}"
+export DS_DRY_RUN="${DS_DRY_RUN:-false}"
+export DS_CATALOGUE="${DS_CATALOGUE:-}"         # blank => auto-discover summary catalogue from data root
+
+# If prefer to pin an explicit catalogue instead of auto-discovery, set:
+# export CATALOGUE="/path/to/<field>.<SBID>_obs_${KIND}_super_summary.vot"
+
+# -------------------- Paths & logs --------------------
 root="${DATA_ROOT}/${SBID}"
-cand_dir="${root}/candidates/"
+mkdir -p "${root}/candidates" "logs" "dask-worker-space"
 
-cand_catalogues=( "${cand_dir}/"*.${SBID}_obs_${KIND}_super_summary.csv )
-cand_catalogue=${cand_catalogues[0]}
-
-# Discover chunk directories (sub-observations)
-shopt -s nullglob
-chunkdirs=("${root}"/${CHUNK_GLOB})
-shopt -u nullglob
-
-if [[ ${#chunkdirs[@]} -eq 0 ]]; then
-  echo "WARN: No chunk directories found under '${root}' matching '${CHUNK_GLOB}'"
-  exit 0
-fi
-
-idx=${SLURM_ARRAY_TASK_ID:-0}
-if (( idx < 0 || idx >= ${#chunkdirs[@]} )); then
-  echo "ERROR: SLURM_ARRAY_TASK_ID=${idx} out of range (0..$(( ${#chunkdirs[@]} - 1 )))"
-  exit 2
-fi
-
-chunkdir="${chunkdirs[$idx]}"
-echo "Aggregating candidates for chunkdir: ${chunkdir}"
-
-# Ensure output directory exists
-mkdir -p "${chunkdir}/candidates"
-
-# Runtime environment
+# -------------------- Runtime environment for the launcher --------------------
+# This should mirror the orchestrator's default --job-prologue for workers.
 module load python-scientific/3.11.5-foss-2023b
 unset PYTHONPATH
 source /fred/oz451/azic/scripts/crystalball_nt/bin/activate
 
-# Run both kinds
+# -------------------- Build orchestrator command --------------------
+cmd=( python extract_ds_orchestrator.py
+  --sbid "${SBID}"
+  --data-root "${DATA_ROOT}"
+  --kind "${KIND}"
+  --scheduler slurm
+  --n-workers "${DS_N_WORKERS}"
+  --cores "${DS_CPUS}"
+  --mem "${DS_MEM}"
+  --walltime "${DS_WALLTIME}"
+  --batch-size "${DS_BATCH_SIZE}"
+  --retries "${DS_RETRIES}"
+  --sleep-between-batches "${DS_SLEEP_BETWEEN_BATCHES}"
+  --beam-scope "${DS_BEAM_SCOPE}"
+  --match-arcsec "${DS_MATCH_ARCSEC}"
+  --ms-glob-template "${DS_MS_GLOB_TEMPLATE}"
+  --datacolumn "${DS_DATACOLUMN}"
+)
 
-#for each chunk dir, for each candidate in cand_catalogue, run:
-dstools-extract-ds -d data -p <RA> <DEC> <ms> <outfile>
-#using the RA and DEC of the cand from the catalogue.
-#Set the outfile to the 
-fastducc aggregate --obs-root "${chunkdir}/" --kind boxcar --outdir "${chunkdir}/candidates/"
-fastducc aggregate --obs-root "${chunkdir}/" --kind variance --outdir "${chunkdir}/candidates/"
+# Optional flags/args
+if [[ -n "${DS_CATALOGUE:-}" ]]; then
+  cmd+=( --catalogue "${DS_CATALOGUE}" )
+fi
+if [[ -n "${DS_MIN_SNR}" ]]; then
+  cmd+=( --min-snr "${DS_MIN_SNR}" )
+fi
+if [[ -n "${DS_SOURCE_ID}" ]]; then
+  cmd+=( --source-id "${DS_SOURCE_ID}" )
+fi
+if [[ -n "${DS_PRIMARY_BEAM}" ]]; then
+  cmd+=( --primary-beam "${DS_PRIMARY_BEAM}" )
+fi
+[[ "${DS_NOFLAG}" == "true" ]] && cmd+=( --noflag )
+[[ "${DS_BASELINE_AVERAGE}" == "true" ]] && true || cmd+=( --baseline-average False )
+[[ "${DS_VERBOSE}" == "true" ]] && cmd+=( --verbose )
+[[ "${DS_OVERWRITE}" == "true" ]] && cmd+=( --overwrite )
+[[ "${DS_DRY_RUN}" == "true" ]] && cmd+=( --dry-run )
 
-echo "Done: ${chunkdir}"
+# SLURM queue/account customization for Dask workers
+if [[ -n "${DS_QUEUE}" ]]; then
+  cmd+=( --queue "${DS_QUEUE}" )
+fi
+if [[ -n "${DS_PROJECT}" ]]; then
+  cmd+=( --project "${DS_PROJECT}" )
+fi
+
+# Pass the *same* module/venv steps to the Dask workers via job prologue
+cmd+=( --job-prologue "module load python-scientific/3.11.5-foss-2023b ; unset PYTHONPATH; source /fred/oz451/azic/scripts/crystalball_nt/bin/activate" )
+
+# -------------------- Run --------------------
+echo "[INFO] Running: ${cmd[*]}"
+"${cmd[@]}"
