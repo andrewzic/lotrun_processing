@@ -41,6 +41,7 @@ export DS_VERBOSE="${DS_VERBOSE:-false}"
 export DS_OVERWRITE="${DS_OVERWRITE:-false}"
 export DS_DRY_RUN="${DS_DRY_RUN:-false}"
 export DS_CATALOGUE="${DS_CATALOGUE:-}"         # blank => auto-discover summary catalogue from data root
+export DS_SCAN_SCOPE="${DS_SCAN_SCOPE:-all}"
 
 # If prefer to pin an explicit catalogue instead of auto-discovery, set:
 # export CATALOGUE="/path/to/<field>.<SBID>_obs_${KIND}_super_summary.vot"
@@ -69,6 +70,7 @@ cmd=( python extract_ds_orchestrator.py
   --retries "${DS_RETRIES}"
   --sleep-between-batches "${DS_SLEEP_BETWEEN_BATCHES}"
   --beam-scope "${DS_BEAM_SCOPE}"
+  --scan-scope "${DS_SCAN_SCOPE}"
   --match-arcsec "${DS_MATCH_ARCSEC}"
   --ms-glob-template "${DS_MS_GLOB_TEMPLATE}"
   --datacolumn "${DS_DATACOLUMN}"

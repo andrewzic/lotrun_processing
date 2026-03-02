@@ -180,6 +180,7 @@ DS_VERBOSE="${DS_VERBOSE:-false}"
 DS_OVERWRITE="${DS_OVERWRITE:-false}"
 DS_DRY_RUN="${DS_DRY_RUN:-false}"
 DS_CATALOGUE="${DS_CATALOGUE:-}"
+DS_SCAN_SCOPE=${DS_SCAN_SCOPE:-all}   # 'all' or 'catalogue'
 
 # -------------------- Sanity: required dirs --------------
 mkdir -p "${OUT_ROOT}" >/dev/null 2>&1 || true
