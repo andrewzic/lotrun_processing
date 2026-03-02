@@ -158,11 +158,13 @@ FLAG_AVG_PATTERN="${FLAG_AVG_PATTERN:-20??*/"*beam*"*.20????????????.avg.calB0.m
 # Concat inputs (averaged)
 CONCAT_INPUT_PATTERN="${CONCAT_INPUT_PATTERN:-20??*/"*beam*".20????????????.avg.calB0.ms}"
 
-# Imaging/selfcal (concatenated MS path)
+# Imaging/selfcal (concatenated)
 WSCLEAN_PATTERN="${WSCLEAN_PATTERN:-*beam{beam:02d}.avg.calB0.ms}"
 
-# UVSUB on concatenated self-cal result (original: G6 inputs + B0 ext)
-UVSUB_CONCAT_INPUT_PATTERN="${UVSUB_CONCAT_INPUT_PATTERN:-*beam{beam:02d}*.avg.calG6.ms}"
+# UVSUB on concatenated self-cal result
+# If filenames are exactly "...beam{NN}.avg.calG6.ms":
+UVSUB_CONCAT_INPUT_PATTERN="${UVSUB_CONCAT_INPUT_PATTERN:-*beam{beam:02d}.avg.calG6.ms}"
+
 
 # Applycal on native res (start from calB0; loop produces calG<i>)
 APPLYCAL_NATIVE_START_PATTERN="${APPLYCAL_NATIVE_START_PATTERN:-20??*/"*beam*".20????????????.calB0.ms}"
@@ -200,12 +202,13 @@ DS_SCAN_SCOPE=${DS_SCAN_SCOPE:-all}   # 'all' or 'catalogue'
 log(){ printf '[%s] %s\n' "$(date +'%F %T')" "$*" >&2; }
 
 
+
+# sbatch_submit <name> <time> <cpus> <mem> <array_spec_or_empty> <wrapper> <dep_jid_or_empty> [KEY=VAL ...]
 sbatch_submit() {
-  # sbatch_submit <name> <time> <cpus> <mem> <array_spec_or_empty> <wrapper> <dep_jid_or_empty> [KEY=VAL ...]
   local name="$1" time="$2" cpus="$3" mem="$4" array="$5" wrapper="$6" dep="${7:-}"; shift 7
   local -a exports=( "$@" )
 
-  # Build --export payload (no external tools, no trailing comma/newline)
+  # Build one --export argument (no newline, no trailing comma)
   local export_arg="--export=ALL"
   if ((${#exports[@]})); then
     local joined="" kv
@@ -215,7 +218,7 @@ sbatch_submit() {
     export_arg="--export=ALL,${joined}"
   fi
 
-  # Assemble options first, append wrapper last
+  # Assemble sbatch options; append wrapper last
   local -a cmd=( sbatch
                  --job-name="$name"
                  --time="$time"
@@ -223,32 +226,34 @@ sbatch_submit() {
                  --mem="$mem"
                  --output="logs/${name}_%A_%a.out"
                  --error="logs/${name}_%A_%a.err" )
-
   [[ -n "$array" ]] && cmd+=( --array="$array" )
   [[ -n "$dep"   ]] && cmd+=( --dependency="afterok:${dep}" )
   cmd+=( "$export_arg" "$wrapper" )
 
   if [[ "${DRY_RUN:-0}" == "1" ]]; then
-    if [[ "${DRY_PRINT_CMDS:-1}" == "1" ]]; then
-      # Print a readable command line (no $'...' artifacts)
-      printf 'DRY sbatch:'
-      for token in "${cmd[@]}"; do
-        case "$token" in
-          *[[:space:]]*) printf ' "%s"' "$token" ;;
-          *)              printf ' %s' "$token"  ;;
-        esac
-      done
-      printf '\n' >&2
-    fi
-    # deterministic fake JID
-    local fake_jid="$__DRY_JID_SEQ"
-    __DRY_JID_SEQ=$(( __DRY_JID_SEQ + 1 ))
+    # Print the would-be command to STDOUT (visible by default)
+    printf 'DRY sbatch:'
+    local token
+    for token in "${cmd[@]}"; do
+      if [[ "$token" =~ [[:space:]] ]]; then
+        printf ' "%s"' "$token"
+      else
+        printf ' %s' "$token"
+      fi
+    done
+    printf '\n'
+
+    # Return a deterministic fake JID on STDOUT for chaining
+    local fake_jid="${__DRY_JID_SEQ:-490000}"
+    __DRY_JID_SEQ=$(( fake_jid + 1 ))
     echo "${fake_jid}"
     return 0
   fi
 
+  # Real submission path
   "${cmd[@]}" | awk '{print $4}'
 }
+
 
 chain() {
   local jid="$1" label="$2"

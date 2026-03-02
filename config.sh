@@ -163,11 +163,13 @@ FLAG_AVG_PATTERN="${FLAG_AVG_PATTERN:-20??*/"*beam*"*.20????????????.avg.calB0.m
 # Concat inputs (averaged)
 CONCAT_INPUT_PATTERN="${CONCAT_INPUT_PATTERN:-20??*/"*beam*".20????????????.avg.calB0.ms}"
 
-# Imaging/selfcal (concatenated MS path)
+# Imaging/selfcal (concatenated)
 WSCLEAN_PATTERN="${WSCLEAN_PATTERN:-*beam{beam:02d}.avg.calB0.ms}"
 
-# UVSUB on concatenated self-cal result (original: G6 inputs + B0 ext)
-UVSUB_CONCAT_INPUT_PATTERN="${UVSUB_CONCAT_INPUT_PATTERN:-*beam{beam:02d}*.avg.calG6.ms}"
+# UVSUB on concatenated self-cal result
+# If filenames are exactly "...beam{NN}.avg.calG6.ms":
+UVSUB_CONCAT_INPUT_PATTERN="${UVSUB_CONCAT_INPUT_PATTERN:-*beam{beam:02d}.avg.calG6.ms}"
+
 
 # Applycal on native res (start from calB0; loop produces calG<i>)
 APPLYCAL_NATIVE_START_PATTERN="${APPLYCAL_NATIVE_START_PATTERN:-20??*/"*beam*".20????????????.calB0.ms}"
