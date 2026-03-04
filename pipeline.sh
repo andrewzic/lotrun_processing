@@ -201,8 +201,6 @@ DS_SCAN_SCOPE=${DS_SCAN_SCOPE:-all}   # 'all' or 'catalogue'
 # -------------------- GENERIC SUBMISSION + HELPERS --------------------
 log(){ printf '[%s] %s\n' "$(date +'%F %T')" "$*" >&2; }
 
-
-
 # sbatch_submit <name> <time> <cpus> <mem> <array_spec_or_empty> <wrapper> <dep_jid_or_empty> [KEY=VAL ...]
 sbatch_submit() {
   local name="$1" time="$2" cpus="$3" mem="$4" array="$5" wrapper="$6" dep="${7:-}"; shift 7
@@ -231,17 +229,17 @@ sbatch_submit() {
   cmd+=( "$export_arg" "$wrapper" )
 
   if [[ "${DRY_RUN:-0}" == "1" ]]; then
-    # Print the would-be command to STDOUT (visible by default)
-    printf 'DRY sbatch:'
+    # Print the would-be command to STDERR so it doesn't get captured by $( ... )
+    printf 'DRY sbatch:' >&2
     local token
     for token in "${cmd[@]}"; do
       if [[ "$token" =~ [[:space:]] ]]; then
-        printf ' "%s"' "$token"
+        printf ' "%s"' "$token" >&2
       else
-        printf ' %s' "$token"
+        printf ' %s' "$token" >&2
       fi
     done
-    printf '\n'
+    printf '\n' >&2
 
     # Return a deterministic fake JID on STDOUT for chaining
     local fake_jid="${__DRY_JID_SEQ:-490000}"
