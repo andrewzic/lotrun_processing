@@ -138,13 +138,13 @@ BEAM_SHAPE_ERODE_MIN_RESPONSE="${BEAM_SHAPE_ERODE_MIN_RESPONSE:-0.75}"
 
 # -------------------- Stage-aware patterns ----------------
 # Import
-UVFITS_PATTERN="20??*/**beam*.uvfits"
+UVFITS_PATTERN="20??*/*beam*.uvfits"
 
 # Flag native
-FLAG_NATIVE_PATTERN="20??*/"*beam*"*.20????????????.ms"
+FLAG_NATIVE_PATTERN="20??*/*beam*.20????????????.ms"
 
 # Bandpass inputs (native)
-BANDPASS_INPUT_PATTERN="20??*/"*beam*".20????????????.ms"
+BANDPASS_INPUT_PATTERN="20??*/*beam*.20????????????.ms"
 
 # Flag calB0
 FLAG_CALB0_PATTERN="20??*/*beam*.20????????????.calB0.ms"
@@ -399,7 +399,7 @@ jid_prev="$jid_uvsub_concat"
 # Applycal loop on native-res: start from calB0, then calG<i>
 applycal_pattern="${APPLYCAL_NATIVE_START_PATTERN}"
 for i in "${SC_INDEX[@]}"; do
-  [[ $i -gt 1 ]] && dp="--delete-previous" || dp=""
+  [[ $i -gt 1 ]] && dp="--delete-previous" || dp="" #only delete previous after the first applycal to avoid deleting calB0
   jid_prev=$( sbatch_submit "applycal_ms" "02:00:00" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_APPLYCAL}" "${jid_prev}" \
              SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${applycal_pattern}" FLINT_CASA_SIF="${FLINT_CASA_SIF}" BIND_SRC="${BIND_SRC}" \
              SCRIPT="applycal_ms_beams.py" CAL_DIR="caltables" EXTENSION="G${i}" DELETE_PREVIOUS="${dp}" )
@@ -444,7 +444,7 @@ else
 fi
 
 # dstools extract-ds for both kinds
-for kind in "boxcar" "variance"; do
+for kind in "boxcar"; do
   KIND="$kind"
   jid_prev=$( sbatch_submit "ds_extract" "${EXTRACT_TIME}" "${EXTRACT_CPUS}" "${EXTRACT_MEM}" "" "${RUN_EXTRACT_DS}" "${jid_prev}" \
               SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" KIND="${KIND}" DS_N_WORKERS="${DS_N_WORKERS}" DS_CPUS="${DS_CPUS}" DS_MEM="${DS_MEM}" \
