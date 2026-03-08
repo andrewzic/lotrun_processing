@@ -20,6 +20,11 @@ OUT_PREFIX=${OUT_PREFIX:-"uvsub"}  # not used by fastducc; kept for compatibilit
 INDEX=${INDEX:-1}
 SELFCAL=${SELFCAL:-1}
 
+# options for search/no search/plot_cands/only
+FD_NO_VAR_SEARCH=${FD_NO_VAR_SEARCH:-}
+FD_NO_BOX_SEARCH=${FD_NO_BOX_SEARCH:-}
+FD_PLOT_CANDS_ONLY=${FD_PLOT_CANDS_ONLY:-}
+
 beam="${SLURM_ARRAY_TASK_ID}"
 printf -v beam2 "%02d" "${beam}"
 root="${DATA_ROOT}/${SBID}"
@@ -65,23 +70,56 @@ for ms in "${msnames[@]}"; do
   unset PYTHONPATH
   source /fred/oz451/azic/scripts/crystalball_nt/bin/activate
   
-  fastducc --msname "${ms}" \
-  --chunk-size 512 \
-  --corr-mode single \
-  --basis linear \
-  --single-pol XX \
-  --npix-x 384 \
-  --npix-y 384 \
-  --pixsize-arcsec 22.0 \
-  --threshold-sigma 8.0 \
-  --boxcar-widths 1 2 4 8 12 16 24 32 48 64 96 128 \
-  --var-threshold-sigma 8.0 \
-  --parallel-mode dask-slurm \
-  --dask-workers 16 \
-  --slurm-cores-per-worker 1 \
-  --slurm-mem 32GB \
-  --slurm-walltime 00:45:00 \
-  --continuum-dir "${root}/continuum_images/"
-  
+  cmd = ( fastducc --msname "${ms}"
+    --chunk-size 512
+    --corr-mode single
+    --basis linear
+    --single-pol XX
+    --npix-x 384
+    --npix-y 384
+    --pixsize-arcsec 22.0
+    --threshold-sigma 8.0
+    --boxcar-widths 1 2 4 8 12 16 24 32 48 64 96 128
+    --var-threshold-sigma 8.0
+    --parallel-mode dask-slurm
+    --dask-workers 16
+    --slurm-cores-per-worker 1
+    --slurm-mem 32GB
+    --slurm-walltime 00:45:00
+    --continuum-dir "${root}/continuum_images/"
+  )
+
+  if [[ -n "${FD_NO_VAR_SEARCH}" ]]; then
+    cmd+=( --no-var-search )
+  fi
+  if [[ -n "${FD_NO_BOX_SEARCH}" ]]; then
+    cmd+=( --no-box-search )
+  fi
+  if [[ -n "${FD_PLOT_CANDS_ONLY}" ]]; then
+    cmd+=( --plot-cands-only )
+  fi
+
+  echo "Running command: ${cmd[*]}"
+  "${cmd[@]}"
 done
+
+#   fastducc --msname "${ms}" \
+#   --chunk-size 512 \
+#   --corr-mode single \
+#   --basis linear \
+#   --single-pol XX \
+#   --npix-x 384 \
+#   --npix-y 384 \
+#   --pixsize-arcsec 22.0 \
+#   --threshold-sigma 8.0 \
+#   --boxcar-widths 1 2 4 8 12 16 24 32 48 64 96 128 \
+#   --var-threshold-sigma 8.0 \
+#   --parallel-mode dask-slurm \
+#   --dask-workers 16 \
+#   --slurm-cores-per-worker 1 \
+#   --slurm-mem 32GB \
+#   --slurm-walltime 00:45:00 \
+#   --continuum-dir "${root}/continuum_images/"
+  
+# done
 

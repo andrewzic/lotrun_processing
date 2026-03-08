@@ -141,6 +141,12 @@ FLOOD_FILL_POSITIVE_FLOOD_CLIP="${FLOOD_FILL_POSITIVE_FLOOD_CLIP:-0.7}"
 FLOOD_FILL_MAC_BOX_SIZE="${FLOOD_FILL_MAC_BOX_SIZE:-350}"
 BEAM_SHAPE_ERODE_MIN_RESPONSE="${BEAM_SHAPE_ERODE_MIN_RESPONSE:-0.75}"
 
+# options for fastducc search/no search/plot_cands/only
+# set to 1 to enable the option; leave unset or set to empty string to disable
+FD_NO_VAR_SEARCH=${FD_NO_VAR_SEARCH:-}
+FD_NO_BOX_SEARCH=${FD_NO_BOX_SEARCH:-}
+FD_PLOT_CANDS_ONLY=${FD_PLOT_CANDS_ONLY:-}
+
 # -------------------- Stage-aware patterns ----------------
 # Import
 UVFITS_PATTERN="${UVFITS_PATTERN:-20??*/**beam*.uvfits}"

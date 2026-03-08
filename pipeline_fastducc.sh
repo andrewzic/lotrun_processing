@@ -127,6 +127,12 @@ FD_TIME=${FD_TIME:-"06:00:00"}
 FD_CPUS=${FD_CPUS:-1}
 FD_MEM=${FD_MEM:-32G}
 
+# options for fastducc search/no search/plot_cands/only
+# set to 1 to enable the option; leave unset or set to empty string to disable
+FD_NO_VAR_SEARCH=${FD_NO_VAR_SEARCH:-}
+FD_NO_BOX_SEARCH=${FD_NO_BOX_SEARCH:-}
+FD_PLOT_CANDS_ONLY=${FD_PLOT_CANDS_ONLY:-}
+
 #flint_masking defaults
 FLOOD_FILL_POSITIVE_SEED_CLIP=${FLOOD_FILL_POSITIVE_SEED_CLIP:-1.1}
 FLOOD_FILL_POSITIVE_FLOOD_CLIP=${FLOOD_FILL_POSITIVE_FLOOD_CLIP:-0.7}
@@ -302,7 +308,7 @@ submit_uvsub() {
 submit_fastducc() {
   local dep idx ext jid selfcal_flag
   dep="${1:-}"; idx="$2"; ext="$3"; selfcal_flag="$4";
-  jid=$(sbatch --array="${ARRAY_SPEC}" --job-name=fastducc_ms --time=06:00:00 --cpus-per-task="${FD_CPUS}" --mem="${FD_MEM}" --output=logs/fastducc_%A_%a.out --error=logs/fastducc_%A_%a.err ${dep:+--dependency=afterok:${dep}} --export=ALL,SELFCAL="${selfcal_flag}",SBID="${SBID}",DATA_ROOT="${DATA_ROOT}",PATTERN="${PATTERN}",BIND_SRC="${BIND_SRC}",INDEX="${idx}",EXTENSION="${ext}" "${RUN_FASTDUCC}" | awk '{print $4}')
+  jid=$(sbatch --array="${ARRAY_SPEC}" --job-name=fastducc_ms --time=06:00:00 --cpus-per-task="${FD_CPUS}" --mem="${FD_MEM}" --output=logs/fastducc_%A_%a.out --error=logs/fastducc_%A_%a.err ${dep:+--dependency=afterok:${dep}} --export=ALL,SELFCAL="${selfcal_flag}",SBID="${SBID}",DATA_ROOT="${DATA_ROOT}",PATTERN="${PATTERN}",BIND_SRC="${BIND_SRC}",INDEX="${idx}",EXTENSION="${ext}",FD_NO_VAR_SEARCH="${FD_NO_VAR_SEARCH}",FD_NO_BOX_SEARCH="${FD_NO_BOX_SEARCH}",FD_PLOT_CANDS_ONLY="${FD_PLOT_CANDS_ONLY}" "${RUN_FASTDUCC}" | awk '{print $4}')
   echo "${jid}"
   if [ -z "${jid}" ]; then
     echo "sbatch not successful. exiting"

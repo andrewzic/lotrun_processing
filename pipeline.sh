@@ -136,6 +136,12 @@ FLOOD_FILL_POSITIVE_FLOOD_CLIP="${FLOOD_FILL_POSITIVE_FLOOD_CLIP:-0.7}"
 FLOOD_FILL_MAC_BOX_SIZE="${FLOOD_FILL_MAC_BOX_SIZE:-350}"
 BEAM_SHAPE_ERODE_MIN_RESPONSE="${BEAM_SHAPE_ERODE_MIN_RESPONSE:-0.75}"
 
+# options for fastducc search/no search/plot_cands/only
+# set to 1 to enable the option; leave unset or set to empty string to disable
+FD_NO_VAR_SEARCH=${FD_NO_VAR_SEARCH:-}
+FD_NO_BOX_SEARCH=${FD_NO_BOX_SEARCH:-}
+FD_PLOT_CANDS_ONLY=${FD_PLOT_CANDS_ONLY:-}
+
 # -------------------- Stage-aware patterns ----------------
 # Import
 UVFITS_PATTERN="20??*/*beam*.uvfits"
@@ -426,7 +432,8 @@ jid_uvs_native=$(chain "$jid_uvs_native" "uvsub_native")
 
 # fastducc on uvsubbed native MS
 jid_fastducc=$( sbatch_submit "fastducc_ms" "06:00:00" "${FD_CPUS}" "${FD_MEM}" "${ARRAY_SPEC}" "${RUN_FASTDUCC}" "${jid_uvs_native}" \
-                SELFCAL="0" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${FASTDUCC_INPUT_PATTERN}" BIND_SRC="${BIND_SRC}" INDEX="${last_idx}" EXTENSION="G6" )
+                SELFCAL="0" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${FASTDUCC_INPUT_PATTERN}" BIND_SRC="${BIND_SRC}" INDEX="${last_idx}" \
+                EXTENSION="G6" NO_VAR_SEARCH="${FD_NO_VAR_SEARCH}" NO_BOX_SEARCH="${FD_NO_BOX_SEARCH}" PLOT_CANDS_ONLY="${FD_PLOT_CANDS_ONLY}" )
 jid_fastducc=$(chain "$jid_fastducc" "fastducc")
 
 # aggregate per chunk
