@@ -350,35 +350,8 @@ submit_extract_ds() {
                 --mem="${EXTRACT_MEM}" \
                 --output=logs/dstools_extract_%A.out \
                 --error=logs/dstools_extract_%A.err \
-                ${dep:+--dependency=afterok:${dep}} \
-                --export=ALL, \
-                        SBID="${SBID}", \
-                        DATA_ROOT="${DATA_ROOT}", \
-                        KIND="${KIND}", \
-                        DS_N_WORKERS="${DS_N_WORKERS}", \
-                        DS_CPUS="${DS_CPUS}", \
-                        DS_MEM="${DS_MEM}", \
-                        DS_WALLTIME="${DS_WALLTIME}", \
-                        DS_MIN_SNR="${DS_MIN_SNR}" \
-                        DS_QUEUE="${DS_QUEUE}", \
-                        DS_PROJECT="${DS_PROJECT}", \
-                        DS_BATCH_SIZE="${DS_BATCH_SIZE}", \
-                        DS_RETRIES="${DS_RETRIES}", \
-                        DS_SLEEP_BETWEEN_BATCHES="${DS_SLEEP_BETWEEN_BATCHES}", \
-                        DS_BEAM_SCOPE="${DS_BEAM_SCOPE}", \
-                        DS_MATCH_ARCSEC="${DS_MATCH_ARCSEC}", \
-                        DS_MS_GLOB_TEMPLATE="${DS_MS_GLOB_TEMPLATE}", \
-                        DS_DATACOLUMN="${DS_DATACOLUMN}", \
-                        DS_PRIMARY_BEAM="${DS_PRIMARY_BEAM}", \
-                        DS_NOFLAG="${DS_NOFLAG}", \
-                        DS_BASELINE_AVERAGE="${DS_BASELINE_AVERAGE}", \
-                        DS_MINUVDIST="${DS_MINUVDIST}", \
-                        DS_VERBOSE="${DS_VERBOSE}", \
-                        DS_OVERWRITE="${DS_OVERWRITE}", \
-                        DS_DRY_RUN="${DS_DRY_RUN}", \
-                        DS_CATALOGUE="${DS_CATALOGUE:-}" \
-                "${RUN_EXTRACT_DS}" \
-        | awk '{print $4}' )
+                ${dep:+--dependency=afterok:${dep}} --export=ALL,SBID="${SBID}",DATA_ROOT="${DATA_ROOT}",KIND="${KIND}",DS_N_WORKERS="${DS_N_WORKERS}",DS_CPUS="${DS_CPUS}",DS_MEM="${DS_MEM}",DS_WALLTIME="${DS_WALLTIME}",DS_MIN_SNR="${DS_MIN_SNR}",DS_QUEUE="${DS_QUEUE}",DS_PROJECT="${DS_PROJECT}",DS_BATCH_SIZE="${DS_BATCH_SIZE}",DS_RETRIES="${DS_RETRIES}",DS_SLEEP_BETWEEN_BATCHES="${DS_SLEEP_BETWEEN_BATCHES}",DS_BEAM_SCOPE="${DS_BEAM_SCOPE}",DS_MATCH_ARCSEC="${DS_MATCH_ARCSEC}",DS_MS_GLOB_TEMPLATE="${DS_MS_GLOB_TEMPLATE}",DS_DATACOLUMN="${DS_DATACOLUMN}",DS_PRIMARY_BEAM="${DS_PRIMARY_BEAM}",DS_NOFLAG="${DS_NOFLAG}",DS_BASELINE_AVERAGE="${DS_BASELINE_AVERAGE}",DS_MINUVDIST="${DS_MINUVDIST}",DS_VERBOSE="${DS_VERBOSE}",DS_OVERWRITE="${DS_OVERWRITE}",DS_DRY_RUN="${DS_DRY_RUN}",DS_CATALOGUE="${DS_CATALOGUE:-}" \
+		"${RUN_EXTRACT_DS}" | awk '{print $4}' )
   echo "${jid}"
   if [[ -z "${jid}" ]]; then
     echo "sbatch not successful. exiting"
@@ -449,13 +422,13 @@ jid_uvs=""
 
 PATTERN="20??*/*beam{beam:02d}*.20????????????.calB0.uvsub.ms"    # relative under data-root/SBID
 #                               dep="${1:-}"; idx="$2"; ext="$3"; selfcal_flag="$4";
-# jid_fastducc=$( submit_fastducc "${jid_uvs}" "${SC_INDEX[5]}" "G6" "0" )
+jid_fastducc=$( submit_fastducc "${jid_uvs}" "${SC_INDEX[5]}" "G6" "0" )
 
-jid_fastducc=""
+#jid_fastducc=""
 
-#jid_agg=$( submit_fastducc_aggregate_chunks "${jid_fastducc}" )
+jid_agg=$( submit_fastducc_aggregate_chunks "${jid_fastducc}" )
 #echo "submitted fastducc aggregate chunks ${jid_agg}"
-jid_agg=""
+#jid_agg=""
 jid_obs=$( submit_fastducc_aggregate_obs "${jid_agg}" )
 echo "submitted fastducc aggregate chunks ${jid_obs}"
 
@@ -463,6 +436,7 @@ jid_prev="$jid_obs"
 for kind in "boxcar" "variance"
 do
     KIND="$kind"
+    echo "doing ds extract for $KIND"
     jid_prev=$( submit_extract_ds "${jid_prev}" )
     echo "submitted dstools extract-ds ${jid_prev} for kind ${kind}"
 done
