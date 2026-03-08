@@ -15,7 +15,7 @@ export SBID="${SBID:-SB77974}"
 export DATA_ROOT="${DATA_ROOT:-/fred/oz451/${USER}/data}"
 export KIND="${KIND:-boxcar}"                 # 'boxcar' or 'variance'
 export DS_MIN_SNR="${DS_MIN_SNR:-8.0}"                 # e.g. 7.0 (blank to disable)
-export SOURCE_ID="${SOURCE_ID:-}"             # restrict to one source_id (blank to disable)
+export DS_SOURCE_ID="${DS_SOURCE_ID:-}"             # restrict to one source_id (blank to disable)
 
 # Dask/SLURM worker sizing (used by orchestrator's --scheduler slurm)
 export DS_N_WORKERS="${DS_N_WORKERS:-48}"           # total workers to scale to
