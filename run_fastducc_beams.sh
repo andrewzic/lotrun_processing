@@ -65,7 +65,23 @@ for ms in "${msnames[@]}"; do
   unset PYTHONPATH
   source /fred/oz451/azic/scripts/crystalball_nt/bin/activate
   
-  fastducc --msname "${ms}" --chunk-size 512 --corr-mode single --basis linear --single-pol XX --npix-x 384 --npix-y 384 --pixsize-arcsec 22.0 --threshold-sigma 8.0 --boxcar-widths 1 2 4 8 12 16 24 32 48 64 96 128 --var-threshold-sigma 8.0 --parallel-mode dask-slurm --dask-workers 16 --slurm-cores-per-worker 1 --slurm-mem 32GB --slurm-walltime 00:45:00
+  fastducc --msname "${ms}" \
+  --chunk-size 512 \
+  --corr-mode single \
+  --basis linear \
+  --single-pol XX \
+  --npix-x 384 \
+  --npix-y 384 \
+  --pixsize-arcsec 22.0 \
+  --threshold-sigma 8.0 \
+  --boxcar-widths 1 2 4 8 12 16 24 32 48 64 96 128 \
+  --var-threshold-sigma 8.0 \
+  --parallel-mode dask-slurm \
+  --dask-workers 16 \
+  --slurm-cores-per-worker 1 \
+  --slurm-mem 32GB \
+  --slurm-walltime 00:45:00 \
+  --continuum-dir "${root}/continuum_images/"
   
 done
 
