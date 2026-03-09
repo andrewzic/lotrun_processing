@@ -70,7 +70,7 @@ for ms in "${msnames[@]}"; do
   unset PYTHONPATH
   source /fred/oz451/azic/scripts/crystalball_nt/bin/activate
   
-  cmd = ( fastducc --msname "${ms}"
+  cmd=( fastducc --msname "${ms}"
     --chunk-size 512
     --corr-mode single
     --basis linear
