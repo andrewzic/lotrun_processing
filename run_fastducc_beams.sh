@@ -93,7 +93,7 @@ for ms in "${msnames[@]}"; do
     cmd+=( --no-var-search )
   fi
   if [[ -n "${FD_NO_BOX_SEARCH}" ]]; then
-    cmd+=( --no-box-search )
+    cmd+=( --no-boxcar-search )
   fi
   if [[ -n "${FD_PLOT_CANDS_ONLY}" ]]; then
     cmd+=( --plot-cands-only )
