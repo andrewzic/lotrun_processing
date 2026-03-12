@@ -68,17 +68,29 @@ CONCAT_SCRIPT="${CONCAT_SCRIPT:-concat_ms_beams.py}"
 AVERAGE_PYTHON="${AVERAGE_PYTHON:-apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CONTAINER_DIR}/flint-containers_casa.sif python3}"
 CONCAT_PYTHON="${CONCAT_PYTHON:-apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CONTAINER_DIR}/flint-containers_casa.sif python3}"
 
-IMPORT_CPUS="${IMPORT_CPUS:-2}";      IMPORT_MEM="${IMPORT_MEM:-1G}"
-FLAG_CPUS="${FLAG_CPUS:-4}";          FLAG_MEM="${FLAG_MEM:-12G}"
-AVERAGE_CPUS="${AVERAGE_CPUS:-4}";    AVERAGE_MEM="${AVERAGE_MEM:-4G}"
-CONCAT_CPUS="${CONCAT_CPUS:-4}";      CONCAT_MEM="${CONCAT_MEM:-16G}"
-WSCLEAN_CPUS="${WSCLEAN_CPUS:-4}";    WSCLEAN_MEM="${WSCLEAN_MEM:-16G}"
-SC_CPUS="${SC_CPUS:-8}";              SC_MEM="${SC_MEM:-4G}"
-FM_CPUS="${FM_CPUS:-1}";              FM_MEM="${FM_MEM:-1G}"
-FD_CPUS="${FD_CPUS:-1}";              FD_MEM="${FD_MEM:-32G}"
+IMPORT_CPUS="${IMPORT_CPUS:-2}"
+IMPORT_MEM="${IMPORT_MEM:-1G}"
+FLAG_CPUS="${FLAG_CPUS:-4}"
+FLAG_MEM="${FLAG_MEM:-12G}"
+AVERAGE_CPUS="${AVERAGE_CPUS:-4}"
+AVERAGE_MEM="${AVERAGE_MEM:-4G}"
+CONCAT_CPUS="${CONCAT_CPUS:-4}"
+CONCAT_MEM="${CONCAT_MEM:-16G}"
+WSCLEAN_CPUS="${WSCLEAN_CPUS:-4}"
+WSCLEAN_MEM="${WSCLEAN_MEM:-16G}"
+SC_CPUS="${SC_CPUS:-8}"
+SC_MEM="${SC_MEM:-4G}"
+FM_CPUS="${FM_CPUS:-1}"
+FM_MEM="${FM_MEM:-1G}"
+FD_CPUS="${FD_CPUS:-1}"
+FD_MEM="${FD_MEM:-32G}"
 
-CB_TIME="${CB_TIME:-03:15:00}"; CB_CPUS="${CB_CPUS:-32}"; CB_MEM="${CB_MEM:-54G}"
-AGG_TIME="${AGG_TIME:-00:30:00}"; AGG_CPUS="${AGG_CPUS:-1}"; AGG_MEM="${AGG_MEM:-2G}"
+CB_TIME="${CB_TIME:-03:15:00}"
+CB_CPUS="${CB_CPUS:-32}"
+CB_MEM="${CB_MEM:-54G}"
+AGG_TIME="${AGG_TIME:-00:30:00}"
+AGG_CPUS="${AGG_CPUS:-1}"
+AGG_MEM="${AGG_MEM:-2G}"
 FD_TIME="${FD_TIME:-06:00:00}"
 
 EXTRACT_TIME="${EXTRACT_TIME:-01:00:00}"
@@ -95,8 +107,9 @@ FLAG_COLUMN="${FLAG_COLUMN:-DATA}"
 # -------------------- Resource requests ----------------
 ARRAY_SPEC="${ARRAY_SPEC:-0-35}"
 BIGARRAY_SPEC="${BIGARRAY_SPEC:-0-500}"
-n_chunks=$( ls -d ${DATA_ROOT}/${SBID}/${CHUNK_GLOB} 2>/dev/null | wc -l )
-if (( n_chunks > 0 )); then
+n_chunks=$( ls -d ${DATA_ROOT}/${SBID}/${CHUNK_GLOB} | wc -l )
+if (( n_chunks > 0 ))
+then
   CHUNK_ARRAY_SPEC="0-$((n_chunks-1))"
 else
   CHUNK_ARRAY_SPEC="0-0"
@@ -197,7 +210,7 @@ DS_RETRIES="${DS_RETRIES:-1}"
 DS_SLEEP_BETWEEN_BATCHES="${DS_SLEEP_BETWEEN_BATCHES:-0}"
 DS_BEAM_SCOPE="${DS_BEAM_SCOPE:-union}"
 DS_MATCH_ARCSEC="${DS_MATCH_ARCSEC:-35.0}"
-DS_MS_GLOB_TEMPLATE="${DS_MS_GLOB_TEMPLATE:-**/cracoData*%s*uvsub.ms}"
+DS_MS_GLOB_TEMPLATE="${DS_MS_GLOB_TEMPLATE:-*/cracoData*%s*uvsub.ms}"
 DS_DATACOLUMN="${DS_DATACOLUMN:-data}"
 DS_PRIMARY_BEAM="${DS_PRIMARY_BEAM:-}"
 DS_NOFLAG="${DS_NOFLAG:-false}"
@@ -207,7 +220,7 @@ DS_VERBOSE="${DS_VERBOSE:-false}"
 DS_OVERWRITE="${DS_OVERWRITE:-false}"
 DS_DRY_RUN="${DS_DRY_RUN:-false}"
 DS_CATALOGUE="${DS_CATALOGUE:-}"
-DS_SCAN_SCOPE=${DS_SCAN_SCOPE:-all}   # 'all' or 'catalogue'
+DS_SCAN_SCOPE="${DS_SCAN_SCOPE:-all}"   # 'all' or 'catalogue'
 
 # -------------------- Sanity: required dirs --------------
 mkdir -p "${OUT_ROOT}"
