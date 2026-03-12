@@ -161,37 +161,48 @@ FD_PLOT_CANDS_ONLY=${FD_PLOT_CANDS_ONLY:-}
 
 # -------------------- Stage-aware patterns ----------------
 # Import
+#all
 UVFITS_PATTERN="20??*/*beam*.uvfits"
 
 # Flag native
+#all
 FLAG_NATIVE_PATTERN="20??*/*beam*.20????????????.ms"
 
 # Bandpass inputs (native)
-BANDPASS_INPUT_PATTERN="20??*/*beam*.20????????????.ms"
+# per beam
+BANDPASS_INPUT_PATTERN="20??*/*beam{beam:02d}*.20????????????.ms"
 
 # Flag calB0
+# all
 FLAG_CALB0_PATTERN="20??*/*beam*.20????????????.calB0.ms"
 
 # Average inputs (calB0)
+# all
 AVERAGE_INPUT_PATTERN="20??*/*beam*.20????????????.calB0.ms"
 
 # Flag averaged
+# all
 FLAG_AVG_PATTERN="20??*/*beam*.20????????????.avg.calB0.ms"
 
 # Concat inputs (averaged)
-CONCAT_INPUT_PATTERN="20??*/*beam*.20????????????.avg.calB0.ms"
+# per beam
+CONCAT_INPUT_PATTERN="20??*/*beam{beam:02d}*.20????????????.avg.calB0.ms"
 
 # Imaging/selfcal (concatenated)
+# per beam
 WSCLEAN_PATTERN="*beam{beam:02d}.avg.calB0.ms"
 
 # UVSUB on concatenated self-cal result
+# per beam
 UVSUB_CONCAT_INPUT_PATTERN="*beam{beam:02d}.avg.calG6.ms"
 
 # Applycal on native res (start from calB0; loop produces calG<i>)
-APPLYCAL_NATIVE_START_PATTERN="20??*/*beam*.20????????????.calB0.ms"
+# per beam
+APPLYCAL_NATIVE_START_PATTERN="20??*/*beam{beam:02d}*.20????????????.calB0.ms"
 
 # fastducc on uvsubbed native res
-FASTDUCC_INPUT_PATTERN="20??*/*beam*.20????????????.calB0.uvsub.ms"
+# per beam
+FASTDUCC_INPUT_PATTERN="20??*/*beam{beam:02d}*.20????????????.calB0.uvsub.ms
 
 # -------------------- dstools extract-ds -----------------
 DS_N_WORKERS="${DS_N_WORKERS:-48}"
@@ -287,7 +298,7 @@ chain() {
 mkdir -p logs plots
 
 # Determine BIGARRAY_SPEC from the number of UVFITS matching UVFITS_PATTERN
-n=$( ls -1d "${DATA_ROOT}/${SBID}"/${UVFITS_PATTERN} 2>/dev/null | wc -l )
+n=$( ls -1d "${DATA_ROOT}/${SBID}"/${UVFITS_PATTERN} | wc -l )
 BIGARRAY_SPEC="0-$((n>0 ? n-1 : 0))"
 
 # 2) import uvfits
