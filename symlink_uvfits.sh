@@ -10,7 +10,7 @@ do
     scanid=$( echo $ff | sed 's|/fred/oz451/data/craco/||g' | awk -F'/' '{print $2}' )
     sbid=$( echo $ff | sed 's|/fred/oz451/data/craco/||g' | awk -F'/' '{print $1}' )
     mkdir -p /fred/oz451/"${USER}"/data/$sbid/$scanid/
-    if [ ! -f /fred/oz451/"${USER}"/data/$sbid/$scanid/$bf ];
+    if [ ! -e /fred/oz451/"${USER}"/data/$sbid/$scanid/$bf ];
     then
 	ln -s $ff /fred/oz451/"${USER}"/data/$sbid/$scanid/
     fi
@@ -23,7 +23,7 @@ then
     for c in $( find /fred/oz451/data/craco/"${SBID}"/cal -name "*.B0" )
     do
 	bc=$( basename $c )
-	if [ ! -f /fred/oz451/"${USER}"/data/"${SBID}"/cal/"$bc" ]
+	if [ ! -e /fred/oz451/"${USER}"/data/"${SBID}"/cal/"$bc" ]
 	then
 	    ln -s $c /fred/oz451/"${USER}"/data/"${SBID}"/cal/"$bc"
 	fi
