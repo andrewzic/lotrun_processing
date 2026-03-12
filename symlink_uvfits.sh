@@ -15,3 +15,23 @@ do
 	ln -s $ff /fred/oz451/"${USER}"/data/$sbid/$scanid/
     fi
 done
+
+#don't forget the cal
+if [ -d /fred/oz451/data/craco/"${SBID}"/cal ]
+then
+    mkdir -p /fred/oz451/"${USER}"/data/"${SBID}"/cal
+    for c in $( find /fred/oz451/data/craco/"${SBID}"/cal -name "*.B0" )
+    do
+	bc=$( basename $c )
+	if [ ! -f /fred/oz451/"${USER}"/data/"${SBID}"/cal/"$bc" ]
+	then
+	    ln -s $c $bc
+	fi
+    done
+else
+    echo "cannot find cal directory for SBID ${SBID}"
+    exit 1
+fi
+
+    
+	       
