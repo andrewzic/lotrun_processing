@@ -230,11 +230,11 @@ sbatch_submit() {
   # Build one --export argument (no newline, no trailing comma)
   local export_arg="--export=ALL"
   if ((${#exports[@]})); then
-    local joined="" kv
+    local joined=""
     for kv in "${exports[@]}"; do
-      joined=$joined+"${joined:+,}${kv}"
+      joined+="${joined:+,}${kv}"
     done
-    export_arg="--export=ALL,${joined}"
+    export_arg="--export=ALL${joined:+,${joined}}"
   fi
 
   # Assemble sbatch options; append wrapper last
