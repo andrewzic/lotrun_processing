@@ -9,10 +9,28 @@ set -euo pipefail
 # Usage:
 #   source config.sh          # sets defaults in current shell
 #   CONFIG=my.config.sh ./pipeline.sh  # pipeline.sh will source CONFIG
-CONFIG="${CONFIG:-config.sh}"
+
+
+# Default SBID if not provided via CLI or environment
+DEFAULT_SBID="${DEFAULT_SBID:-SB77974}"
+
+# Priority: CLI ($1) > ENV ($SBID) > default
+SBID="${1:-${SBID:-$DEFAULT_SBID}}"
+
+echo "doing symlink"
+# 1) symlink uvfits
+if [[ "${DRY_RUN:-0}" == "1" ]]; then
+  echo "DRY local: ./symlink_uvfits.sh ${SBID}" >&2
+else
+  ./symlink_uvfits.sh "${SBID}"
+fi
+
+CONFIG="${CONFIG:-config.SB82418.sh}"
 if [[ -f "${CONFIG}" ]]; then
-  # shellcheck source=/dev/null
-  source "${CONFIG}"
+    # shellcheck source=/dev/null
+    echo "sourcing config $CONFIG"
+    source "${CONFIG}"
+    echo "sourced config"
 else
   echo "Config file not found: ${CONFIG}"
   echo "Create one (e.g., pipeline.config.sh) or pass CONFIG=/path/to/file"
@@ -22,7 +40,6 @@ __DRY_JID_SEQ="${DRY_FAKE_START:-490000}"
 
 # ----------- USER DEFAULTS (ideally edit config.sh to change these) -----------
 USER="${USER:-$(whoami)}"
-SBID="${SBID:-SB77974}"
 DATA_ROOT="${DATA_ROOT:-/fred/oz451/${USER}/data}"
 OUT_ROOT="${OUT_ROOT:-/fred/oz451/${USER}/data}"
 BIND_SRC="${BIND_SRC:-/fred/oz451}"
@@ -215,7 +232,7 @@ sbatch_submit() {
   if ((${#exports[@]})); then
     local joined="" kv
     for kv in "${exports[@]}"; do
-      joined+="${joined:+,}${kv}"
+      joined=$joined+"${joined:+,}${kv}"
     done
     export_arg="--export=ALL,${joined}"
   fi
@@ -228,8 +245,8 @@ sbatch_submit() {
                  --mem="$mem"
                  --output="logs/${name}_%A_%a.out"
                  --error="logs/${name}_%A_%a.err" )
-  [[ -n "$array" ]] && cmd+=( --array="$array" )
-  [[ -n "$dep"   ]] && cmd+=( --dependency="afterok:${dep}" )
+  [[ -n "$array" ]] && cmd+=( "--array=$array" )
+  [[ -n "$dep"   ]] && cmd+=( "--dependency=afterok:${dep}" )
   cmd+=( "$export_arg" "$wrapper" )
 
   if [[ "${DRY_RUN:-0}" == "1" ]]; then
@@ -273,15 +290,12 @@ mkdir -p logs plots
 n=$( ls -1d "${DATA_ROOT}/${SBID}"/${UVFITS_PATTERN} 2>/dev/null | wc -l )
 BIGARRAY_SPEC="0-$((n>0 ? n-1 : 0))"
 
-# 1) symlink uvfits
-if [[ "${DRY_RUN:-0}" == "1" ]]; then
-  echo "DRY local: ./symlink_uvfits.sh ${SBID}" >&2
-else
-  ./symlink_uvfits.sh "${SBID}"
-fi
-
 # 2) import uvfits
-jid_imp=$( sbatch_submit "importuvfits_array" "00:10:00" "${IMPORT_CPUS}" "${IMPORT_MEM}" "${BIGARRAY_SPEC}" "${RUN_IMPORT}" "" \
+echo $SBID
+echo $DATA_ROOT
+#exit
+jid_start=""
+jid_imp=$( sbatch_submit "importuvfits_array" "00:10:00" "${IMPORT_CPUS}" "${IMPORT_MEM}" "${BIGARRAY_SPEC}" "${RUN_IMPORT}" "${jid_start}" \
            SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" UVFITS_PATTERN="${UVFITS_PATTERN}" IMPORT_SCRIPT="${IMPORT_SCRIPT}" FLINT_CASA_SIF="${FLINT_CASA_SIF}" BIND_SRC="${BIND_SRC}" )
 jid_imp=$(chain "$jid_imp" "importuvfits")
 

@@ -443,8 +443,8 @@ for kind in "boxcar" "variance"
 do
     KIND="$kind"
     echo "doing ds extract for $KIND"
-    jid_prev=$( submit_extract_ds "${jid_prev}" )
-    echo "submitted dstools extract-ds ${jid_prev} for kind ${kind}"
+    #jid_prev=$( submit_extract_ds "${jid_prev}" )
+    #echo "submitted dstools extract-ds ${jid_prev} for kind ${kind}"
 done
 
 jid_ds="$jid_prev"

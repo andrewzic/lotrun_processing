@@ -149,25 +149,25 @@ FD_PLOT_CANDS_ONLY=${FD_PLOT_CANDS_ONLY:-}
 
 # -------------------- Stage-aware patterns ----------------
 # Import
-UVFITS_PATTERN="${UVFITS_PATTERN:-20??*/**beam*.uvfits}"
+UVFITS_PATTERN="${UVFITS_PATTERN:-20??*/*beam*.uvfits}"
 
 # Flag native
-FLAG_NATIVE_PATTERN="${FLAG_NATIVE_PATTERN:-20??*/"*beam*"*.20????????????.ms}"
+FLAG_NATIVE_PATTERN="${FLAG_NATIVE_PATTERN:-20??*/*beam*.20????????????.ms}"
 
 # Bandpass inputs (native)
-BANDPASS_INPUT_PATTERN="${BANDPASS_INPUT_PATTERN:-20??*/"*beam*".20????????????.ms}"
+BANDPASS_INPUT_PATTERN="${BANDPASS_INPUT_PATTERN:-20??*/*beam*.20????????????.ms}"
 
 # Flag calB0
-FLAG_CALB0_PATTERN="${FLAG_CALB0_PATTERN:-20??*/"*beam*"*.20????????????.calB0.ms}"
+FLAG_CALB0_PATTERN="${FLAG_CALB0_PATTERN:-20??*/*beam*.20????????????.calB0.ms}"
 
 # Average inputs (calB0)
-AVERAGE_INPUT_PATTERN="${AVERAGE_INPUT_PATTERN:-20??*/"*beam*"*.20????????????.calB0.ms}"
+AVERAGE_INPUT_PATTERN="${AVERAGE_INPUT_PATTERN:-20??*/*beam*.20????????????.calB0.ms}"
 
 # Flag averaged
-FLAG_AVG_PATTERN="${FLAG_AVG_PATTERN:-20??*/"*beam*"*.20????????????.avg.calB0.ms}"
+FLAG_AVG_PATTERN="${FLAG_AVG_PATTERN:-20??*/*beam*.20????????????.avg.calB0.ms}"
 
 # Concat inputs (averaged)
-CONCAT_INPUT_PATTERN="${CONCAT_INPUT_PATTERN:-20??*/"*beam*".20????????????.avg.calB0.ms}"
+CONCAT_INPUT_PATTERN="${CONCAT_INPUT_PATTERN:-20??*/*beam*.20????????????.avg.calB0.ms}"
 
 # Imaging/selfcal (concatenated)
 WSCLEAN_PATTERN="${WSCLEAN_PATTERN:-*beam{beam:02d}.avg.calB0.ms}"
@@ -178,10 +178,10 @@ UVSUB_CONCAT_INPUT_PATTERN="${UVSUB_CONCAT_INPUT_PATTERN:-*beam{beam:02d}.avg.ca
 
 
 # Applycal on native res (start from calB0; loop produces calG<i>)
-APPLYCAL_NATIVE_START_PATTERN="${APPLYCAL_NATIVE_START_PATTERN:-20??*/"*beam*".20????????????.calB0.ms}"
+APPLYCAL_NATIVE_START_PATTERN="${APPLYCAL_NATIVE_START_PATTERN:-20??*/*beam*.20????????????.calB0.ms}"
 
 # fastducc on uvsubbed native res
-FASTDUCC_INPUT_PATTERN="${FASTDUCC_INPUT_PATTERN:-20??*/"*beam*".20????????????.calB0.uvsub.ms}"
+FASTDUCC_INPUT_PATTERN="${FASTDUCC_INPUT_PATTERN:-20??*/*beam*.20????????????.calB0.uvsub.ms}"
 
 # -------------------- dstools extract-ds -----------------
 DS_N_WORKERS="${DS_N_WORKERS:-48}"
@@ -210,4 +210,4 @@ DS_CATALOGUE="${DS_CATALOGUE:-}"
 DS_SCAN_SCOPE=${DS_SCAN_SCOPE:-all}   # 'all' or 'catalogue'
 
 # -------------------- Sanity: required dirs --------------
-mkdir -p "${OUT_ROOT}" >/dev/null 2>&1 || true
+mkdir -p "${OUT_ROOT}"

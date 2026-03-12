@@ -26,6 +26,10 @@ PYTHON=${PYTHON:-apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${FLINT_CASA_SIF}
 root="${DATA_ROOT}/${SBID}"
 search_glob="${root}/${UVFITS_PATTERN}"
 
+echo $SBID
+echo $DATA_ROOT
+echo $root
+
 mkdir -p logs
 
 shopt -s nullglob
