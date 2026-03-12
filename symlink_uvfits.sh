@@ -25,7 +25,7 @@ then
 	bc=$( basename $c )
 	if [ ! -f /fred/oz451/"${USER}"/data/"${SBID}"/cal/"$bc" ]
 	then
-	    ln -s $c $bc
+	    ln -s $c /fred/oz451/"${USER}"/data/"${SBID}"/cal/"$bc"
 	fi
     done
 else
