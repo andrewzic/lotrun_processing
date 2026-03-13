@@ -151,11 +151,21 @@ def main():
     if args.index == 1:
         old_ms = args.ms
     elif args.index > 1:
-        old_ms = args.ms.replace(".calB0.ms", f".selfcal_{args.index-1}.ms")
+        if "cracoData" in args.ms:
+            # craco data
+            old_ms = args.ms.replace(".calB0.ms", f".selfcal_{args.index-1}.ms")
+        elif "scienceData" in args.ms:
+            # continuum data is already bp calibrated and ends with _averaged_cal.leakage.ms
+            old_ms = args.ms.replace("_averaged_cal.leakage.ms", f".selfcal_{args.index-1}.ms")
     else:
         raise ValueError(f"{args.index} make nossensens")
     
-    new_ms = args.ms.replace(".calB0.ms", f".selfcal_{args.index}.ms")
+    if "cracoData" in args.ms:
+        # craco data
+        new_ms = args.ms.replace(".calB0.ms", f".selfcal_{args.index}.ms")
+    elif "scienceData" in args.ms:
+        # continuum data is already bp calibrated and ends with _averaged_cal.leakage.ms
+        new_ms = args.ms.replace("_averaged_cal.leakage.ms", f".selfcal_{args.index}.ms")
 
     print(f"[{datetime.now().isoformat()}] SELF CALIBRATION WILL BE DERIVED FROM {old_ms}, CORRECTED DATA WILL BE SAVED TO {new_ms}")
     
@@ -166,7 +176,12 @@ def main():
     if not has_model_column(old_ms):
         raise ValueErorr("ERROR: MODEL_DATA column not found; gaincal divides DATA by MODEL. Ensure you have predicted a model (e.g., via crystalball) before self-cal.")
     
-    caltable = os.path.join(os.path.dirname(ms), "caltables", f"{os.path.basename(ms).replace('.calB0.ms', '')}_{args.caltable_prefix}.sol{index}_{solint}.G{index}")
+    if "cracoData" in args.ms:
+        # craco data
+        caltable = os.path.join(os.path.dirname(ms), "caltables", f"{os.path.basename(ms).replace('.calB0.ms', '')}_{args.caltable_prefix}.sol{index}_{solint}.G{index}")
+    elif "scienceData" in args.ms:
+        # continuum data is already bp calibrated and ends with _averaged_cal.leakage.ms
+        caltable = os.path.join(os.path.dirname(ms), "caltables", f"{os.path.basename(ms).replace('_averaged_cal.leakage.ms', '')}_{args.caltable_prefix}.sol{index}_{solint}.G{index}")
     # CASA table names must be directory-like; ensure no forbidden chars:
     #caltable = caltable.replace(":", "").replace("/", "_")
     solve_gain_phase(old_ms, caltable, solint, args)

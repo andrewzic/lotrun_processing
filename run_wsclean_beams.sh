@@ -39,6 +39,7 @@ root="${DATA_ROOT}/${SBID}"
 glob="${PATTERN//\{beam:02d\}/$beam2}"
 if (( INDEX > 0 )); then
     glob2="${glob/calB0/selfcal_${INDEX}}"
+    glob2="${glob2/_averaged_cal.leakage/selfcal_${INDEX}}" #catch all for continuum
 else
     glob2="${glob}"
 fi
@@ -59,6 +60,7 @@ if [[ -n "${FITS_MASK_TAG}" ]]; then
     mask_glob="${PATTERN//\{beam:02d\}/$beam2}"
     if (( INDEX > 1 )); then
 	mask_glob2="${mask_glob/calB0/selfcal_$((INDEX-1))}"
+    mask_glob2="${mask_glob2/_averaged_cal.leakage/selfcal_$((INDEX-1))}" #catch all for continuum
     elif (( INDEX <= 1 )); then
 	mask_glob2="${mask_glob}"
     fi

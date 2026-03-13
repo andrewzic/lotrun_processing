@@ -116,7 +116,7 @@ CB_MEMORY_FRACTION="${CB_MEMORY_FRACTION:-0.8}"
 # -------------------- Patterns (10s native) -------------
 # Native 10s MS per beam (after untar if needed).
 # Example: scienceData.*.SB82418.*.beam17_averaged_cal.leakage.ms
-NATIVE10S_PATTERN="${NATIVE10S_PATTERN:-*beam{beam:02d}_averaged_cal*.ms}"
+NATIVE10S_PATTERN="${NATIVE10S_PATTERN:-*beam{beam:02d}_averaged_cal.leakage.ms}"
 # Imaging/selfcal operates on native 10s MS directly
 WSCLEAN_PATTERN="${WSCLEAN_PATTERN:-${NATIVE10S_PATTERN}}"
 # FASTDUCC reads uvsubbed native 10s MS

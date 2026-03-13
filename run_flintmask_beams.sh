@@ -50,12 +50,14 @@ if (( SELFCAL == 1 ))
 then
     if (( INDEX > 0 )); then
 	glob2="${glob/calB0/selfcal_${INDEX}}"
+    glob2="${glob2/_averaged_cal.leakage/selfcal_${INDEX}}" #catch all for continuum    
     else
 	glob2="${glob}"
     fi
 else
     if (( INDEX > 0 )); then
 	glob2="${glob/calB0/calG${INDEX}}"
+    glob2="${glob2/_averaged_cal.leakage/selfcal_${INDEX}}" #catch all for continuum
     else
 	glob2="${glob}"
     fi
