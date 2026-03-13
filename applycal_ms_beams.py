@@ -5,6 +5,7 @@ import os
 import shutil
 import sys
 import re
+from typing import List
 from casatools import table
 from casatasks import applycal, split
 import casaconfig
@@ -18,7 +19,7 @@ def parse_args():
     parser.add_argument("--cal-dir", required=True, help="Directory containing calibration tables under data-root/SBID (expects *beamXX*.B0)")
     parser.add_argument("--beam", type=int, help="Single beam index to process (0..36)")
     parser.add_argument("--beams", default="all", help='Comma-separated list (e.g., "0,5,12") or "all" for 0..36')
-    parser.add_argument("--extension", default="B0", help='Gain table extension (e.g. "B0", "G5" etc.) to specify which calibrationt table to apply for beams')
+    parser.add_argument("--extension", default="B0", help='Gain table extension (e.g. "B0", "G5" etc.) to specify which calibrationt table to apply for beams. Use a wildcard like "G*" to automatically select the highest numbered Gaintable extension available for each beam (e.g. if G1, G2, G3 are present, it will apply G3). Default is "B0" which applies the initial calibration table without selfcal solutions.')
     parser.add_argument("--dry-run", action="store_true", help="List planned operations without running applycal")
     parser.add_argument("--delete-previous", action="store_true", help="Delete previous generation ms split to save filesystem errors")
     return parser.parse_args()
@@ -50,12 +51,32 @@ def find_ms_for_beam(data_root: str, sbid: str, pattern: str, beam: int) -> list
     pat = os.path.join(root, pattern.format(beam=beam))
     return sorted(glob.glob(pat))
 
-def find_caltable(data_root: str, sbid: str, cal_dir: str, beam: int, extension: str="B0") -> str:
+def find_caltables(data_root: str, sbid: str, cal_dir: str, beam: int, extension: str="B0") -> str:
     root = os.path.join(data_root, sbid, cal_dir)
     matches = sorted(glob.glob(os.path.join(root, f"*beam{beam:02d}*.{extension}")))
     if not matches:
         raise FileNotFoundError(f"No cal table found in '{root}' for beam {beam:02d} matching '*beam{beam:02d}*.{extension}'")
-    return matches[0]
+    return matches
+
+def determine_highest_extension(caltables):
+    """Determine the highest numbered gaintable extension from the list of caltables."""
+    extensions = []
+    for cal in caltables:
+        basename = os.path.basename(cal)
+        parts = basename.split('.')
+        if len(parts) > 1:
+            ext = parts[-1]
+            extensions.append(ext)
+    
+    max_num = -1
+    max_ext = None
+    for ext in extensions:
+        if len(ext) > 1 and ext[0].isalpha() and ext[1:].isdigit():
+            num = int(ext[1:])
+            if num > max_num:
+                max_num = num
+                max_ext = ext
+    return max_ext if max_ext else "B0"
 
 def validate_and_clean_ms(msname: str, outputvis: str, delete_previous: bool=True) -> bool:
     # Basic existence check
@@ -87,26 +108,34 @@ def validate_and_clean_ms(msname: str, outputvis: str, delete_previous: bool=Tru
     return True
 
 
-def run_applycal(msname: str, caltable: str, extension: str = "B0", delete_previous: bool = False) -> str:
+def run_applycal(msname: str, caltables: List[str], delete_previous: bool = False) -> str:
     """
     Apply a calibration table to 'msname' and split the corrected data to a new MS
-    labeled with '.cal{extension}.ms'. If validation succeeds, delete the previous
+    labeled with '.cal{extension}.ms' where extension is determined from the highest
+    numbered gaintable applied. If validation succeeds, delete the previous
     generation MS ('msname') to control disk usage.
 
     Returns:
         The path to the newly created output MS.
     """
-    print(f"Applying cal: {caltable} -> {msname}")
+    print(f"Applying cal: {caltables} -> {msname}")
+    
+    # determine extension based on highest numbered gaintable applied, e.g. .calG6 if G6 is highest, or .calB0 if only B0 applied
+    extension = determine_highest_extension(caltables)
     
     time_interp = "nearest" if extension == "B0" else "linear"
     freq_interp = "linear"
-    print(f"applying caltable {caltable} to ms {msname}")    
-    applycal(vis=msname, gaintable=[caltable], interp=[time_interp, freq_interp])
+    print(f"applying caltables {caltables} to ms {msname}")    
+    applycal(vis=msname, gaintable=caltables, interp=[time_interp, freq_interp]*len(caltables))
     #replace e.g. .calG1.ms with .calG6
+    # determine extension based on highest numbered gaintable applied, e.g. .calG6 if G6 is highest, or .calB0 if only B0 applied
+    extension = determine_highest_extension(caltables)
+    
+    output_extension = f".cal{extension}.ms"
     if "cal" in msname:
-        outputvis = re.sub(r'\.cal(?:B0|G\d+)\.ms', f".cal{extension}.ms", msname)
+        outputvis = re.sub(r'\.cal(?:B0|G\d+)\.ms', output_extension, msname)
     else:
-        outputvis = msname.replace(".ms", f".cal{extension}.ms")
+        outputvis = msname.replace(".ms", output_extension)
     if outputvis == msname:
         raise ValueError(f"Output measurement set name {outputvis} matches input {msname} ya nong.")
 
@@ -144,12 +173,12 @@ def main():
             if not ms_list:
                 print(f"WARN: No MS found under '{args.data_root}/{args.sbid}' for beam {beam:02d} with pattern '{args.pattern}'")
                 continue
-            caltable = find_caltable(args.data_root, args.sbid, args.cal_dir, beam, extension=args.extension)
-            print(f"Beam {beam:02d}: {len(ms_list)} MS found; using caltable: {caltable}")
+            caltables = find_caltables(args.data_root, args.sbid, args.cal_dir, beam, extension=args.extension)
+            print(f"Beam {beam:02d}: {len(ms_list)} MS found; using caltables: {caltables}")
             for msname in ms_list:
                 print(f"running applycal on  MS: {msname}")
                 if not args.dry_run:
-                    run_applycal(msname, caltable, extension=args.extension, delete_previous=args.delete_previous)
+                    run_applycal(msname, caltables, delete_previous=args.delete_previous)
         except Exception as e:
             print(f"ERROR: Beam {beam:02d} failed: {e}", file=sys.stderr)
             exit_code = 2

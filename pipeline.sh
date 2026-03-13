@@ -435,21 +435,17 @@ jid_uvsub_concat=$(chain "$jid_uvsub_concat" "uvsub_concat")
 # -------------------- Apply selfcal to native res, predict, uvsub --------------------
 jid_prev="$jid_uvsub_concat"
 
-# Applycal loop on native-res: start from calB0, then calG<i>
+# Applycal loop on native-res: apply all calG<i>
 applycal_pattern="${APPLYCAL_NATIVE_START_PATTERN}"
-for i in "${SC_INDEX[@]}"; do
-  [[ $i -gt 1 ]] && dp="--delete-previous" || dp="" #only delete previous after the first applycal to avoid deleting calB0
-  jid_prev=$( sbatch_submit "applycal_ms" "02:00:00" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_APPLYCAL}" "${jid_prev}" \
-             SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${applycal_pattern}" FLINT_CASA_SIF="${FLINT_CASA_SIF}" BIND_SRC="${BIND_SRC}" \
-             SCRIPT="applycal_ms_beams.py" CAL_DIR="caltables" EXTENSION="G${i}" DELETE_PREVIOUS="${dp}" )
-  jid_prev=$(chain "$jid_prev" "applycal_G${i}")
-  applycal_pattern="20??*/"*beam*".20????????????.calG${i}.ms"
-done
-
+jid_applycal=$( sbatch_submit "applycal_ms" "02:00:00" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_APPLYCAL}" "${jid_prev}" \
+                 SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${applycal_pattern}" FLINT_CASA_SIF="${FLINT_CASA_SIF}" BIND_SRC="${BIND_SRC}" \
+                 SCRIPT="applycal_ms_beams.py" CAL_DIR="caltables" EXTENSION="G*" DELETE_PREVIOUS="" )
+jid_applycal=$(chain "$jid_applycal" "applycal_native")
+           
 # Predict from 2h continuum model onto native res (pattern is last produced calG<last_idx>)
 CB_NATIVE_INPUT_PATTERN="${applycal_pattern}"
 
-jid_cb_native=$( sbatch_submit "cb_predict_native" "${CB_TIME}" "${CB_CPUS}" "${CB_MEM}" "${ARRAY_SPEC}" "${RUN_CB}" "${jid_prev}" \
+jid_cb_native=$( sbatch_submit "cb_predict_native" "${CB_TIME}" "${CB_CPUS}" "${CB_MEM}" "${ARRAY_SPEC}" "${RUN_CB}" "${jid_applycal}" \
                  SELFCAL="0" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${CB_NATIVE_INPUT_PATTERN}" IMG_TAG="${IMG_TAGS[6]}" OUTPUT_COLUMN="${CB_OUTPUT_COLUMN}" \
                  INDEX="${last_idx}" NUM_WORKERS="${CB_NUM_WORKERS}" ROW_CHUNKS="${CB_ROW_CHUNKS}" MODEL_CHUNKS="${CB_MODEL_CHUNKS}" \
                  MEMORY_FRACTION="${CB_MEMORY_FRACTION}" )
