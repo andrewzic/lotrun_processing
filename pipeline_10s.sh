@@ -90,7 +90,7 @@ SC_MINSNR="${SC_MINSNR:-3.0}"
 SC_PARANG="${SC_PARANG:-}"
 SC_APPLY_CALWT="${SC_APPLY_CALWT:-False}"
 # Round tags & controls
-declare -ag IMG_TAGS=("initial" "selfcal_1" "selfcal_2" "selfcal_3" "selfcal_4" "selfcal_5" "selfcal_6")
+declare -ag IMG_TAGS=("initial_scratch" "selfcal_1" "selfcal_2" "selfcal_3" "selfcal_4" "selfcal_5" "selfcal_6")
 declare -ag SC_INDEX=(1 2 3 4 5 6)
 declare -ag SC_CALMODE=("p" "p" "p" "p" "ap" "ap")
 declare -ag SC_SOLINT=("480s" "300s" "120s" "30s" "600s" "300s")
