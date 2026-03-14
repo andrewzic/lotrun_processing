@@ -6,7 +6,6 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=12G
 #SBATCH --array=0-36
-# Optional: #SBATCH --partition=standard
 
 set -euo pipefail
 

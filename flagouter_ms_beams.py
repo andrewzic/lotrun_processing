@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 import argparse
-import glob
-import os
 import sys
 try:
     import casaconfig
     casaconfig.logfile = "/dev/null"
 except Exception:
     pass
+
+from ms_tools import ensure_casa_flagdata, find_ms_files as find_ms_for_beam, run_flag_outer_antennas
 
 def parse_args():
     p = argparse.ArgumentParser(description="CASA: flagdata(mode='manual', antenna='24~35') on MS files per beam (SBID-aware)")
@@ -18,25 +18,6 @@ def parse_args():
     p.add_argument("--beams", default="all", help='Comma-separated list (e.g., "0,5,12") or "all" for 0..36')
     p.add_argument("--dry-run", action="store_true", help="List planned operations without running flagdata")
     return p.parse_args()
-
-def ensure_casa_flagdata() -> bool:
-    try:
-        from casatasks import flagdata  # noqa: F401
-        return True
-    except Exception as e:
-        print(f"ERROR: casatasks.flagdata not available: {e}", file=sys.stderr)
-        return False
-
-def find_ms_for_beam(data_root: str, sbid: str, pattern: str, beam: int) -> list:
-    root = os.path.join(data_root, sbid)
-    pat = os.path.join(root, pattern.format(beam=beam))
-    return sorted(glob.glob(pat))
-
-def run_flag_outer_antennas(msname: str):
-    from casatasks import flagdata
-    print(f"Flagging outer antennas (id > 23) -> {msname}")
-    # Flag antennas 24 through 35 (assuming 36-element array with antennas 0-35)
-    flagdata(vis=msname, mode='manual', antenna='24~35', action='apply', flagbackup=False)
 
 def main():
     args = parse_args()

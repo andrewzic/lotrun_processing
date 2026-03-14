@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 import argparse
 import os
-import sys
 from datetime import datetime
 import casaconfig
 casaconfig.logfile = "/dev/null"
+
+from ms_tools import has_model_column, solve_gain_phase, apply_gain
 
 def parse_args():
     p = argparse.ArgumentParser(description="Phase-only self-calibration loop in CASA.")
@@ -23,124 +24,6 @@ def parse_args():
     p.add_argument("--apply-calwt", type=str, default="False", help="applycal calwt flag (True/False).")
     return p.parse_args()
 
-def has_model_column(ms):
-    # Use casatools.table to check columns
-    try:
-        from casatools import table
-        tb = table()
-        tb.open(ms)
-        cols = tb.colnames()
-        tb.close()
-        return "MODEL_DATA" in cols
-    except Exception:
-        return False
-
-def solve_gain_phase(ms, caltable, solint, args):
-    from casatasks import gaincal
-    print(f"[{datetime.now().isoformat()}] gaincal: vis={ms}, caltable={caltable}, solint={solint}, calmode='{args.calmode}'")
-    gaincal(
-        vis=ms,
-        caltable=caltable,
-        field=args.field,
-        spw=args.spw,
-        solint=solint,
-        combine=args.combine,
-        refant=args.refant,
-        minsnr=args.minsnr,
-        gaintype="G",
-        calmode=args.calmode,
-        parang=args.parang
-    )
-
-
-def plot_solutions(caltable: str, figfile_base: str):
-    """
-    Plot calibration solutions using plotms (recommended in modern CASA).
-    Saves phase-vs-time and amplitude-vs-time PNGs next to your caltable.
-    """
-    try:
-        from casaplotms import plotms  # CASA 6 plotms interface
-    except Exception as e:
-        # Some packaged CASA expose plotms via casatasks; try that path too
-        try:
-            from casatasks import plotms  # fallback
-        except Exception:
-            raise RuntimeError(f"plotms is not available in this CASA build: {e}")
-
-    # 1) Phase vs Time
-    phase_png = f"{figfile_base}.phase.png"
-    plotms(
-        vis=caltable,          # plotms accepts calibration tables as 'vis'
-        xaxis="time",
-        yaxis="phase",
-        coloraxis="antenna",
-        showgui=False,
-        plotfile=phase_png,
-        overwrite=True
-    )
-
-    # 2) Amplitude vs Time (optional; comment out if you only want phase)
-    amp_png = f"{figfile_base}.amp.png"
-    plotms(
-        vis=caltable,
-        xaxis="time",
-        yaxis="amp",
-        coloraxis="antenna",
-        showgui=False,
-        plotfile=amp_png,
-        overwrite=True
-    )
-
-    print(f"Saved plots:\n  {phase_png}\n  {amp_png}")
-
-    
-# def plot_solutions(caltable, figfile):
-#     # Preferred: plotms (CASA 6) for cal tables; fallback to plotcal if available
-#     try:
-#         from casaplotms import plotms
-#         print(f"[{datetime.now().isoformat()}] plotms: caltable={caltable} -> {figfile}")
-#         plotms(
-#             vis=caltable,
-#             xaxis="time",
-#             yaxis="phase",
-#             coloraxis="antenna",
-#             showgui=False,
-#             plotfile=figfile,
-#             overwrite=True
-#         )
-#     except Exception:
-#         try:
-#             from casatasks import plotcal
-#             print(f"[{datetime.now().isoformat()}] plotcal (fallback): caltable={caltable} -> {figfile}")
-#             plotcal(
-#                 caltable=caltable,
-#                 xaxis="time",
-#                 yaxis="phase",
-#                 iteration="antenna",
-#                 showgui=False,
-#                 figfile=figfile
-#             )
-#         except Exception as e:
-#             print(f"WARNING: Unable to plot calibration table '{caltable}': {e}", file=sys.stderr)
-
-def apply_gain(old_ms, new_ms, gaintables, args):
-    from casatasks import applycal, split
-    print(f"[{datetime.now().isoformat()}] applycal: vis={old_ms}, gaintable={gaintables}")
-    applycal(
-        vis=old_ms,
-        field=args.field,
-        spw=args.spw,
-        gaintable=gaintables,
-        gainfield=[""] * len(gaintables),
-        interp=["linear,nearest"] * len(gaintables),
-        calwt=[args.apply_calwt.lower() == "true"] * len(gaintables),
-        parang=args.parang,
-        flagbackup=True
-    )
-    print(f"[{datetime.now().isoformat()}] split: vis={old_ms}, outputvis={new_ms}, datcolumn='corrected'")
-    split(vis=old_ms, outputvis=new_ms, datacolumn="corrected")
-    
-    
 def main():
     args = parse_args()
     ms = args.ms
@@ -174,7 +57,7 @@ def main():
     os.makedirs(os.path.join(os.path.dirname(ms), 'caltables'), exist_ok=True)
     
     if not has_model_column(old_ms):
-        raise ValueErorr("ERROR: MODEL_DATA column not found; gaincal divides DATA by MODEL. Ensure you have predicted a model (e.g., via crystalball) before self-cal.")
+        raise ValueError("ERROR: MODEL_DATA column not found; gaincal divides DATA by MODEL. Ensure you have predicted a model (e.g., via crystalball) before self-cal.")
     
     if "cracoData" in args.ms:
         # craco data

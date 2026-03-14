@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 import argparse
-import glob
-import os
 import sys
 import casaconfig
 casaconfig.logfile = "/dev/null"
+
+from ms_tools import ensure_casatasks, run_uvsub
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Run CASA uvsub on MS files for specified beams (SBID-aware).") 
@@ -19,47 +19,6 @@ def parse_args():
     parser.add_argument("--dry-run", action="store_true", help="List planned operations without running uvsub")
     return parser.parse_args()
 
-def ensure_casatasks() -> bool:
-    try:
-        from casatasks import applycal, uvsub, split  # noqa: F401
-        return True
-    except Exception as e:
-        print(f"ERROR: casatasks.applycal, uvsub, split not available: {e}", file=sys.stderr)
-        return False
-
-def find_ms_for_beam(data_root: str, sbid: str, pattern: str, beam: int) -> list:
-    root = os.path.join(data_root, sbid)
-    pat = os.path.join(root, pattern.format(beam=beam))
-    return sorted(glob.glob(pat))
-
-def find_caltable(data_root: str, sbid: str, cal_dir: str, beam: int) -> str:
-    root = os.path.join(data_root, sbid, cal_dir)
-    matches = sorted(glob.glob(os.path.join(root, f"*beam{beam:02d}*.B0")))
-    if not matches:
-        raise FileNotFoundError(f"No cal table found in '{root}' for beam {beam:02d} matching '*beam{beam:02d}*.B0'")
-    return matches[0]
-
-def run_applycal(msname: str, caltable: str):
-    from casatasks import applycal, split
-    print(f"Applying cal: {caltable} -> {msname}")
-    # Interpolation list as per your example; adjust if you have multiple gaintables
-    applycal(vis=msname, gaintable=[caltable], interp=['nearest', 'linear'])
-    outputvis = msname.replace('.ms', '.calB0.ms')
-    split(vis=msname, outputvis=outputvis, datacolumn="corrected")
-
-def run_clearcal(msname: str):
-    from casatasks import clearcal
-    print(f"Applying cal: {caltable} -> {msname}")
-    # Interpolation list as per your example; adjust if you have multiple gaintables
-    clearcal(vis=msname)
-
-def run_uvsub(msname: str, out_prefix: str = "uvsub") -> None:
-    from casatasks import uvsub, split
-    outputvis = msname.replace(".ms", f".{out_prefix}.ms")
-    print(f"Running uvsub: {msname} -> {outputvis}")
-    uvsub(vis=msname)
-    split(vis=msname, outputvis=outputvis, datacolumn="corrected")
-    
 def main():
     args = parse_args()
     ms = args.ms
@@ -84,7 +43,7 @@ def main():
         if not args.dry_run:
             run_uvsub(ms, out_prefix=out_prefix)
     except Exception as e:
-        print(f"ERROR: Beam {beam:02d} failed: {e}", file=sys.stderr)
+        print(f"ERROR: uvsub failed: {e}", file=sys.stderr)
         exit_code = 2
 
     sys.exit(exit_code)

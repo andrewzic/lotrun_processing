@@ -33,16 +33,14 @@ from __future__ import annotations
 import argparse
 import math
 import os
-import sys
 import glob
 import time
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, List, Dict, Tuple, Optional, Set
+from typing import List, Dict, Tuple, Optional, Set
 
 # ---- dstools imports -----------------------------------------
-import logging
 import warnings
 from importlib.metadata import version
 import h5py
