@@ -63,7 +63,7 @@ RUN_EXTRACT_DS="${RUN_EXTRACT_DS:-${SCRIPT_DIR}/scripts/slurm/run_dstools_extrac
 RUN_UNFLAG="${RUN_UNFLAG:-${SCRIPT_DIR}/scripts/slurm/run_unflag_beams.sh}"
 RUN_FLAG="${RUN_FLAG:-${SCRIPT_DIR}/scripts/slurm/run_flag.sh}"
 RUN_FLAGOUTER="${RUN_FLAGOUTER:-${SCRIPT_DIR}/scripts/slurm/run_flagouter_beams.sh}"
-FLAG_OUTER=${FLAG_OUTER:-False} # Whether to flag outer antennas to match the inner antennas used by CRACO
+FLAG_OUTER=${FLAG_OUTER:-"False"} # Whether to flag outer antennas to match the inner antennas used by CRACO
 
 # -------------------- Resources ------------------------
 ARRAY_SPEC="${ARRAY_SPEC:-0-35}"
