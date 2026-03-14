@@ -87,6 +87,45 @@ echo "script_dir: $script_dir"
 #module load aoflagger
 module load apptainer
 
-# Run the flagging
-${AOFLAGGER} ${AOFLAGGER_OPTIONS} "$MSFILE"
+# Run the flagging wrapped in a retry loop to handle transient errors (e.g., filesystem issues)
+run_with_timeout_and_retry() {
+  local attempts="$1"; shift
+  local timeout_s="$1"; shift
+  local try=1
+  local rc=0
+  set -o monitor
+  while (( try <= attempts )); do
+    echo "[INFO] Attempt ${try}/${attempts}: $(date -Is) :: $*"
+    setsid timeout --preserve-status --signal=TERM --kill-after=30s "${timeout_s}" "$@" &
+    local pid=$!
+    wait "${pid}"
+    rc=$?
+    if (( rc == 0 )); then
+      echo "[INFO] Success on attempt ${try}."
+      return 0
+    elif (( rc == 124 )); then
+      echo "[WARN] Timeout after ${timeout_s}; attempt ${try}."
+      pgid=$(ps -o pgid= -p "${pid}" | tr -d ' ')
+      if [[ -n "${pgid}" ]]; then
+        echo "[INFO] Killing leftover processes in PGID ${pgid}"
+        kill -TERM -"${pgid}" 2>/dev/null || true
+        sleep 2
+        kill -KILL -"${pgid}" 2>/dev/null || true
+      fi
+    else
+      echo "[ERROR] Command failed with rc=${rc} on attempt ${try} (non-timeout)."
+      return "${rc}"
+    fi
+    sleep $(( (RANDOM % 10) + 5 ))s
+    ((try++))
+  done
+  echo "[ERROR] Exhausted ${attempts} attempts; giving up."
+  return 124
+}
+
+# Run AOFLAGGER with a 8-minute cap, up to 3 tries
+run_with_timeout_and_retry 3 8m \
+  srun --cpu-bind=cores --kill-on-bad-exit=1 \
+       bash -lc '${AOFLAGGER} ${AOFLAGGER_OPTIONS} "$MSFILE" '
+
 
