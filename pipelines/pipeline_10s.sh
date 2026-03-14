@@ -51,17 +51,17 @@ FLINT_WSCLEAN_SIF="${FLINT_WSCLEAN_SIF:-${CONTAINER_DIR}/flint-containers_wsclea
 FLINT_CASA_SIF="${FLINT_CASA_SIF:-${CONTAINER_DIR}/flint-containers_casa.sif}"
 
 # -------------------- Wrapper scripts ------------------
-RUN_WSCLEAN="${RUN_WSCLEAN:-run_wsclean_beams.sh}"
-RUN_FLINT_MASK="${RUN_FLINT_MASK:-run_flintmask_beams.sh}"
-RUN_CB="${RUN_CB:-run_crystalball_beams.sh}"
-RUN_SELFCAL="${RUN_SELFCAL:-run_selfcal_beams.sh}"
-RUN_UVSUB="${RUN_UVSUB:-run_uvsub_beams.sh}"
-RUN_FASTDUCC="${RUN_FASTDUCC:-run_fastducc_beams.sh}"
-RUN_FASTDUCC_AGG="${RUN_FASTDUCC_AGG:-run_fastducc_aggregate_chunks.sh}"
-RUN_EXTRACT_DS="${RUN_EXTRACT_DS:-run_dstools_extract_cands.sh}"
+RUN_WSCLEAN="${RUN_WSCLEAN:-${SCRIPT_DIR}/scripts/slurm/run_wsclean_beams.sh}"
+RUN_FLINT_MASK="${RUN_FLINT_MASK:-${SCRIPT_DIR}/scripts/slurm/run_flintmask_beams.sh}"
+RUN_CB="${RUN_CB:-${SCRIPT_DIR}/scripts/slurm/run_crystalball_beams.sh}"
+RUN_SELFCAL="${RUN_SELFCAL:-${SCRIPT_DIR}/scripts/slurm/run_selfcal_beams.sh}"
+RUN_UVSUB="${RUN_UVSUB:-${SCRIPT_DIR}/scripts/slurm/run_uvsub_beams.sh}"
+RUN_FASTDUCC="${RUN_FASTDUCC:-${SCRIPT_DIR}/scripts/slurm/run_fastducc_beams.sh}"
+RUN_FASTDUCC_AGG="${RUN_FASTDUCC_AGG:-${SCRIPT_DIR}/scripts/slurm/run_fastducc_aggregate_chunks.sh}"
+RUN_EXTRACT_DS="${RUN_EXTRACT_DS:-${SCRIPT_DIR}/scripts/slurm/run_dstools_extract_cands.sh}"
 # New pre-processing wrappers
-RUN_UNFLAG="${RUN_UNFLAG:-run_unflag_beams.sh}"
-RUN_FLAG="${RUN_FLAG:-run_flag.sh}"
+RUN_UNFLAG="${RUN_UNFLAG:-${SCRIPT_DIR}/scripts/slurm/run_unflag_beams.sh}"
+RUN_FLAG="${RUN_FLAG:-${SCRIPT_DIR}/scripts/slurm/run_flag.sh}"
 
 # -------------------- Resources ------------------------
 ARRAY_SPEC="${ARRAY_SPEC:-0-35}"
