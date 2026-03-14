@@ -82,6 +82,7 @@ CONCAT_PYTHON="${CONCAT_PYTHON:-apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${
 
 IMPORT_CPUS="${IMPORT_CPUS:-2}"
 IMPORT_MEM="${IMPORT_MEM:-2G}"
+IMPORT_TIME="${IMPORT_TIME:-00:10:00}"
 FLAG_CPUS="${FLAG_CPUS:-4}"
 FLAG_MEM="${FLAG_MEM:-12G}"
 AVERAGE_CPUS="${AVERAGE_CPUS:-4}"
@@ -92,6 +93,7 @@ WSCLEAN_CPUS="${WSCLEAN_CPUS:-4}"
 WSCLEAN_MEM="${WSCLEAN_MEM:-16G}"
 SC_CPUS="${SC_CPUS:-8}";
 SC_MEM="${SC_MEM:-4G}"
+SC_TIME="${SC_TIME:-02:00:00}"
 FM_CPUS="${FM_CPUS:-1}"
 FM_MEM="${FM_MEM:-1G}"
 FD_CPUS="${FD_CPUS:-1}"
@@ -100,10 +102,19 @@ FD_MEM="${FD_MEM:-32G}"
 CB_TIME="${CB_TIME:-03:15:00}"; CB_CPUS="${CB_CPUS:-32}"; CB_MEM="${CB_MEM:-54G}"
 AGG_TIME="${AGG_TIME:-00:30:00}"; AGG_CPUS="${AGG_CPUS:-1}"; AGG_MEM="${AGG_MEM:-2G}"
 FD_TIME="${FD_TIME:-06:00:00}"
+APPLYCAL_TIME="${APPLYCAL_TIME:-04:00:00}"
 
 EXTRACT_TIME="${EXTRACT_TIME:-01:00:00}"
 EXTRACT_CPUS="${EXTRACT_CPUS:-1}"
 EXTRACT_MEM="${EXTRACT_MEM:-4G}"
+
+BANDPASS_TIME="${BANDPASS_TIME:-02:00:00}"
+FLAG_TIME="${FLAG_TIME:-00:30:00}"
+AVERAGE_TIME="${AVERAGE_TIME:-01:00:00}"
+CONCAT_TIME="${CONCAT_TIME:-01:00:00}"
+WSCLEAN_TIME="${WSCLEAN_TIME:-04:00:00}"
+FM_TIME="${FM_TIME:-00:30:00}"
+UVSUB_TIME="${UVSUB_TIME:-02:00:00}"
 
 # -------------------- Stage parameters -----------------
 TIMEBIN="${TIMEBIN:-9.90s}"
@@ -314,57 +325,57 @@ echo $SBID
 echo $DATA_ROOT
 #exit
 jid_start=""
-jid_imp=$( sbatch_submit "importuvfits_array" "00:10:00" "${IMPORT_CPUS}" "${IMPORT_MEM}" "${BIGARRAY_SPEC}" "${RUN_IMPORT}" "${jid_start}" \
+jid_imp=$( sbatch_submit "importuvfits_array" "${IMPORT_TIME}" "${IMPORT_CPUS}" "${IMPORT_MEM}" "${BIGARRAY_SPEC}" "${RUN_IMPORT}" "${jid_start}" \
            SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" UVFITS_PATTERN="${UVFITS_PATTERN}" IMPORT_SCRIPT="${IMPORT_SCRIPT}" FLINT_CASA_SIF="${FLINT_CASA_SIF}" BIND_SRC="${BIND_SRC}" )
 jid_imp=$(chain "$jid_imp" "importuvfits")
 
 # 3) flag native-resolution MS
-jid_fl1=$( sbatch_submit "aoflagger_array" "00:30:00" "${FLAG_CPUS}" "${FLAG_MEM}" "${BIGARRAY_SPEC}" "${RUN_FLAG}" "${jid_imp}" \
+jid_fl1=$( sbatch_submit "aoflagger_array" "${FLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM}" "${BIGARRAY_SPEC}" "${RUN_FLAG}" "${jid_imp}" \
            SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${FLAG_NATIVE_PATTERN}" SCRIPT_DIR="${SCRIPT_DIR}" FLAG_SCRIPT="${FLAG_SCRIPT}" COLUMN="${FLAG_COLUMN}" RUN_FLAG="${RUN_FLAG}" )
 jid_fl1=$(chain "$jid_fl1" "flag_native")
 
 # 4) apply bandpass (B0) to native res
-jid_ac1=$( sbatch_submit "bandpass_ms" "02:00:00" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_BANDPASS}" "${jid_fl1}" \
+jid_ac1=$( sbatch_submit "bandpass_ms" "${APPLYCAL_TIME}" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_BANDPASS}" "${jid_fl1}" \
            SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${BANDPASS_INPUT_PATTERN}" FLINT_CASA_SIF="${FLINT_CASA_SIF}" BIND_SRC="${BIND_SRC}" \
            SCRIPT="applycal_ms_beams.py" CAL_DIR="cal" EXTENSION="B0" DELETE_PREVIOUS="--delete-previous" )
 jid_ac1=$(chain "$jid_ac1" "bandpass_B0")
 
 # 5) flag after B0
-jid_fl2=$( sbatch_submit "aoflagger_array" "00:30:00" "${FLAG_CPUS}" "${FLAG_MEM}" "${BIGARRAY_SPEC}" "${RUN_FLAG}" "${jid_ac1}" \
+jid_fl2=$( sbatch_submit "aoflagger_array" "${FLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM}" "${BIGARRAY_SPEC}" "${RUN_FLAG}" "${jid_ac1}" \
            SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${FLAG_CALB0_PATTERN}" SCRIPT_DIR="${SCRIPT_DIR}" FLAG_SCRIPT="${FLAG_SCRIPT}" COLUMN="${FLAG_COLUMN}" RUN_FLAG="${RUN_FLAG}" )
 jid_fl2=$(chain "$jid_fl2" "flag_calB0")
 
 # 6) average MS
-jid_av1=$( sbatch_submit "average_array" "01:00:00" "${AVERAGE_CPUS}" "${AVERAGE_MEM}" "${BIGARRAY_SPEC}" "${RUN_AVERAGE}" "${jid_fl2}" \
+jid_av1=$( sbatch_submit "average_array" "${AVERAGE_TIME}" "${AVERAGE_CPUS}" "${AVERAGE_MEM}" "${BIGARRAY_SPEC}" "${RUN_AVERAGE}" "${jid_fl2}" \
            SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${AVERAGE_INPUT_PATTERN}" SCRIPT_DIR="${SCRIPT_DIR}" SCRIPT="${AVERAGE_SCRIPT}" PYTHON="${AVERAGE_PYTHON}" TIMEBIN="${TIMEBIN}" )
 jid_av1=$(chain "$jid_av1" "average")
 
 # 7) flag averaged MS
-jid_fl3=$( sbatch_submit "aoflagger_array" "00:30:00" "${FLAG_CPUS}" "${FLAG_MEM}" "${BIGARRAY_SPEC}" "${RUN_FLAG}" "${jid_av1}" \
+jid_fl3=$( sbatch_submit "aoflagger_array" "${FLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM}" "${BIGARRAY_SPEC}" "${RUN_FLAG}" "${jid_av1}" \
            SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${FLAG_AVG_PATTERN}" SCRIPT_DIR="${SCRIPT_DIR}" FLAG_SCRIPT="${FLAG_SCRIPT}" COLUMN="${FLAG_COLUMN}" RUN_FLAG="${RUN_FLAG}" )
 jid_fl3=$(chain "$jid_fl3" "flag_avg")
 
 # 8) concat beams (averaged)
-jid_cat=$( sbatch_submit "concat_ms" "01:00:00" "${CONCAT_CPUS}" "${CONCAT_MEM}" "${ARRAY_SPEC}" "${RUN_CONCAT}" "${jid_fl3}" \
+jid_cat=$( sbatch_submit "concat_ms" "${CONCAT_TIME}" "${CONCAT_CPUS}" "${CONCAT_MEM}" "${ARRAY_SPEC}" "${RUN_CONCAT}" "${jid_fl3}" \
            SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" OUT_ROOT="${OUT_ROOT}" PATTERN="${CONCAT_INPUT_PATTERN}" PYTHON="${CONCAT_PYTHON}" SCRIPT="${CONCAT_SCRIPT}" )
 jid_cat=$(chain "$jid_cat" "concat")
 
 # -------------------- Imaging / Mask / Predict / Selfcal (looped) --------------------
 # We operate on concatenated MS: *beam{beam:02d}.avg.calB0.ms
 # Initial scratch image/mask/predict before the rounds loop
-jid_img_init=$( sbatch_submit "wsclean_ms" "04:00:00" "${WSCLEAN_CPUS}" "${WSCLEAN_MEM}" "${ARRAY_SPEC}" "${RUN_WSCLEAN}" "${jid_cat}" \
+jid_img_init=$( sbatch_submit "wsclean_ms" "${WSCLEAN_TIME}" "${WSCLEAN_CPUS}" "${WSCLEAN_MEM}" "${ARRAY_SPEC}" "${RUN_WSCLEAN}" "${jid_cat}" \
                 SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" FLINT_WSCLEAN_SIF="${FLINT_WSCLEAN_SIF}" \
                 IMG_TAG="initial_scratch" INDEX="$(( SC_INDEX[0]-1 ))" BIND_SRC="${BIND_SRC}" WSCLEAN_OPTS="${WSCLEAN_OPTS[0]}" )
 jid_img_init=$(chain "$jid_img_init" "wsclean_initial_scratch")
 
-jid_fm_init=$( sbatch_submit "flint_mask" "00:30:00" "${FM_CPUS}" "${FM_MEM}" "${ARRAY_SPEC}" "${RUN_FLINT_MASK}" "${jid_img_init}" \
-               SELFCAL="1" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" IMG_TAG="initial_scratch" INDEX="$(( SC_INDEX[0]-1 ))" \
+jid_fm_init=$( sbatch_submit "flint_mask" "${FM_TIME}" "${FM_CPUS}" "${FM_MEM}" "${ARRAY_SPEC}" "${RUN_FLINT_MASK}" "${jid_img_init}" \
+               SELFCAL="1" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" IMG_TAG="${IMG_TAGS[0]}" INDEX="$(( SC_INDEX[0]-1 ))" \
                FLOOD_FILL_POSITIVE_SEED_CLIP="${FLOOD_FILL_POSITIVE_SEED_CLIP}" FLOOD_FILL_POSITIVE_FLOOD_CLIP="${FLOOD_FILL_POSITIVE_FLOOD_CLIP}" \
                FLOOD_FILL_MAC_BOX_SIZE="${FLOOD_FILL_MAC_BOX_SIZE}" BEAM_SHAPE_ERODE_MIN_RESPONSE="${BEAM_SHAPE_ERODE_MIN_RESPONSE}" )
 jid_fm_init=$(chain "$jid_fm_init" "flintmask_initial_scratch")
 
 jid_cb_init=$( sbatch_submit "cb_predict" "${CB_TIME}" "${CB_CPUS}" "${CB_MEM}" "${ARRAY_SPEC}" "${RUN_CB}" "${jid_fm_init}" \
-               SELFCAL="1" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" IMG_TAG="initial_scratch" OUTPUT_COLUMN="${CB_OUTPUT_COLUMN}" \
+               SELFCAL="1" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" IMG_TAG="${IMG_TAGS[0]}" OUTPUT_COLUMN="${CB_OUTPUT_COLUMN}" \
                INDEX="$(( SC_INDEX[0]-1 ))" NUM_WORKERS="${CB_NUM_WORKERS}" ROW_CHUNKS="${CB_ROW_CHUNKS}" MODEL_CHUNKS="${CB_MODEL_CHUNKS}" \
                MEMORY_FRACTION="${CB_MEMORY_FRACTION}" )
 jid_cb_prev=$(chain "$jid_cb_init" "cb_initial_scratch")
@@ -377,13 +388,13 @@ for r in "${!SC_INDEX[@]}"; do
   opts="${WSCLEAN_OPTS[$((r+1))]:-${WSCLEAN_OPTS[$r]}}"
 
   # Image with mask from previous round
-  jid_img=$( sbatch_submit "wsclean_ms" "04:00:00" "${WSCLEAN_CPUS}" "${WSCLEAN_MEM}" "${ARRAY_SPEC}" "${RUN_WSCLEAN}" "${jid_cb_prev}" \
+  jid_img=$( sbatch_submit "wsclean_ms" "${WSCLEAN_TIME}" "${WSCLEAN_CPUS}" "${WSCLEAN_MEM}" "${ARRAY_SPEC}" "${RUN_WSCLEAN}" "${jid_cb_prev}" \
              SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" FLINT_WSCLEAN_SIF="${FLINT_WSCLEAN_SIF}" IMG_TAG="${img_tag}" \
              INDEX="$(( idx-1 ))" BIND_SRC="${BIND_SRC}" WSCLEAN_OPTS="${opts}" FITS_MASK_TAG="${prev_tag}" )
   jid_img=$(chain "$jid_img" "wsclean_${img_tag}")
 
   # Build mask
-  jid_fm=$( sbatch_submit "flint_mask" "00:30:00" "${FM_CPUS}" "${FM_MEM}" "${ARRAY_SPEC}" "${RUN_FLINT_MASK}" "${jid_img}" \
+  jid_fm=$( sbatch_submit "flint_mask" "${FM_TIME}" "${FM_CPUS}" "${FM_MEM}" "${ARRAY_SPEC}" "${RUN_FLINT_MASK}" "${jid_img}" \
             SELFCAL="1" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" IMG_TAG="${img_tag}" INDEX="$(( idx-1 ))" \
             FLOOD_FILL_POSITIVE_SEED_CLIP="${FLOOD_FILL_POSITIVE_SEED_CLIP}" FLOOD_FILL_POSITIVE_FLOOD_CLIP="${FLOOD_FILL_POSITIVE_FLOOD_CLIP}" \
             FLOOD_FILL_MAC_BOX_SIZE="${FLOOD_FILL_MAC_BOX_SIZE}" BEAM_SHAPE_ERODE_MIN_RESPONSE="${BEAM_SHAPE_ERODE_MIN_RESPONSE}" )
@@ -397,7 +408,7 @@ for r in "${!SC_INDEX[@]}"; do
   jid_cb=$(chain "$jid_cb" "cb_${img_tag}")
 
   # Self-cal (mode/solint from arrays)
-  jid_sc=$( sbatch_submit "selfcal_ms" "02:00:00" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_SELFCAL}" "${jid_cb}" \
+  jid_sc=$( sbatch_submit "selfcal_ms" "${SC_TIME}" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_SELFCAL}" "${jid_cb}" \
             SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" FLINT_CASA_SIF="${FLINT_CASA_SIF}" BIND_SRC="${BIND_SRC}" \
             SCRIPT="selfcal_ms_beams.py" INDEX="${idx}" CALMODE="${SC_CALMODE[$r]}" SOLINT="${SC_SOLINT[$r]}" FIELD="${SC_FIELD}" SPW="${SC_SPW}" \
             REFANT="${SC_REFANT}" COMBINE="${SC_COMBINE}" MINSNR="${SC_MINSNR}" PARANG="${SC_PARANG}" CALTABLE_PREFIX="${SC_PREFIX[$r]}" \
@@ -408,12 +419,12 @@ done
 # Final image/mask after last A+P round
 last_idx="${SC_INDEX[$((${#SC_INDEX[@]}-1))]}"
 
-jid_img_final=$( sbatch_submit "wsclean_ms" "04:00:00" "${WSCLEAN_CPUS}" "${WSCLEAN_MEM}" "${ARRAY_SPEC}" "${RUN_WSCLEAN}" "${jid_cb_prev}" \
+jid_img_final=$( sbatch_submit "wsclean_ms" "${WSCLEAN_TIME}" "${WSCLEAN_CPUS}" "${WSCLEAN_MEM}" "${ARRAY_SPEC}" "${RUN_WSCLEAN}" "${jid_cb_prev}" \
                  SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" FLINT_WSCLEAN_SIF="${FLINT_WSCLEAN_SIF}" \
                  IMG_TAG="${IMG_TAGS[6]}" INDEX="${last_idx}" BIND_SRC="${BIND_SRC}" WSCLEAN_OPTS="${WSCLEAN_OPTS[6]}" FITS_MASK_TAG="${IMG_TAGS[6]}" )
 jid_img_final=$(chain "$jid_img_final" "wsclean_${IMG_TAGS[6]}")
 
-jid_fm_final=$( sbatch_submit "flint_mask" "00:30:00" "${FM_CPUS}" "${FM_MEM}" "${ARRAY_SPEC}" "${RUN_FLINT_MASK}" "${jid_img_final}" \
+jid_fm_final=$( sbatch_submit "flint_mask" "${FM_TIME}" "${FM_CPUS}" "${FM_MEM}" "${ARRAY_SPEC}" "${RUN_FLINT_MASK}" "${jid_img_final}" \
                 SELFCAL="1" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" IMG_TAG="${IMG_TAGS[6]}" INDEX="${last_idx}" \
                 FLOOD_FILL_POSITIVE_SEED_CLIP="${FLOOD_FILL_POSITIVE_SEED_CLIP}" FLOOD_FILL_POSITIVE_FLOOD_CLIP="${FLOOD_FILL_POSITIVE_FLOOD_CLIP}" \
                 FLOOD_FILL_MAC_BOX_SIZE="${FLOOD_FILL_MAC_BOX_SIZE}" BEAM_SHAPE_ERODE_MIN_RESPONSE="${BEAM_SHAPE_ERODE_MIN_RESPONSE}" )
@@ -427,7 +438,7 @@ jid_cb6=$( sbatch_submit "cb_predict" "${CB_TIME}" "${CB_CPUS}" "${CB_MEM}" "${A
 jid_cb6=$(chain "$jid_cb6" "cb_${IMG_TAGS[6]}")
 
 # UVSUB on concatenated self-cal result (original: G6 inputs + ext B0)
-jid_uvsub_concat=$( sbatch_submit "uvsub_ms" "02:00:00" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_UVSUB}" "${jid_cb6}" \
+jid_uvsub_concat=$( sbatch_submit "uvsub_ms" "${UVSUB_TIME}" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_UVSUB}" "${jid_cb6}" \
                     SELFCAL="1" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${UVSUB_CONCAT_INPUT_PATTERN}" FLINT_CASA_SIF="${FLINT_CASA_SIF}" \
                     BIND_SRC="${BIND_SRC}" SCRIPT="uvsub_ms_beams.py" INDEX="${last_idx}" EXTENSION="B0" OUT_PREFIX="${UVSUB_OUT_PREFIX}" )
 jid_uvsub_concat=$(chain "$jid_uvsub_concat" "uvsub_concat")
@@ -437,11 +448,11 @@ jid_prev="$jid_uvsub_concat"
 
 # Applycal loop on native-res: apply all calG<i>
 applycal_pattern="${APPLYCAL_NATIVE_START_PATTERN}"
-jid_applycal=$( sbatch_submit "applycal_ms" "02:00:00" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_APPLYCAL}" "${jid_prev}" \
+jid_applycal=$( sbatch_submit "applycal_ms" "${APPLYCAL_TIME}" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_APPLYCAL}" "${jid_prev}" \
                  SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${applycal_pattern}" FLINT_CASA_SIF="${FLINT_CASA_SIF}" BIND_SRC="${BIND_SRC}" \
                  SCRIPT="applycal_ms_beams.py" CAL_DIR="caltables" EXTENSION="G*" DELETE_PREVIOUS="" )
 jid_applycal=$(chain "$jid_applycal" "applycal_native")
-           
+
 # Predict from 2h continuum model onto native res (pattern is last produced calG<last_idx>)
 CB_NATIVE_INPUT_PATTERN="${applycal_pattern}"
 
@@ -454,13 +465,13 @@ jid_cb_native=$(chain "$jid_cb_native" "cb_native")
 # UVSUB on native res (G6 calibrated)
 UVSUB_NATIVE_INPUT_PATTERN="${CB_NATIVE_INPUT_PATTERN}"
 
-jid_uvs_native=$( sbatch_submit "uvsub_ms" "02:00:00" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_UVSUB}" "${jid_cb_native}" \
+jid_uvs_native=$( sbatch_submit "uvsub_ms" "${UVSUB_TIME}" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_UVSUB}" "${jid_cb_native}" \
                   SELFCAL="0" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${UVSUB_NATIVE_INPUT_PATTERN}" FLINT_CASA_SIF="${FLINT_CASA_SIF}" \
                   BIND_SRC="${BIND_SRC}" SCRIPT="uvsub_ms_beams.py" INDEX="${last_idx}" EXTENSION="G6" OUT_PREFIX="${UVSUB_OUT_PREFIX}" )
 jid_uvs_native=$(chain "$jid_uvs_native" "uvsub_native")
 
 # fastducc on uvsubbed native MS
-jid_fastducc=$( sbatch_submit "fastducc_ms" "06:00:00" "${FD_CPUS}" "${FD_MEM}" "${ARRAY_SPEC}" "${RUN_FASTDUCC}" "${jid_uvs_native}" \
+jid_fastducc=$( sbatch_submit "fastducc_ms" "${FD_TIME}" "${FD_CPUS}" "${FD_MEM}" "${ARRAY_SPEC}" "${RUN_FASTDUCC}" "${jid_uvs_native}" \
                 SELFCAL="0" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${FASTDUCC_INPUT_PATTERN}" BIND_SRC="${BIND_SRC}" INDEX="${last_idx}" \
                 EXTENSION="G6" NO_VAR_SEARCH="${FD_NO_VAR_SEARCH}" NO_BOX_SEARCH="${FD_NO_BOX_SEARCH}" PLOT_CANDS_ONLY="${FD_PLOT_CANDS_ONLY}" )
 jid_fastducc=$(chain "$jid_fastducc" "fastducc")
