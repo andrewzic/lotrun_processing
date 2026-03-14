@@ -15,7 +15,7 @@ DATA_ROOT=${DATA_ROOT:-/fred/oz451/${USER}/data}
 PATTERN=${PATTERN:-"*beam{beam:02d}*.avg.calB0.ms"}  # relative under data-root/SBID
 FLINT_CASA_SIF=${FLINT_CASA_SIF:-/fred/oz451/${USER}/containers/flint-containers_casa.sif}
 BIND_SRC=${BIND_SRC:-/fred/oz451}
-SCRIPT=${SCRIPT:-selfcal_ms_beams.py}
+SCRIPT=${SCRIPT:-src/casa/selfcal_ms_beams.py}
 
 # Self-cal parameters (override per submission as needed)
 SOLINT=${SOLINT:-"300s"}

@@ -16,7 +16,7 @@ DATA_ROOT=${DATA_ROOT:-/fred/oz451/${USER}/data}
 OUT_ROOT=${OUT_ROOT:-/fred/oz451/${USER}/data}
 PATTERN=${PATTERN:-"20??*/*beam{beam:02d}*.20????????????.avg.calB0.ms"}   # relative under data-root/SBID
 PYTHON=${PYTHON:-'apptainer exec --bind /fred/oz451:/fred/oz451 /fred/oz451/${USER}/containers/flint-containers_casa.sif python3'}
-SCRIPT=${SCRIPT:-concat_ms_beams.py}
+SCRIPT=${SCRIPT:-src/casa/concat_ms_beams.py}
 # ---------------------------------------------------------------------
 
 # Resolve the beam-specific glob by formatting {beam:02d}

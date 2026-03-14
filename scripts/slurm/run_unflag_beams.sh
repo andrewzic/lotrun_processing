@@ -12,7 +12,7 @@ module load apptainer
 SBID=${SBID:-SB82418}
 DATA_ROOT=${DATA_ROOT:-/fred/oz451/${USER}/data}
 PATTERN=${PATTERN:-"*beam{beam:02d}_averaged_cal*.ms"}
-SCRIPT=${SCRIPT:-unflag_ms_beams.py}
+SCRIPT=${SCRIPT:-src/casa/unflag_ms_beams.py}
 CASA_SIF=${CASA_SIF:-/fred/oz451/${USER}/containers/flint-containers_casa.sif}
 BIND_SRC=${BIND_SRC:-/fred/oz451}
 PYTHON=${PYTHON:-apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CASA_SIF} python3}

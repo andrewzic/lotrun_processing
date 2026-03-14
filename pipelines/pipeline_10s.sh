@@ -15,13 +15,13 @@ DEFAULT_SBID="${DEFAULT_SBID:-SB77974}"
 # Priority: CLI ($1) > ENV ($SBID) > default
 SBID="${1:-${SBID:-$DEFAULT_SBID}}"
 
-echo "doing symlink 10s"
-# 1) symlink uvfits
-if [[ "${DRY_RUN:-0}" == "1" ]]; then
-  echo "DRY local: ./symlink_uvfits_10s.sh ${SBID}" >&2
-else
-  ./symlink_uvfits_10s.sh "${SBID}"
-fi
+# echo "doing symlink 10s"
+# # 1) symlink uvfits
+# if [[ "${DRY_RUN:-0}" == "1" ]]; then
+#   echo "DRY local: ./symlink_uvfits_10s.sh ${SBID}" >&2
+# else
+#   ./scripts/utils/symlink_uvfits_10s.sh "${SBID}"
+# fi
 
 # -------------------- Config loader --------------------
 # Run: CONFIG=/path/to/config.sh ./pipeline_10s.sh SBXXXXX
@@ -243,7 +243,7 @@ for r in "${!SC_INDEX[@]}"; do
 
   jid_sc=$( sbatch_submit "selfcal_ms" "${SC_TIME}" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_SELFCAL}" "$jid_prev" \
     SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" FLINT_CASA_SIF="${FLINT_CASA_SIF}" BIND_SRC="${BIND_SRC}" \
-    SCRIPT="selfcal_ms_beams.py" INDEX="${idx}" CALMODE="${SC_CALMODE[$r]}" SOLINT="${SC_SOLINT[$r]}" FIELD="${SC_FIELD}" SPW="${SC_SPW}" \
+    SCRIPT="src/casa/selfcal_ms_beams.py" INDEX="${idx}" CALMODE="${SC_CALMODE[$r]}" SOLINT="${SC_SOLINT[$r]}" FIELD="${SC_FIELD}" SPW="${SC_SPW}" \
     REFANT="${SC_REFANT}" COMBINE="${SC_COMBINE}" MINSNR="${SC_MINSNR}" PARANG="${SC_PARANG}" CALTABLE_PREFIX="${SC_PREFIX[$r]}" \
     PLOT_DIR="plots" APPLY_CALWT="${SC_APPLY_CALWT}" )
   jid_prev=$(chain "$jid_sc" "selfcal_${img_tag}")
@@ -271,7 +271,7 @@ jid_cb_final=$(chain "$jid_cb_final" "cb_${IMG_TAGS[6]}")
 # C) Single uvsub on native 10s MS (no separate applycal loop)
 jid_uvs_native=$( sbatch_submit "uvsub_ms" "${UVSUB_TIME}" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_UVSUB}" "$jid_cb_final" \
   SELFCAL="0" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" FLINT_CASA_SIF="${FLINT_CASA_SIF}" \
-  BIND_SRC="${BIND_SRC}" SCRIPT="uvsub_ms_beams.py" INDEX="${last_idx}" EXTENSION="G6" OUT_PREFIX="uvsub" )
+  BIND_SRC="${BIND_SRC}" SCRIPT="src/casa/uvsub_ms_beams.py" INDEX="${last_idx}" EXTENSION="G6" OUT_PREFIX="uvsub" )
 jid_uvs_native=$(chain "$jid_uvs_native" "uvsub_native")
 
 # D) fastducc on uvsubbed native MS

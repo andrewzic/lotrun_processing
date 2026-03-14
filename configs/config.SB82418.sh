@@ -14,14 +14,13 @@
 
 # -------------------- Basic context --------------------
 USER="${USER:-$(whoami)}"
-SBID="${SBID:-SB77974}"
+SBID="${SBID:-SB82418}"
 DATA_ROOT="${DATA_ROOT:-/fred/oz451/${USER}/data}"
 OUT_ROOT="${OUT_ROOT:-/fred/oz451/${USER}/data}"
 BIND_SRC="${BIND_SRC:-/fred/oz451}"
 CONTAINER_DIR="${CONTAINER_DIR:-/fred/oz451/${USER}/containers}"
 LOG_DIR="${LOG_DIR:-/fred/oz451/${USER}/lotrun_processing/logs}"
 SCRIPT_DIR="${SCRIPT_DIR:-/fred/oz451/$USER/scripts/lotrun_processing}"
-
 
 # -------------------- Dry-run controls --------------------
 # When DRY_RUN=1, no sbatch calls are made; commands are printed and fake JIDs returned.
@@ -34,35 +33,34 @@ DRY_FAKE_START="${DRY_FAKE_START:-490000}"
 # If set to 1, print the "DRY sbatch:" command lines (stderr).
 DRY_PRINT_CMDS="${DRY_PRINT_CMDS:-1}"
 
-
 # -------------------- Containers -----------------------
 FLINT_WSCLEAN_SIF="${FLINT_WSCLEAN_SIF:-${CONTAINER_DIR}/flint-containers_wsclean.sif}"
 FLINT_CASA_SIF="${FLINT_CASA_SIF:-${CONTAINER_DIR}/flint-containers_casa.sif}"
 
 # -------------------- Wrapper scripts ------------------
-RUN_IMPORT="${RUN_IMPORT:-run_import.sh}"
-RUN_FLAG="${RUN_FLAG:-run_flag.sh}"
-RUN_AVERAGE="${RUN_AVERAGE:-run_average_beams.sh}"
-RUN_CONCAT="${RUN_CONCAT:-run_concat_beams.sh}"
-RUN_WSCLEAN="${RUN_WSCLEAN:-run_wsclean_beams.sh}"
-RUN_FLINT_MASK="${RUN_FLINT_MASK:-run_flintmask_beams.sh}"
-RUN_CB="${RUN_CB:-run_crystalball_beams.sh}"
-RUN_SELFCAL="${RUN_SELFCAL:-run_selfcal_beams.sh}"
-RUN_APPLYCAL="${RUN_APPLYCAL:-run_applycal_beams.sh}"
-RUN_BANDPASS="${RUN_BANDPASS:-run_applycal_beams.sh}"
-RUN_UVSUB="${RUN_UVSUB:-run_uvsub_beams.sh}"
-RUN_FASTDUCC="${RUN_FASTDUCC:-run_fastducc_beams.sh}"
-RUN_FASTDUCC_AGG="${RUN_FASTDUCC_AGG:-run_fastducc_aggregate_chunks.sh}"
+RUN_IMPORT="${RUN_IMPORT:-${SCRIPT_DIR}/scripts/slurm/run_import.sh}"
+RUN_FLAG="${RUN_FLAG:-${SCRIPT_DIR}/scripts/slurm/run_flag.sh}"
+RUN_AVERAGE="${RUN_AVERAGE:-${SCRIPT_DIR}/scripts/slurm/run_average_beams.sh}"
+RUN_CONCAT="${RUN_CONCAT:-${SCRIPT_DIR}/scripts/slurm/run_concat_beams.sh}"
+RUN_WSCLEAN="${RUN_WSCLEAN:-${SCRIPT_DIR}/scripts/slurm/run_wsclean_beams.sh}"
+RUN_FLINT_MASK="${RUN_FLINT_MASK:-${SCRIPT_DIR}/scripts/slurm/run_flintmask_beams.sh}"
+RUN_CB="${RUN_CB:-${SCRIPT_DIR}/scripts/slurm/run_crystalball_beams.sh}"
+RUN_SELFCAL="${RUN_SELFCAL:-${SCRIPT_DIR}/scripts/slurm/run_selfcal_beams.sh}"
+RUN_APPLYCAL="${RUN_APPLYCAL:-${SCRIPT_DIR}/scripts/slurm/run_applycal_beams.sh}"
+RUN_BANDPASS="${RUN_BANDPASS:-${SCRIPT_DIR}/scripts/slurm/run_applycal_beams.sh}"
+RUN_UVSUB="${RUN_UVSUB:-${SCRIPT_DIR}/scripts/slurm/run_uvsub_beams.sh}"
+RUN_FASTDUCC="${RUN_FASTDUCC:-${SCRIPT_DIR}/scripts/slurm/run_fastducc_beams.sh}"
+RUN_FASTDUCC_AGG="${RUN_FASTDUCC_AGG:-${SCRIPT_DIR}/scripts/slurm/run_fastducc_aggregate_chunks.sh}"
 # Optional obs-level aggregation (leave unset to skip)
 # RUN_FASTDUCC_OBSAGG="run_fastducc_aggregate_obs.sh"
-RUN_CLEARCAL="${RUN_CLEARCAL:-run_clearcal_beams.sh}"
-RUN_EXTRACT_DS="${RUN_EXTRACT_DS:-run_dstools_extract_cands.sh}"
+RUN_CLEARCAL="${RUN_CLEARCAL:-${SCRIPT_DIR}/scripts/slurm/run_clearcal_beams.sh}"
+RUN_EXTRACT_DS="${RUN_EXTRACT_DS:-${SCRIPT_DIR}/scripts/slurm/run_dstools_extract_cands.sh}"
 
 # -------------------- Tool scripts ---------------------
-IMPORT_SCRIPT="${IMPORT_SCRIPT:-import_array.py}"
-FLAG_SCRIPT="${FLAG_SCRIPT:-flag.sh}"
-AVERAGE_SCRIPT="${AVERAGE_SCRIPT:-average_ms_beams.py}"
-CONCAT_SCRIPT="${CONCAT_SCRIPT:-concat_ms_beams.py}"
+IMPORT_SCRIPT="${IMPORT_SCRIPT:-${SCRIPT_DIR}/src/casa/import_array.py}"
+FLAG_SCRIPT="${FLAG_SCRIPT:-${SCRIPT_DIR}/scripts/slurm/run_flag.sh}"
+AVERAGE_SCRIPT="${AVERAGE_SCRIPT:-${SCRIPT_DIR}/src/casa/average_ms_beams.py}"
+CONCAT_SCRIPT="${CONCAT_SCRIPT:-${SCRIPT_DIR}/src/casa/concat_ms_beams.py}"
 
 # -------------------- Python launchers -----------------
 AVERAGE_PYTHON="${AVERAGE_PYTHON:-apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CONTAINER_DIR}/flint-containers_casa.sif python3}"
@@ -173,50 +171,39 @@ FD_PLOT_CANDS_ONLY=${FD_PLOT_CANDS_ONLY:-}
 
 # -------------------- Stage-aware patterns ----------------
 # Import
-#all
 UVFITS_PATTERN="${UVFITS_PATTERN:-20??*/*beam*.uvfits}"
 
 # Flag native
-#all
 FLAG_NATIVE_PATTERN="${FLAG_NATIVE_PATTERN:-20??*/*beam*.20????????????.ms}"
 
 # Bandpass inputs (native)
-# per beam
-BANDPASS_INPUT_PATTERN="${BANDPASS_INPUT_PATTERN:-20??*/*beam{beam:02d}.20????????????.ms}"
+BANDPASS_INPUT_PATTERN="${BANDPASS_INPUT_PATTERN:-20??*/*beam*.20????????????.ms}"
 
 # Flag calB0
-# all
 FLAG_CALB0_PATTERN="${FLAG_CALB0_PATTERN:-20??*/*beam*.20????????????.calB0.ms}"
 
 # Average inputs (calB0)
-# all
 AVERAGE_INPUT_PATTERN="${AVERAGE_INPUT_PATTERN:-20??*/*beam*.20????????????.calB0.ms}"
 
 # Flag averaged
-# all
 FLAG_AVG_PATTERN="${FLAG_AVG_PATTERN:-20??*/*beam*.20????????????.avg.calB0.ms}"
 
 # Concat inputs (averaged)
-# per beam
-CONCAT_INPUT_PATTERN="${CONCAT_INPUT_PATTERN:-20??*/*beam{beam:02d}*.20????????????.avg.calB0.ms}"
+CONCAT_INPUT_PATTERN="${CONCAT_INPUT_PATTERN:-20??*/*beam*.20????????????.avg.calB0.ms}"
 
 # Imaging/selfcal (concatenated)
-# per beam
 WSCLEAN_PATTERN="${WSCLEAN_PATTERN:-*beam{beam:02d}.avg.calB0.ms}"
 
 # UVSUB on concatenated self-cal result
 # If filenames are exactly "...beam{NN}.avg.calG6.ms":
-# per beam
 UVSUB_CONCAT_INPUT_PATTERN="${UVSUB_CONCAT_INPUT_PATTERN:-*beam{beam:02d}.avg.calG6.ms}"
 
 
 # Applycal on native res (start from calB0; loop produces calG<i>)
-# per beam
-APPLYCAL_NATIVE_START_PATTERN="${APPLYCAL_NATIVE_START_PATTERN:-20??*/*beam{beam:02d}.20????????????.calB0.ms}"
+APPLYCAL_NATIVE_START_PATTERN="${APPLYCAL_NATIVE_START_PATTERN:-20??*/*beam*.20????????????.calB0.ms}"
 
 # fastducc on uvsubbed native res
-# per beam
-FASTDUCC_INPUT_PATTERN="${FASTDUCC_INPUT_PATTERN:-20??*/*beam{beam:02d}.20????????????.calB0.uvsub.ms}"
+FASTDUCC_INPUT_PATTERN="${FASTDUCC_INPUT_PATTERN:-20??*/*beam*.20????????????.calB0.uvsub.ms}"
 
 # -------------------- dstools extract-ds -----------------
 DS_N_WORKERS="${DS_N_WORKERS:-48}"

@@ -1,11 +1,12 @@
 #!/bin/bash
-#SBATCH --job-name=applycal_ms
-#SBATCH --output=logs/applycal_%A_%a.out
-#SBATCH --error=logs/applycal_%A_%a.err
+#SBATCH --job-name=bandpass_ms
+#SBATCH --output=logs/bandpass_%A_%a.out
+#SBATCH --error=logs/bandpass_%A_%a.err
 #SBATCH --time=01:00:00
-#SBATCH --cpus-per-task=1
-#SBATCH --mem=1G
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=4G
 #SBATCH --array=0-36
+# Optional: #SBATCH --partition=standard
 
 set -euo pipefail
 
@@ -16,10 +17,8 @@ SBID=${SBID:-SB77974}
 DATA_ROOT=${DATA_ROOT:-/fred/oz451/${USER}/data}
 PATTERN=${PATTERN:-"*beam{beam:02d}*.avg.ms"}
 CAL_DIR=${CAL_DIR:-cal}
-EXTENSION=${EXTENSION:-"G*"}  # e.g. "B0", "G5" etc. Use a wildcard like "G*" to automatically select the 
-# highest numbered Gaintable extension available for each beam (e.g. if G1, G2, G3 are present, it will apply G3). 
-# Default is "B0" which applies the initial calibration table without selfcal solutions.
-SCRIPT=${SCRIPT:-applycal_ms_beams.py}
+EXTENSION=${EXTENSION:-"B0"}
+SCRIPT=${SCRIPT:-src/casa/applycal_ms_beams.py}
 DELETE_PREVIOUS=${DELETE_PREVIOUS:-""} #set to --delete-previous if you want to delete previous gen
 # Apptainer CASA container (flint-containers_casa) default runner:
 CASA_SIF=${CASA_SIF:-/fred/oz451/${USER}/containers/flint-containers_casa.sif}

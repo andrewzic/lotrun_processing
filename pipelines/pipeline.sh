@@ -17,12 +17,22 @@ DEFAULT_SBID="${DEFAULT_SBID:-SB77974}"
 # Priority: CLI ($1) > ENV ($SBID) > default
 SBID="${1:-${SBID:-$DEFAULT_SBID}}"
 
+
+# ----------- USER DEFAULTS (ideally edit config.sh to change these) -----------
+USER="${USER:-$(whoami)}"
+DATA_ROOT="${DATA_ROOT:-/fred/oz451/${USER}/data}"
+OUT_ROOT="${OUT_ROOT:-/fred/oz451/${USER}/data}"
+BIND_SRC="${BIND_SRC:-/fred/oz451}"
+CONTAINER_DIR="${CONTAINER_DIR:-/fred/oz451/${USER}/containers}"
+LOG_DIR="${LOG_DIR:-/fred/oz451/${USER}/lotrun_processing/logs}"
+SCRIPT_DIR="${SCRIPT_DIR:-/fred/oz451/$USER/scripts/lotrun_processing}"
+
 echo "doing symlink"
 # 1) symlink uvfits
 if [[ "${DRY_RUN:-0}" == "1" ]]; then
-  echo "DRY local: ./symlink_uvfits.sh ${SBID}" >&2
+  echo "DRY local: ./scripts/utils/symlink_uvfits.sh ${SBID}" >&2
 else
-  ./symlink_uvfits.sh "${SBID}"
+  ${SCRIPT_DIR}/scripts/utils/symlink_uvfits.sh "${SBID}"
 fi
 
 CONFIG="${CONFIG:-config.SB82418.sh}"
@@ -38,43 +48,34 @@ else
 fi
 __DRY_JID_SEQ="${DRY_FAKE_START:-490000}"
 
-# ----------- USER DEFAULTS (ideally edit config.sh to change these) -----------
-USER="${USER:-$(whoami)}"
-DATA_ROOT="${DATA_ROOT:-/fred/oz451/${USER}/data}"
-OUT_ROOT="${OUT_ROOT:-/fred/oz451/${USER}/data}"
-BIND_SRC="${BIND_SRC:-/fred/oz451}"
-CONTAINER_DIR="${CONTAINER_DIR:-/fred/oz451/${USER}/containers}"
-LOG_DIR="${LOG_DIR:-/fred/oz451/${USER}/lotrun_processing/logs}"
-SCRIPT_DIR="${SCRIPT_DIR:-/fred/oz451/$USER/scripts/lotrun_processing}"
-
 # -------------------- Containers -----------------------
 FLINT_WSCLEAN_SIF="${FLINT_WSCLEAN_SIF:-${CONTAINER_DIR}/flint-containers_wsclean.sif}"
 FLINT_CASA_SIF="${FLINT_CASA_SIF:-${CONTAINER_DIR}/flint-containers_casa.sif}"
 
 # -------------------- Wrapper scripts ------------------
-RUN_IMPORT="${RUN_IMPORT:-run_import.sh}"
-RUN_FLAG="${RUN_FLAG:-run_flag.sh}"
-RUN_AVERAGE="${RUN_AVERAGE:-run_average_beams.sh}"
-RUN_CONCAT="${RUN_CONCAT:-run_concat_beams.sh}"
-RUN_WSCLEAN="${RUN_WSCLEAN:-run_wsclean_beams.sh}"
-RUN_FLINT_MASK="${RUN_FLINT_MASK:-run_flintmask_beams.sh}"
-RUN_CB="${RUN_CB:-run_crystalball_beams.sh}"
-RUN_SELFCAL="${RUN_SELFCAL:-run_selfcal_beams.sh}"
-RUN_APPLYCAL="${RUN_APPLYCAL:-run_applycal_beams.sh}"
-RUN_BANDPASS="${RUN_BANDPASS:-run_applycal_beams.sh}"
-RUN_UVSUB="${RUN_UVSUB:-run_uvsub_beams.sh}"
-RUN_FASTDUCC="${RUN_FASTDUCC:-run_fastducc_beams.sh}"
-RUN_FASTDUCC_AGG="${RUN_FASTDUCC_AGG:-run_fastducc_aggregate_chunks.sh}"
+RUN_IMPORT="${RUN_IMPORT:-${SCRIPT_DIR}/scripts/slurm/run_import.sh}"
+RUN_FLAG="${RUN_FLAG:-${SCRIPT_DIR}/scripts/slurm/run_flag.sh}"
+RUN_AVERAGE="${RUN_AVERAGE:-${SCRIPT_DIR}/scripts/slurm/run_average_beams.sh}"
+RUN_CONCAT="${RUN_CONCAT:-${SCRIPT_DIR}/scripts/slurm/run_concat_beams.sh}"
+RUN_WSCLEAN="${RUN_WSCLEAN:-${SCRIPT_DIR}/scripts/slurm/run_wsclean_beams.sh}"
+RUN_FLINT_MASK="${RUN_FLINT_MASK:-${SCRIPT_DIR}/scripts/slurm/run_flintmask_beams.sh}"
+RUN_CB="${RUN_CB:-${SCRIPT_DIR}/scripts/slurm/run_crystalball_beams.sh}"
+RUN_SELFCAL="${RUN_SELFCAL:-${SCRIPT_DIR}/scripts/slurm/run_selfcal_beams.sh}"
+RUN_APPLYCAL="${RUN_APPLYCAL:-${SCRIPT_DIR}/scripts/slurm/run_applycal_beams.sh}"
+RUN_BANDPASS="${RUN_BANDPASS:-${SCRIPT_DIR}/scripts/slurm/run_applycal_beams.sh}"
+RUN_UVSUB="${RUN_UVSUB:-${SCRIPT_DIR}/scripts/slurm/run_uvsub_beams.sh}"
+RUN_FASTDUCC="${RUN_FASTDUCC:-${SCRIPT_DIR}/scripts/slurm/run_fastducc_beams.sh}"
+RUN_FASTDUCC_AGG="${RUN_FASTDUCC_AGG:-${SCRIPT_DIR}/scripts/slurm/run_fastducc_aggregate_chunks.sh}"
 # Optional obs-level aggregation (leave unset to skip)
 # RUN_FASTDUCC_OBSAGG="run_fastducc_aggregate_obs.sh"
-RUN_CLEARCAL="${RUN_CLEARCAL:-run_clearcal_beams.sh}"
-RUN_EXTRACT_DS="${RUN_EXTRACT_DS:-run_dstools_extract_cands.sh}"
+RUN_CLEARCAL="${RUN_CLEARCAL:-${SCRIPT_DIR}/scripts/slurm/run_clearcal_beams.sh}"
+RUN_EXTRACT_DS="${RUN_EXTRACT_DS:-${SCRIPT_DIR}/scripts/slurm/run_dstools_extract_cands.sh}"
 
 # -------------------- Tool scripts ---------------------
-IMPORT_SCRIPT="${IMPORT_SCRIPT:-import_array.py}"
-FLAG_SCRIPT="${FLAG_SCRIPT:-flag.sh}"
-AVERAGE_SCRIPT="${AVERAGE_SCRIPT:-average_ms_beams.py}"
-CONCAT_SCRIPT="${CONCAT_SCRIPT:-concat_ms_beams.py}"
+IMPORT_SCRIPT="${IMPORT_SCRIPT:-${SCRIPT_DIR}/src/casa/import_array.py}"
+FLAG_SCRIPT="${FLAG_SCRIPT:-${SCRIPT_DIR}/src/slurm/run_flag.sh}"
+AVERAGE_SCRIPT="${AVERAGE_SCRIPT:-${SCRIPT_DIR}/src/casa/average_ms_beams.py}"
+CONCAT_SCRIPT="${CONCAT_SCRIPT:-${SCRIPT_DIR}/src/casa/concat_ms_beams.py}"
 
 # -------------------- Python launchers -----------------
 AVERAGE_PYTHON="${AVERAGE_PYTHON:-apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CONTAINER_DIR}/flint-containers_casa.sif python3}"
@@ -337,7 +338,7 @@ jid_fl1=$(chain "$jid_fl1" "flag_native")
 # 4) apply bandpass (B0) to native res
 jid_ac1=$( sbatch_submit "bandpass_ms" "${APPLYCAL_TIME}" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_BANDPASS}" "${jid_fl1}" \
            SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${BANDPASS_INPUT_PATTERN}" FLINT_CASA_SIF="${FLINT_CASA_SIF}" BIND_SRC="${BIND_SRC}" \
-           SCRIPT="applycal_ms_beams.py" CAL_DIR="cal" EXTENSION="B0" DELETE_PREVIOUS="--delete-previous" )
+           SCRIPT="src/casa/applycal_ms_beams.py" CAL_DIR="cal" EXTENSION="B0" DELETE_PREVIOUS="--delete-previous" )
 jid_ac1=$(chain "$jid_ac1" "bandpass_B0")
 
 # 5) flag after B0
@@ -410,7 +411,7 @@ for r in "${!SC_INDEX[@]}"; do
   # Self-cal (mode/solint from arrays)
   jid_sc=$( sbatch_submit "selfcal_ms" "${SC_TIME}" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_SELFCAL}" "${jid_cb}" \
             SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" FLINT_CASA_SIF="${FLINT_CASA_SIF}" BIND_SRC="${BIND_SRC}" \
-            SCRIPT="selfcal_ms_beams.py" INDEX="${idx}" CALMODE="${SC_CALMODE[$r]}" SOLINT="${SC_SOLINT[$r]}" FIELD="${SC_FIELD}" SPW="${SC_SPW}" \
+            SCRIPT="src/casa/selfcal_ms_beams.py" INDEX="${idx}" CALMODE="${SC_CALMODE[$r]}" SOLINT="${SC_SOLINT[$r]}" FIELD="${SC_FIELD}" SPW="${SC_SPW}" \
             REFANT="${SC_REFANT}" COMBINE="${SC_COMBINE}" MINSNR="${SC_MINSNR}" PARANG="${SC_PARANG}" CALTABLE_PREFIX="${SC_PREFIX[$r]}" \
             PLOT_DIR="plots" APPLY_CALWT="${SC_APPLY_CALWT}" )
   jid_cb_prev=$(chain "$jid_sc" "selfcal_${img_tag}")
@@ -440,7 +441,7 @@ jid_cb6=$(chain "$jid_cb6" "cb_${IMG_TAGS[6]}")
 # UVSUB on concatenated self-cal result (original: G6 inputs + ext B0)
 jid_uvsub_concat=$( sbatch_submit "uvsub_ms" "${UVSUB_TIME}" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_UVSUB}" "${jid_cb6}" \
                     SELFCAL="1" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${UVSUB_CONCAT_INPUT_PATTERN}" FLINT_CASA_SIF="${FLINT_CASA_SIF}" \
-                    BIND_SRC="${BIND_SRC}" SCRIPT="uvsub_ms_beams.py" INDEX="${last_idx}" EXTENSION="B0" OUT_PREFIX="${UVSUB_OUT_PREFIX}" )
+                    BIND_SRC="${BIND_SRC}" SCRIPT="src/casa/uvsub_ms_beams.py" INDEX="${last_idx}" EXTENSION="B0" OUT_PREFIX="${UVSUB_OUT_PREFIX}" )
 jid_uvsub_concat=$(chain "$jid_uvsub_concat" "uvsub_concat")
 
 # -------------------- Apply selfcal to native res, predict, uvsub --------------------
@@ -450,7 +451,7 @@ jid_prev="$jid_uvsub_concat"
 applycal_pattern="${APPLYCAL_NATIVE_START_PATTERN}"
 jid_applycal=$( sbatch_submit "applycal_ms" "${APPLYCAL_TIME}" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_APPLYCAL}" "${jid_prev}" \
                  SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${applycal_pattern}" FLINT_CASA_SIF="${FLINT_CASA_SIF}" BIND_SRC="${BIND_SRC}" \
-                 SCRIPT="applycal_ms_beams.py" CAL_DIR="caltables" EXTENSION="G*" DELETE_PREVIOUS="" )
+                 SCRIPT="src/casa/applycal_ms_beams.py" CAL_DIR="caltables" EXTENSION="G*" DELETE_PREVIOUS="" )
 jid_applycal=$(chain "$jid_applycal" "applycal_native")
 
 # Predict from 2h continuum model onto native res (pattern is last produced calG<last_idx>)
@@ -467,7 +468,7 @@ UVSUB_NATIVE_INPUT_PATTERN="${CB_NATIVE_INPUT_PATTERN}"
 
 jid_uvs_native=$( sbatch_submit "uvsub_ms" "${UVSUB_TIME}" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_UVSUB}" "${jid_cb_native}" \
                   SELFCAL="0" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${UVSUB_NATIVE_INPUT_PATTERN}" FLINT_CASA_SIF="${FLINT_CASA_SIF}" \
-                  BIND_SRC="${BIND_SRC}" SCRIPT="uvsub_ms_beams.py" INDEX="${last_idx}" EXTENSION="G6" OUT_PREFIX="${UVSUB_OUT_PREFIX}" )
+                  BIND_SRC="${BIND_SRC}" SCRIPT="src/casa/uvsub_ms_beams.py" INDEX="${last_idx}" EXTENSION="G6" OUT_PREFIX="${UVSUB_OUT_PREFIX}" )
 jid_uvs_native=$(chain "$jid_uvs_native" "uvsub_native")
 
 # fastducc on uvsubbed native MS

@@ -57,7 +57,7 @@ unset PYTHONPATH
 source /fred/oz451/azic/scripts/crystalball_nt/bin/activate
 
 # -------------------- Build orchestrator command --------------------
-cmd=( python extract_ds_orchestrator.py
+cmd=( python src/extract/extract_ds_orchestrator.py
   --sbid "${SBID}"
   --data-root "${DATA_ROOT}"
   --kind "${KIND}"
