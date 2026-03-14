@@ -57,12 +57,13 @@ RUN_FASTDUCC_AGG="${RUN_FASTDUCC_AGG:-${SCRIPT_DIR}/scripts/slurm/run_fastducc_a
 # RUN_FASTDUCC_OBSAGG="run_fastducc_aggregate_obs.sh"
 RUN_CLEARCAL="${RUN_CLEARCAL:-${SCRIPT_DIR}/scripts/slurm/run_clearcal_beams.sh}"
 RUN_EXTRACT_DS="${RUN_EXTRACT_DS:-${SCRIPT_DIR}/scripts/slurm/run_dstools_extract_cands.sh}"
+RUN_FLAGOUTER="${RUN_FLAGOUTER:-${SCRIPT_DIR}/scripts/slurm/run_flagouter_beams.sh}"
 
 # -------------------- Tool scripts ---------------------
 IMPORT_SCRIPT="${IMPORT_SCRIPT:-${SCRIPT_DIR}/src/casa/import_array.py}"
-FLAG_SCRIPT="${FLAG_SCRIPT:-${SCRIPT_DIR}/scripts/slurm/run_flag.sh}"
 AVERAGE_SCRIPT="${AVERAGE_SCRIPT:-${SCRIPT_DIR}/src/casa/average_ms_beams.py}"
 CONCAT_SCRIPT="${CONCAT_SCRIPT:-${SCRIPT_DIR}/src/casa/concat_ms_beams.py}"
+FLAGOUTER_SCRIPT="${FLAGOUTER_SCRIPT:-${SCRIPT_DIR}/src/casa/flagouter_beams.py}"
 
 # -------------------- Python launchers -----------------
 AVERAGE_PYTHON="${AVERAGE_PYTHON:-apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CONTAINER_DIR}/flint-containers_casa.sif python3}"

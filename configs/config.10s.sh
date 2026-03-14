@@ -52,12 +52,13 @@ RUN_CONCAT="${RUN_CONCAT:-${SCRIPT_DIR}/scripts/slurm/run_concat_beams.sh}"
 RUN_CLEARCAL="${RUN_CLEARCAL:-${SCRIPT_DIR}/scripts/slurm/run_clearcal_beams.sh}"
 RUN_APPLYCAL="${RUN_APPLYCAL:-${SCRIPT_DIR}/scripts/slurm/run_applycal_beams.sh}"
 RUN_BANDPASS="${RUN_BANDPASS:-${SCRIPT_DIR}/scripts/slurm/run_applycal_beams.sh}"
+RUN_FLAGOUTER="${RUN_FLAGOUTER:-${SCRIPT_DIR}/scripts/slurm/run_flagouter_beams.sh}"
 
 # -------------------- Tools ---------------------
 IMPORT_SCRIPT="${IMPORT_SCRIPT:-${SCRIPT_DIR}/src/casa/import_array.py}"
-FLAG_SCRIPT="${FLAG_SCRIPT:-${SCRIPT_DIR}/scripts/slurm/run_flag.sh}"
 AVERAGE_SCRIPT="${AVERAGE_SCRIPT:-${SCRIPT_DIR}/src/casa/average_ms_beams.py}"
 CONCAT_SCRIPT="${CONCAT_SCRIPT:-${SCRIPT_DIR}/src/casa/concat_ms_beams.py}"
+FLAGOUTER_SCRIPT="${FLAGOUTER_SCRIPT:-${SCRIPT_DIR}/src/casa/flagouter_beams.py}"
 
 # -------------------- Python launchers -----------------
 AVERAGE_PYTHON="${AVERAGE_PYTHON:-apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CONTAINER_DIR}/flint-containers_casa.sif python3}"

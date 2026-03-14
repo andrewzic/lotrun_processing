@@ -70,12 +70,13 @@ RUN_FASTDUCC_AGG="${RUN_FASTDUCC_AGG:-${SCRIPT_DIR}/scripts/slurm/run_fastducc_a
 # RUN_FASTDUCC_OBSAGG="run_fastducc_aggregate_obs.sh"
 RUN_CLEARCAL="${RUN_CLEARCAL:-${SCRIPT_DIR}/scripts/slurm/run_clearcal_beams.sh}"
 RUN_EXTRACT_DS="${RUN_EXTRACT_DS:-${SCRIPT_DIR}/scripts/slurm/run_dstools_extract_cands.sh}"
+RUN_FLAGOUTER="${RUN_FLAGOUTER:-${SCRIPT_DIR}/scripts/slurm/run_flagouter_beams.sh}"
 
 # -------------------- Tool scripts ---------------------
 IMPORT_SCRIPT="${IMPORT_SCRIPT:-${SCRIPT_DIR}/src/casa/import_array.py}"
-FLAG_SCRIPT="${FLAG_SCRIPT:-${SCRIPT_DIR}/src/slurm/run_flag.sh}"
 AVERAGE_SCRIPT="${AVERAGE_SCRIPT:-${SCRIPT_DIR}/src/casa/average_ms_beams.py}"
 CONCAT_SCRIPT="${CONCAT_SCRIPT:-${SCRIPT_DIR}/src/casa/concat_ms_beams.py}"
+FLAGOUTER_SCRIPT="${FLAGOUTER_SCRIPT:-${SCRIPT_DIR}/src/casa/flagouter_beams.py}"
 
 # -------------------- Python launchers -----------------
 AVERAGE_PYTHON="${AVERAGE_PYTHON:-apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CONTAINER_DIR}/flint-containers_casa.sif python3}"
@@ -332,7 +333,7 @@ jid_imp=$(chain "$jid_imp" "importuvfits")
 
 # 3) flag native-resolution MS
 jid_fl1=$( sbatch_submit "aoflagger_array" "${FLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM}" "${BIGARRAY_SPEC}" "${RUN_FLAG}" "${jid_imp}" \
-           SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${FLAG_NATIVE_PATTERN}" SCRIPT_DIR="${SCRIPT_DIR}" FLAG_SCRIPT="${FLAG_SCRIPT}" COLUMN="${FLAG_COLUMN}" RUN_FLAG="${RUN_FLAG}" )
+           SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${FLAG_NATIVE_PATTERN}" SCRIPT_DIR="${SCRIPT_DIR}" COLUMN="${FLAG_COLUMN}" )
 jid_fl1=$(chain "$jid_fl1" "flag_native")
 
 # 4) apply bandpass (B0) to native res
@@ -343,7 +344,7 @@ jid_ac1=$(chain "$jid_ac1" "bandpass_B0")
 
 # 5) flag after B0
 jid_fl2=$( sbatch_submit "aoflagger_array" "${FLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM}" "${BIGARRAY_SPEC}" "${RUN_FLAG}" "${jid_ac1}" \
-           SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${FLAG_CALB0_PATTERN}" SCRIPT_DIR="${SCRIPT_DIR}" FLAG_SCRIPT="${FLAG_SCRIPT}" COLUMN="${FLAG_COLUMN}" RUN_FLAG="${RUN_FLAG}" )
+           SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${FLAG_CALB0_PATTERN}" SCRIPT_DIR="${SCRIPT_DIR}" COLUMN="${FLAG_COLUMN}" )
 jid_fl2=$(chain "$jid_fl2" "flag_calB0")
 
 # 6) average MS
@@ -353,7 +354,7 @@ jid_av1=$(chain "$jid_av1" "average")
 
 # 7) flag averaged MS
 jid_fl3=$( sbatch_submit "aoflagger_array" "${FLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM}" "${BIGARRAY_SPEC}" "${RUN_FLAG}" "${jid_av1}" \
-           SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${FLAG_AVG_PATTERN}" SCRIPT_DIR="${SCRIPT_DIR}" FLAG_SCRIPT="${FLAG_SCRIPT}" COLUMN="${FLAG_COLUMN}" RUN_FLAG="${RUN_FLAG}" )
+           SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${FLAG_AVG_PATTERN}" SCRIPT_DIR="${SCRIPT_DIR}" COLUMN="${FLAG_COLUMN}" )
 jid_fl3=$(chain "$jid_fl3" "flag_avg")
 
 # 8) concat beams (averaged)

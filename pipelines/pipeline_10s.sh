@@ -62,6 +62,8 @@ RUN_EXTRACT_DS="${RUN_EXTRACT_DS:-${SCRIPT_DIR}/scripts/slurm/run_dstools_extrac
 # New pre-processing wrappers
 RUN_UNFLAG="${RUN_UNFLAG:-${SCRIPT_DIR}/scripts/slurm/run_unflag_beams.sh}"
 RUN_FLAG="${RUN_FLAG:-${SCRIPT_DIR}/scripts/slurm/run_flag.sh}"
+RUN_FLAGOUTER="${RUN_FLAGOUTER:-${SCRIPT_DIR}/scripts/slurm/run_flagouter_beams.sh}"
+FLAG_OUTER=${FLAG_OUTER:-False} # Whether to flag outer antennas to match the inner antennas used by CRACO
 
 # -------------------- Resources ------------------------
 ARRAY_SPEC="${ARRAY_SPEC:-0-35}"
@@ -196,8 +198,16 @@ jid_unflag=$( sbatch_submit "unflag_ms" "${UNFLAG_TIME}" "${FLAG_CPUS}" "${FLAG_
   SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${NATIVE10S_PATTERN}" CASA_SIF="${FLINT_CASA_SIF}" BIND_SRC="${BIND_SRC}" )
 jid_unflag=$(chain "$jid_unflag" "unflag_native")
 
-jid_flag=$( sbatch_submit "aoflagger_array" "${FLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM}" "${ARRAY_SPEC}" "${RUN_FLAG}" "$jid_unflag" \
-  SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${NATIVE10S_PATTERN}" SCRIPT_DIR="${SCRIPT_DIR}" FLAG_SCRIPT="flag.sh" COLUMN="${FLAG_COLUMN}" RUN_FLAG="${RUN_FLAG}" )
+if $FLAG_OUTER == "True"; then
+  jid_flagouter=$( sbatch_submit "flagouter" "${FLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM}" "${ARRAY_SPEC}" "${RUN_FLAGOUTER}" "" \
+    SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${NATIVE10S_PATTERN}" SCRIPT_DIR="${SCRIPT_DIR}" SCRIPT=${FLAGOUTER_SCRIPT} COLUMN="${FLAG_COLUMN}" )
+  jid_flagouter=$(chain "$jid_flagouter" "flagouter_native")
+  jid_before_flag="$jid_flagouter"
+else
+  jid_before_flag="$jid_unflag"
+fi
+jid_flag=$( sbatch_submit "aoflagger_array" "${FLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM}" "${ARRAY_SPEC}" "${RUN_FLAG}" "$jid_before_flag" \
+  SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${NATIVE10S_PATTERN}" SCRIPT_DIR="${SCRIPT_DIR}" COLUMN="${FLAG_COLUMN}" )
 jid_flag=$(chain "$jid_flag" "aoflagger_native")
 
 # B) Imaging / Mask / Predict / Selfcal (on native 10s MS)
