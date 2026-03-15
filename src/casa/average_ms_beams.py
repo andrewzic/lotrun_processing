@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-import argparse
 import casaconfig
 casaconfig.logfile = "/dev/null"
+import argparse
 from ms_tools import do_average
 
 def parse_args():

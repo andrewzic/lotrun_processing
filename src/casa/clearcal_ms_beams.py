@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-import argparse
-import sys
 import casaconfig
 casaconfig.logfile = "/dev/null"
+import argparse
+import sys
 from ms_tools import ensure_casa_applycal, find_ms_for_beam, run_clearcal
 
 def parse_args():

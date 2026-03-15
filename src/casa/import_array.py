@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-
+import casaconfig
+casaconfig.logfile = "/dev/null"
 import argparse
 import os
 import sys
 import shutil
 from casatasks import importuvfits
-import casaconfig
-casaconfig.logfile = "/dev/null"
+
 
 def main():
     parser = argparse.ArgumentParser(

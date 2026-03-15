@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
+import casaconfig
+casaconfig.logfile = "/dev/null"
 import argparse
 import sys
 from ms_tools import ensure_casa_applycal, find_ms_for_beam, find_caltables, run_applycal
-import casaconfig
-casaconfig.logfile = "/dev/null"
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Run CASA applycal on MS files for specified beams (SBID-aware).")
