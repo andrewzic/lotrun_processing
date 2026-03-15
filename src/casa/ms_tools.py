@@ -64,7 +64,7 @@ def find_ms_for_beam(data_root: str, sbid: str, pattern: str, beam: int) -> list
     pat = os.path.join(root, pattern.format(beam=beam))
     return sorted(glob.glob(pat))
 
-def find_ms_files(data_root: str, sbid: str, beam: int, pattern: str) -> list:
+def find_ms_files(data_root: str, sbid: str, pattern: str, beam: int) -> list:
     """
     Find measurement sets using a format string pattern under data_root/sbid.
     The pattern may include {beam:02d}.

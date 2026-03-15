@@ -46,7 +46,7 @@ def main():
 
     any_work = False
     for beam in beams:
-        msnames = find_ms_files(args.data_root, args.sbid, beam, args.pattern)
+        msnames = find_ms_files(args.data_root, args.sbid, args.pattern, beam)
         if not msnames:
             print(f"WARN: No MS found for SBID={args.sbid} beam={beam:02d} using pattern '{args.pattern}'")
             continue
