@@ -202,7 +202,7 @@ jid_unflag=$( sbatch_submit "unflag_ms" "${UNFLAG_TIME}" "${FLAG_CPUS}" "${FLAG_
 jid_unflag=$(chain "$jid_unflag" "unflag_native")
 
 if [ "$FLAG_OUTER" == "1" ]; then 
-  jid_flagouter=$( sbatch_submit "flagouter" "${FLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM}" "${ARRAY_SPEC}" "${RUN_FLAGOUTER}" "" \
+  jid_flagouter=$( sbatch_submit "flagouter" "${FLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM}" "${ARRAY_SPEC}" "${RUN_FLAGOUTER}" "${jid_unflag}" \
     SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${NATIVE10S_PATTERN}" SCRIPT_DIR="${SCRIPT_DIR}" SCRIPT=${FLAGOUTER_SCRIPT} COLUMN="${FLAG_COLUMN}" )
   jid_flagouter=$(chain "$jid_flagouter" "flagouter_native")
   jid_before_flag="$jid_flagouter"
