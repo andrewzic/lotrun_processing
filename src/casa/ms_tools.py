@@ -60,6 +60,7 @@ def _ms_nrows(ms_path: str) -> int:
     return int(n)
 
 def find_ms_for_beam(data_root: str, sbid: str, pattern: str, beam: int) -> list:
+    print(f"Searching for MS files in '{root}' with pattern '{pattern}', beam='{beam}'")    
     root = os.path.join(data_root, sbid)
     pat = os.path.join(root, pattern.format(beam=beam))
     return sorted(glob.glob(pat))
@@ -70,6 +71,7 @@ def find_ms_files(data_root: str, sbid: str, pattern: str, beam: int) -> list:
     The pattern may include {beam:02d}.
     """
     root = os.path.join(data_root, sbid)
+    print(f"Searching for MS files in '{root}' with pattern '{pattern}', beam='{beam}'")
     pat = os.path.join(root, pattern.format(beam=beam))
     print(pat)
     return sorted(glob.glob(pat))
