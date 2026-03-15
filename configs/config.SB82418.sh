@@ -61,7 +61,7 @@ RUN_FLAGOUTER="${RUN_FLAGOUTER:-${SCRIPT_DIR}/scripts/slurm/run_flagouter_beams.
 IMPORT_SCRIPT="${IMPORT_SCRIPT:-${SCRIPT_DIR}/src/casa/import_array.py}"
 AVERAGE_SCRIPT="${AVERAGE_SCRIPT:-${SCRIPT_DIR}/src/casa/average_ms_beams.py}"
 CONCAT_SCRIPT="${CONCAT_SCRIPT:-${SCRIPT_DIR}/src/casa/concat_ms_beams.py}"
-FLAGOUTER_SCRIPT="${FLAGOUTER_SCRIPT:-${SCRIPT_DIR}/src/casa/flagouter_beams.py}"
+FLAGOUTER_SCRIPT="${FLAGOUTER_SCRIPT:-${SCRIPT_DIR}/src/casa/flagouter_ms_beams.py}"
 
 # -------------------- Python launchers -----------------
 AVERAGE_PYTHON="${AVERAGE_PYTHON:-apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CONTAINER_DIR}/flint-containers_casa.sif python3}"
