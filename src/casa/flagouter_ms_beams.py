@@ -29,22 +29,22 @@ def main():
         sys.exit(1)
     exit_code = 0
     for beam in beams:
-        try:
-            ms_list = find_ms_for_beam(args.data_root, args.sbid, args.pattern, beam)
-            if not ms_list:
-                print(f"WARN: No MS found under '{args.data_root}/{args.sbid}' for beam {beam:02d} with pattern '{args.pattern}'")
+        # try:
+        ms_list = find_ms_for_beam(args.data_root, args.sbid, args.pattern, beam)
+        if not ms_list:
+            print(f"WARN: No MS found under '{args.data_root}/{args.sbid}' for beam {beam:02d} with pattern '{args.pattern}'")
+            continue
+        for msname in ms_list:
+            # If we see a .ms.tar, skip with a warning (expect extraction done beforehand)
+            if msname.endswith('.ms.tar'):
+                print(f"SKIP: {msname} is a .ms.tar archive (extract before running)")
                 continue
-            for msname in ms_list:
-                # If we see a .ms.tar, skip with a warning (expect extraction done beforehand)
-                if msname.endswith('.ms.tar'):
-                    print(f"SKIP: {msname} is a .ms.tar archive (extract before running)")
-                    continue
-                print(f" MS: {msname}")
-                if not args.dry_run:
-                    run_flag_outer_antennas(msname)
-        except Exception as e:
-            print(f"ERROR: Beam {beam:02d} failed: {e}", file=sys.stderr)
-            exit_code = 2
+            print(f" MS: {msname}")
+            if not args.dry_run:
+                run_flag_outer_antennas(msname)
+        # except Exception as e:
+        #     print(f"ERROR: Beam {beam:02d} failed: {e}", file=sys.stderr)
+        #     exit_code = 2
     sys.exit(exit_code)
 
 if __name__ == "__main__":

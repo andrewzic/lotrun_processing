@@ -39,7 +39,7 @@ def main():
     try:
         uvfile = uvfitsfiles[args.index]
     except IndexError:
-        print(f"Error: index {args.index} is out of range for {len(uvfitsfiles)} files.")
+        print(f"IndexError: index {args.index} is out of range for {len(uvfitsfiles)} files.")
         sys.exit(1)
 
     msfile = uvfile.replace(".uvfits", ".ms")

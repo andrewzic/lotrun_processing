@@ -29,18 +29,18 @@ def main():
 
     exit_code = 0
     for beam in beams:
-        try:
-            ms_list = find_ms_for_beam(args.data_root, args.sbid, args.pattern, beam)
-            if not ms_list:
-                print(f"WARN: No MS found under '{args.data_root}/{args.sbid}' for beam {beam:02d} with pattern '{args.pattern}'")
-                continue
-            for msname in ms_list:
-                print(f"  MS: {msname}")
-                if not args.dry_run:
-                    run_clearcal(msname)
-        except Exception as e:
-            print(f"ERROR: Beam {beam:02d} failed: {e}", file=sys.stderr)
-            exit_code = 2
+        # try:
+        ms_list = find_ms_for_beam(args.data_root, args.sbid, args.pattern, beam)
+        if not ms_list:
+            print(f"WARN: No MS found under '{args.data_root}/{args.sbid}' for beam {beam:02d} with pattern '{args.pattern}'")
+            continue
+        for msname in ms_list:
+            print(f"  MS: {msname}")
+            if not args.dry_run:
+                run_clearcal(msname)
+        # except Exception as e:
+        #     print(f"ERROR: Beam {beam:02d} failed: {e}", file=sys.stderr)
+        #     exit_code = 2
 
     sys.exit(exit_code)
 

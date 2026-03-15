@@ -39,12 +39,15 @@ def main():
 
     exit_code = 0
 
-    try:
-        if not args.dry_run:
-            run_uvsub(ms, out_prefix=out_prefix)
-    except Exception as e:
-        print(f"ERROR: uvsub failed: {e}", file=sys.stderr)
-        exit_code = 2
+    if not args.dry_run:
+        run_uvsub(ms, out_prefix=out_prefix)
+
+    # try:
+    #     if not args.dry_run:
+    #         run_uvsub(ms, out_prefix=out_prefix)
+    # except Exception as e:
+    #     print(f"ERROR: uvsub failed: {e}", file=sys.stderr)
+    #     exit_code = 2
 
     sys.exit(exit_code)
 

@@ -33,20 +33,20 @@ def main():
 
     exit_code = 0
     for beam in beams:
-        try:
-            ms_list = find_ms_for_beam(args.data_root, args.sbid, args.pattern, beam)
-            if not ms_list:
-                print(f"WARN: No MS found under '{args.data_root}/{args.sbid}' for beam {beam:02d} with pattern '{args.pattern}'")
-                continue
-            caltables = find_caltables(args.data_root, args.sbid, args.cal_dir, beam, extension=args.extension)
-            print(f"Beam {beam:02d}: {len(ms_list)} MS found; using caltables: {caltables}")
-            for msname in ms_list:
-                print(f"running applycal on  MS: {msname}")
-                if not args.dry_run:
-                    run_applycal(msname, caltables, delete_previous=args.delete_previous)
-        except Exception as e:
-            print(f"ERROR: Beam {beam:02d} failed: {e}", file=sys.stderr)
-            exit_code = 2
+        # try:
+        ms_list = find_ms_for_beam(args.data_root, args.sbid, args.pattern, beam)
+        if not ms_list:
+            print(f"WARN: No MS found under '{args.data_root}/{args.sbid}' for beam {beam:02d} with pattern '{args.pattern}'")
+            continue
+        caltables = find_caltables(args.data_root, args.sbid, args.cal_dir, beam, extension=args.extension)
+        print(f"Beam {beam:02d}: {len(ms_list)} MS found; using caltables: {caltables}")
+        for msname in ms_list:
+            print(f"running applycal on  MS: {msname}")
+            if not args.dry_run:
+                run_applycal(msname, caltables, delete_previous=args.delete_previous)
+        # except Exception as e:
+        #     print(f"ERROR: Beam {beam:02d} failed: {e}", file=sys.stderr)
+        #     exit_code = 2
 
     sys.exit(exit_code)
 
