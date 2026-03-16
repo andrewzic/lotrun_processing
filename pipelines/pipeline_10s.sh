@@ -56,6 +56,7 @@ RUN_FLINT_MASK="${RUN_FLINT_MASK:-${SCRIPT_DIR}/scripts/slurm/run_flintmask_beam
 RUN_CB="${RUN_CB:-${SCRIPT_DIR}/scripts/slurm/run_crystalball_beams.sh}"
 RUN_SELFCAL="${RUN_SELFCAL:-${SCRIPT_DIR}/scripts/slurm/run_selfcal_beams.sh}"
 RUN_UVSUB="${RUN_UVSUB:-${SCRIPT_DIR}/scripts/slurm/run_uvsub_beams.sh}"
+RUN_COPY_CONTINUUM="${RUN_COPY_CONTINUUM:-${SCRIPT_DIR}/scripts/slurm/run_copy_continuum.sh}"
 RUN_FASTDUCC="${RUN_FASTDUCC:-${SCRIPT_DIR}/scripts/slurm/run_fastducc_beams.sh}"
 RUN_FASTDUCC_AGG="${RUN_FASTDUCC_AGG:-${SCRIPT_DIR}/scripts/slurm/run_fastducc_aggregate_chunks.sh}"
 RUN_EXTRACT_DS="${RUN_EXTRACT_DS:-${SCRIPT_DIR}/scripts/slurm/run_dstools_extract_cands.sh}"
@@ -85,6 +86,10 @@ EXTRACT_CPUS="${EXTRACT_CPUS:-1}"; EXTRACT_MEM="${EXTRACT_MEM:-4G}"
 FLAG_CPUS="${FLAG_CPUS:-4}";        
 FLAG_MEM="${FLAG_MEM:-12G}"; 
 FLAG_COLUMN="${FLAG_COLUMN:-DATA}"
+COPY_TIME="${COPY_TIME:-00:15:00}"
+COPY_CPUS="${COPY_CPUS:-1}"
+COPY_MEM="${COPY_MEM:-2G}"
+
 
 IMPORT_TIME="${IMPORT_TIME:-00:10:00}"
 UNFLAG_TIME="${UNFLAG_TIME:-00:30:00}"
@@ -270,6 +275,14 @@ jid_img_final=$( sbatch_submit "wsclean_ms" "${WSCLEAN_TIME}" "${WSCLEAN_CPUS}" 
   IMG_TAG="${IMG_TAGS[6]}" INDEX="${last_idx}" BIND_SRC="${BIND_SRC}" WSCLEAN_OPTS="${WSCLEAN_OPTS[6]}" FITS_MASK_TAG="${IMG_TAGS[5]}" )
 jid_img_final=$(chain "$jid_img_final" "wsclean_${IMG_TAGS[6]}")
 
+jid_cp_final=$(
+  sbatch_submit "copy_continuum" "${COPY_TIME}" "${COPY_CPUS}" "${COPY_MEM}" \
+    "${ARRAY_SPEC}" "${RUN_COPY_CONTINUUM}" "${jid_img_final}" \
+    SBID="${SBID}" DATA_ROOT="${DATA_ROOT}"
+)
+jid_cp_final=$(chain "$jid_cp_final" "copy_continuum")
+
+# don't care about the copy_continuum job for the purposes of dependencies
 jid_fm_final=$( sbatch_submit "flint_mask" "${FM_TIME}" "${FM_CPUS}" "${FM_MEM}" "${ARRAY_SPEC}" "${RUN_FLINT_MASK}" "$jid_img_final" \
   SELFCAL="1" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" IMG_TAG="${IMG_TAGS[6]}" INDEX="${last_idx}" \
   FLOOD_FILL_POSITIVE_SEED_CLIP="${FLOOD_FILL_POSITIVE_SEED_CLIP:-1.1}" FLOOD_FILL_POSITIVE_FLOOD_CLIP="${FLOOD_FILL_POSITIVE_FLOOD_CLIP:-0.7}" \
