@@ -159,6 +159,7 @@ WSCLEAN_OPTS[5]="${WSCLEAN_OPTS5:-"-data-column DATA -save-source-list -multisca
 WSCLEAN_OPTS[6]="${WSCLEAN_OPTS6:-"-data-column DATA -save-source-list -multiscale -multiscale-scale-bias 0.8 -niter 100000 -pol xx -weight briggs 0.5 -scale 12asec -size 1536 1536 -auto-threshold 0.5 -auto-mask 5.0 -join-channels -channels-out 4 -fit-spectral-pol 3"}"
 
 # Crystalball behaviour
+CB_SOURCE_LIST_PATTERN=${CB_SOURCE_LIST_PATTERN:-"*beam{beam:02d}*.avg.calB0.ms"}
 CB_OUTPUT_COLUMN="${CB_OUTPUT_COLUMN:-MODEL_DATA}"
 CB_NUM_WORKERS="${CB_NUM_WORKERS:-2048}"
 CB_ROW_CHUNKS="${CB_ROW_CHUNKS:-0}"
