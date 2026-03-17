@@ -37,32 +37,11 @@ fi
 
 __DRY_JID_SEQ="${DRY_FAKE_START:-490000}"
 
-# -------------------- sbatch helper ---------------------
-log(){ printf '[%s] %s\n' "$(date +'%F %T')" "$*" >&2; }
-# sbatch_submit <name> <time> <cpus> <mem> <array_spec_or_empty> <wrapper> <dep_jid_or_empty> [KEY=VAL ...]
-sbatch_submit() {
-  local name="$1" time="$2" cpus="$3" mem="$4" array="$5" wrapper="$6" dep="${7:-}"; shift 7
-  local -a exports=( "$@" )
-  local export_arg="--export=ALL"
-  if ((${#exports[@]})); then
-    local joined="" kv
-    for kv in "${exports[@]}"; do joined+="${joined:+,}${kv}"; done
-    export_arg="--export=ALL,${joined}"
-  fi
-  local -a cmd=( sbatch --job-name="$name" --time="$time" --cpus-per-task="$cpus" --mem="$mem"
-                    --output="logs/${name}_%A_%a.out" --error="logs/${name}_%A_%a.err" )
-  [[ -n "$array" ]] && cmd+=( --array="$array" )
-  [[ -n "$dep"   ]] && cmd+=( --dependency="afterok:${dep}" )
-  cmd+=( "$export_arg" "$wrapper" )
-  if [[ "${DRY_RUN:-0}" == "1" ]]; then
-    printf 'DRY sbatch:' >&2; for t in "${cmd[@]}"; do
-      if [[ "$t" =~ [[:space:]] ]]; then printf ' "%s"' "$t" >&2; else printf ' %s' "$t" >&2; fi
-    done; printf '\n' >&2
-    local fake_jid="${__DRY_JID_SEQ:-490000}"; __DRY_JID_SEQ=$(( fake_jid + 1 )); echo "${fake_jid}"; return 0
-  fi
-  "${cmd[@]}" | awk '{print $4}'
-}
-chain(){ local jid="$1" label="$2"; [[ -z "$jid" ]] && { echo "sbatch failed for ${label}"; exit 1; }; echo "$jid"; }
+# Determine BIGARRAY_SPEC from the number of measuement sets matching UVFITS_PATTERN
+n=$( ls -1d "${DATA_ROOT}/${SBID}"/${UVFITS_PATTERN} | wc -l )
+BIGARRAY_SPEC="0-$((n>0 ? n-1 : 0))"
+
+source "$(dirname "$0")/slurm_helpers.sh"
 
 # -------------------- PIPELINE --------------------------
 mkdir -p logs plots
