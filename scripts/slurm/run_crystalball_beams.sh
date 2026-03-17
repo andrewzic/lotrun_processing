@@ -79,6 +79,9 @@ shopt -s nullglob
 source_list_msnames=( ${source_list_search_glob} )
 shopt -u nullglob
 
+echo "Looking for MS files with glob: ${search_glob}"
+echo "Looking for source list MS files with glob: ${source_list_search_glob}"
+echo "Found ${#msnames[@]} MS files and ${#source_list_msnames[@]} source list MS files for beam ${beam2}."
 #assume there is only one source list relevant per beam
 source_list_msname=${source_list_msnames[0]}
 
