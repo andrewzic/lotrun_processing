@@ -118,6 +118,10 @@ SC_TIME="${SC_TIME:-02:00:00}"
 UVSUB_TIME="${UVSUB_TIME:-02:00:00}"
 BANDPASS_TIME="${BANDPASS_TIME:-02:00:00}"
 
+COPY_TIME="${COPY_TIME:-00:15:00}"
+COPY_CPUS="${COPY_CPUS:-1}"
+COPY_MEM="${COPY_MEM:-2G}"
+
 # -------------------- Stage parameters -----------------
 TIMEBIN="${TIMEBIN:-9.90s}"
 UVSUB_OUT_PREFIX="${UVSUB_OUT_PREFIX:-uvsub}"
