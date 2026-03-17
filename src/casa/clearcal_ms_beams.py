@@ -3,7 +3,7 @@ import casaconfig
 casaconfig.logfile = "/dev/null"
 import argparse
 import sys
-from ms_tools import ensure_casa_applycal, find_ms_for_beam, run_clearcal
+from ms_tools import ensure_casa_applycal, find_ms_files, run_clearcal
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Run CASA applycal on MS files for specified beams (SBID-aware).")
@@ -30,7 +30,7 @@ def main():
     exit_code = 0
     for beam in beams:
         # try:
-        ms_list = find_ms_for_beam(args.data_root, args.sbid, args.pattern, beam)
+        ms_list = find_ms_files(args.data_root, args.sbid, args.pattern, beam)
         if not ms_list:
             print(f"WARN: No MS found under '{args.data_root}/{args.sbid}' for beam {beam:02d} with pattern '{args.pattern}'")
             continue

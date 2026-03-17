@@ -173,13 +173,13 @@ FD_PLOT_CANDS_ONLY=${FD_PLOT_CANDS_ONLY:-}
 
 # -------------------- Patterns --------------------------
 # Native 10s MS, e.g. scienceData.*.beamXX_averaged_cal*.ms
-NATIVE10S_PATTERN="${NATIVE10S_PATTERN:-*beam{beam:02d}_averaged_cal.leakage.ms}"
+NATIVE10S_PATTERN="*beam{beam:02d}_averaged_cal.leakage.ms"
 
 # Imaging/selfcal pattern
-WSCLEAN_PATTERN="${WSCLEAN_PATTERN:-${NATIVE10S_PATTERN}}"
+WSCLEAN_PATTERN="${NATIVE10S_PATTERN}"
 
 # Fastducc input (native uvsub)
-FASTDUCC_INPUT_PATTERN="${FASTDUCC_INPUT_PATTERN:-*beam{beam:02d}*.uvsub.ms}"
+FASTDUCC_INPUT_PATTERN="*beam{beam:02d}*.uvsub.ms"
 
 # -------------------- dstools extract-ds -----------------
 DS_N_WORKERS="${DS_N_WORKERS:-48}"

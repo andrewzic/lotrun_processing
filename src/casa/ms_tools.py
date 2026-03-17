@@ -59,12 +59,6 @@ def _ms_nrows(ms_path: str) -> int:
             pass
     return int(n)
 
-def find_ms_for_beam(data_root: str, sbid: str, pattern: str, beam: int) -> list:
-    print(f"Searching for MS files in '{root}' with pattern '{pattern}', beam='{beam}'")    
-    root = os.path.join(data_root, sbid)
-    pat = os.path.join(root, pattern.format(beam=beam))
-    return sorted(glob.glob(pat))
-
 def find_ms_files(data_root: str, sbid: str, pattern: str, beam: int) -> list:
     """
     Find measurement sets using a format string pattern under data_root/sbid.
@@ -73,7 +67,7 @@ def find_ms_files(data_root: str, sbid: str, pattern: str, beam: int) -> list:
     root = os.path.join(data_root, sbid)
     print(f"Searching for MS files in '{root}' with pattern '{pattern}', beam='{beam}'")
     pat = os.path.join(root, pattern.format(beam=beam))
-    print(pat)
+    print(f"Found the following ms files:\n {glob.glob(pat)}")
     return sorted(glob.glob(pat))
 
 # Specific to applycal

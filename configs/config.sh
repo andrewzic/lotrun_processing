@@ -175,49 +175,37 @@ FD_PLOT_CANDS_ONLY=${FD_PLOT_CANDS_ONLY:-}
 # -------------------- Stage-aware patterns ----------------
 # Import
 #all
-UVFITS_PATTERN="${UVFITS_PATTERN:-20??*/*beam*.uvfits}"
+UVFITS_PATTERN="20??*/*beam*.uvfits"
 
 # Flag native
-#all
-FLAG_NATIVE_PATTERN="${FLAG_NATIVE_PATTERN:-20??*/*beam*.20????????????.ms}"
+FLAG_NATIVE_PATTERN="20??*/*beam*.20????????????.ms"
 
 # Bandpass inputs (native)
-# per beam
-BANDPASS_INPUT_PATTERN="${BANDPASS_INPUT_PATTERN:-20??*/*beam{beam:02d}.20????????????.ms}"
+BANDPASS_INPUT_PATTERN="20??*/*beam{beam:02d}*.20????????????.ms"
 
 # Flag calB0
-# all
-FLAG_CALB0_PATTERN="${FLAG_CALB0_PATTERN:-20??*/*beam*.20????????????.calB0.ms}"
+FLAG_CALB0_PATTERN="20??*/*beam*.20????????????.calB0.ms"
 
 # Average inputs (calB0)
-# all
-AVERAGE_INPUT_PATTERN="${AVERAGE_INPUT_PATTERN:-20??*/*beam*.20????????????.calB0.ms}"
+AVERAGE_INPUT_PATTERN="20??*/*beam*.20????????????.calB0.ms"
 
 # Flag averaged
-# all
-FLAG_AVG_PATTERN="${FLAG_AVG_PATTERN:-20??*/*beam*.20????????????.avg.calB0.ms}"
+FLAG_AVG_PATTERN="20??*/*beam*.20????????????.avg.calB0.ms"
 
 # Concat inputs (averaged)
-# per beam
-CONCAT_INPUT_PATTERN="${CONCAT_INPUT_PATTERN:-20??*/*beam{beam:02d}*.20????????????.avg.calB0.ms}"
+CONCAT_INPUT_PATTERN="20??*/*beam{beam:02d}*.20????????????.avg.calB0.ms"
 
 # Imaging/selfcal (concatenated)
-# per beam
-WSCLEAN_PATTERN="${WSCLEAN_PATTERN:-*beam{beam:02d}.avg.calB0.ms}"
+WSCLEAN_PATTERN="*beam{beam:02d}.avg.calB0.ms"
 
 # UVSUB on concatenated self-cal result
-# If filenames are exactly "...beam{NN}.avg.calG6.ms":
-# per beam
-UVSUB_CONCAT_INPUT_PATTERN="${UVSUB_CONCAT_INPUT_PATTERN:-*beam{beam:02d}.avg.calG6.ms}"
-
+UVSUB_CONCAT_INPUT_PATTERN="*beam{beam:02d}.avg.calG6.ms"
 
 # Applycal on native res (start from calB0; loop produces calG<i>)
-# per beam
-APPLYCAL_NATIVE_START_PATTERN="${APPLYCAL_NATIVE_START_PATTERN:-20??*/*beam{beam:02d}.20????????????.calB0.ms}"
+APPLYCAL_NATIVE_START_PATTERN="20??*/*beam{beam:02d}*.20????????????.calB0.ms"
 
 # fastducc on uvsubbed native res
-# per beam
-FASTDUCC_INPUT_PATTERN="${FASTDUCC_INPUT_PATTERN:-20??*/*beam{beam:02d}.20????????????.calB0.uvsub.ms}"
+FASTDUCC_INPUT_PATTERN="20??*/*beam{beam:02d}*.20????????????.calB0.uvsub.ms"
 
 # -------------------- dstools extract-ds -----------------
 DS_N_WORKERS="${DS_N_WORKERS:-48}"

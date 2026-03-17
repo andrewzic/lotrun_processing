@@ -7,7 +7,7 @@ try:
 except Exception:
     pass
 
-from ms_tools import ensure_casa_flagdata, find_ms_files as find_ms_for_beam, run_unflag
+from ms_tools import ensure_casa_flagdata, find_ms_files, run_unflag
 
 def parse_args():
     p = argparse.ArgumentParser(description="CASA: flagdata(mode='unflag') on MS files per beam (SBID-aware)")
@@ -29,7 +29,7 @@ def main():
         sys.exit(1)
     exit_code = 0
     for beam in beams:
-        ms_list = find_ms_for_beam(args.data_root, args.sbid, args.pattern, int(beam))
+        ms_list = find_ms_files(args.data_root, args.sbid, args.pattern, int(beam))
         if not ms_list:
             print(f"WARN: No MS found under '{args.data_root}/{args.sbid}' for beam {beam:02d} with pattern '{args.pattern}'")
             continue
