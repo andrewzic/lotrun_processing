@@ -72,6 +72,7 @@ fi
 # 3) Ensure index is in range
 idx=${SLURM_ARRAY_TASK_ID}
 if (( idx < 0 || idx >= ${#msnames[@]} )); then
+    echo "$beam2 $PATTERN $search_glob $root "
     echo "ERROR: SLURM_ARRAY_TASK_ID=${idx} is out of range (0..$(( ${#msnames[@]} - 1 ))) for ${#msnames[@]} files." >&2
     exit 0
 fi
