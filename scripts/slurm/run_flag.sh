@@ -41,11 +41,22 @@ beam="${SLURM_ARRAY_TASK_ID}"
 printf -v beam2 "%02d" "${beam}"
 
 root="${DATA_ROOT}/${SBID}"
-#this will only apply if PATTERN contains {beam:02d}.
-glob="${PATTERN//\{beam:02d\}/$beam2}"
-search_glob="${root}/${glob}"
 
-# Expand glob to list of MS files for this beam
+# if {beam:02d} is in the pattern, replace it with the current beam number; otherwise use the pattern as is
+# This means that we can orchestrate the job to run in a per-beam mode (with {beam:02d} in the pattern) 
+# or in a single-job-for-all files mode (without {beam:02d} in the pattern)
+if [[ "$PATTERN" == *"{beam:02d}"* ]]; then
+    # Per beam mode: replace {beam:02d} with beam2
+    glob="${PATTERN//\{beam:02d\}/$beam2}"
+    search_glob="${root}/${glob}"
+    idx=0
+else
+    # All mode: use PATTERN as is
+    search_glob="${root}/${PATTERN}"
+    idx=${SLURM_ARRAY_TASK_ID}
+fi
+
+# Expand glob to list of MS files
 shopt -s nullglob
 msnames=( ${search_glob} )
 shopt -u nullglob
@@ -70,10 +81,9 @@ if (( ${#msnames[@]} == 0 )); then
 fi
 
 # 3) Ensure index is in range
-idx=${SLURM_ARRAY_TASK_ID}
 if (( idx < 0 || idx >= ${#msnames[@]} )); then
     echo "$beam2 $PATTERN $search_glob $root "
-    echo "ERROR: SLURM_ARRAY_TASK_ID=${idx} is out of range (0..$(( ${#msnames[@]} - 1 ))) for ${#msnames[@]} files." >&2
+    echo "ERROR: idx=${idx} (task ${SLURM_ARRAY_TASK_ID}) is out of range (0..$(( ${#msnames[@]} - 1 ))) for ${#msnames[@]} files." >&2
     exit 0
 fi
 
