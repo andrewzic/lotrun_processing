@@ -37,8 +37,12 @@ AOFLAGGER_OPTIONS="-column $COLUMN -strategy $script_dir/aoflagger/ASKAP.lua -v"
 
 # -----------------------------------------------------
 
+beam="${SLURM_ARRAY_TASK_ID}"
+printf -v beam2 "%02d" "${beam}"
+
 root="${DATA_ROOT}/${SBID}"
-glob="${PATTERN}"
+#this will only apply if PATTERN contains {beam:02d}.
+glob="${PATTERN//\{beam:02d\}/$beam2}"
 search_glob="${root}/${glob}"
 
 # Expand glob to list of MS files for this beam
