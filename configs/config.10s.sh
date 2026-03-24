@@ -99,9 +99,13 @@ FD_CPUS="${FD_CPUS:-1}"
 FD_MEM="${FD_MEM:-32G}"
 FD_TIME="${FD_TIME:-06:00:00}"
 
+# NOTE:
+# Crystalball runs in DISTRIBUTED mode.
+# CB_CPUS/CB_MEM apply ONLY to the client job.
+# Real compute happens in bounded per-beam Dask workers.
 CB_TIME="${CB_TIME:-03:15:00}"
-CB_CPUS="${CB_CPUS:-32}"
-CB_MEM="${CB_MEM:-128G}"
+CB_CPUS="${CB_CPUS:-2}"
+CB_MEM="${CB_MEM:-4G}"
 APPLYCAL_TIME="${APPLYCAL_TIME:-04:00:00}"
 
 AGG_TIME="${AGG_TIME:-00:30:00}"
@@ -162,10 +166,17 @@ WSCLEAN_OPTS[6]="${WSCLEAN_OPTS6:-"-data-column DATA -save-source-list -multisca
 # -------------------- Crystalball behaviour -------------
 CB_SOURCE_LIST_PATTERN=${CB_SOURCE_LIST_PATTERN:-"*beam{beam:02d}_averaged_cal.leakage.ms"}
 CB_OUTPUT_COLUMN="${CB_OUTPUT_COLUMN:-MODEL_DATA}"
-CB_NUM_WORKERS="${CB_NUM_WORKERS:-2048}"
+CB_NUM_WORKERS="${CB_NUM_WORKERS:-128}"
 CB_ROW_CHUNKS="${CB_ROW_CHUNKS:-0}"
 CB_MODEL_CHUNKS="${CB_MODEL_CHUNKS:-0}"
 CB_MEMORY_FRACTION="${CB_MEMORY_FRACTION:-0.8}"
+CB_DISTRIBUTED="${CB_DISTRIBUTED:-1}"
+# Max number of Dask workers per beam
+CB_DASK_NWORKERS="${CB_DASK_NWORKERS:-8}"
+# CPUs per Dask worker
+CB_DASK_WORKER_CPUS="${CB_DASK_WORKER_CPUS:-1}"
+# Memory per Dask worker
+CB_DASK_WORKER_MEM="${CB_DASK_WORKER_MEM:-8G}"
 
 # -------------------- Flint mask thresholds -------------
 FLOOD_FILL_POSITIVE_SEED_CLIP="${FLOOD_FILL_POSITIVE_SEED_CLIP:-1.1}"

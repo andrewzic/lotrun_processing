@@ -31,7 +31,64 @@ MEMORY_FRACTION=${MEMORY_FRACTION:-0.8}             # crystalball -mf
 REGION_FILE=${REGION_FILE:-}                         # crystalball -w (optional DS9 region)
 PREDICT_ONLY=${PREDICT_ONLY:-}                       # crystalball -po (set to 1 to enable)
 NUM_BRIGHTEST_SOURCES=${NUM_BRIGHTEST_SOURCES:-0}   # crystalball -ns (0 = all)
+
+# ---------------- Distributed Dask settings ----------------
+
+# Enable per-beam distributed Dask cluster
+CB_DISTRIBUTED=${CB_DISTRIBUTED:-1}
+
+# Per-beam Dask cluster limits (VERY IMPORTANT)
+# These control how hard ONE beam can hit the cluster
+CB_DASK_NWORKERS=${CB_DASK_NWORKERS:-8}        # max workers for this beam
+CB_DASK_WORKER_CPUS=${CB_DASK_WORKER_CPUS:-1}  # CPUs per worker
+CB_DASK_WORKER_MEM=${CB_DASK_WORKER_MEM:-8G}   # Memory per worker
+
+# Port offsets so array tasks don't collide
+CB_DASK_SCHED_PORT_BASE=${CB_DASK_SCHED_PORT_BASE:-8786}
+
 # ---------------------------------------------------------------------------
+# ---------------- Start per-beam Dask cluster ----------------
+
+if [[ "${CB_DISTRIBUTED}" == "1" ]]; then
+    echo "Starting per-beam distributed Dask cluster"
+
+    # Unique scheduler port per array task
+    DASK_SCHED_PORT=$((CB_DASK_SCHED_PORT_BASE + SLURM_ARRAY_TASK_ID))
+    export DASK_SCHEDULER_ADDRESS="tcp://127.0.0.1:${DASK_SCHED_PORT}"
+
+    echo "Dask scheduler address: ${DASK_SCHEDULER_ADDRESS}"
+
+    # Start scheduler in background
+    dask-scheduler \
+        --host 127.0.0.1 \
+        --port ${DASK_SCHED_PORT} \
+        > "logs/dask-scheduler_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}.out" 2>&1 &
+
+    DASK_SCHED_PID=$!
+
+    # Give scheduler a moment to come up
+    sleep 5
+fi
+if [[ "${CB_DISTRIBUTED}" == "1" ]]; then
+    echo "Starting ${CB_DASK_NWORKERS} Dask workers for this beam"
+
+    export OMP_NUM_THREADS=1
+    export OPENBLAS_NUM_THREADS=1
+    export MKL_NUM_THREADS=1
+    export NUMEXPR_NUM_THREADS=1
+
+    for ((i=0; i<CB_DASK_NWORKERS; i++)); do
+        dask-worker \
+            "${DASK_SCHEDULER_ADDRESS}" \
+            --nthreads ${CB_DASK_WORKER_CPUS} \
+            --memory-limit ${CB_DASK_WORKER_MEM} \
+            > "logs/dask-worker_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}_${i}.out" 2>&1 &
+    done
+
+    # Give workers time to register
+    sleep 10
+fi
+
 
 module load python-scientific/3.11.5-foss-2023b
 unset PYTHONPATH
@@ -128,3 +185,10 @@ for ms in "${msnames[@]}"; do
   #apptainer exec --bind "${BIND_SRC}:${BIND_SRC}" "${CRYSTALBALL_SIF}" \
   #  crystalball "${ms}" -sm "${src_list}" "${cb_opts[@]}"
 done
+
+# ---------------- Teardown Dask cluster ----------------
+
+if [[ "${CB_DISTRIBUTED}" == "1" ]]; then
+    echo "Stopping Dask cluster for beam ${beam2}"
+    kill ${DASK_SCHED_PID} || true
+fi

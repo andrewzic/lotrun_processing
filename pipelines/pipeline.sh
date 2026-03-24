@@ -117,8 +117,9 @@ jid_fm_init=$(chain "$jid_fm_init" "flintmask_initial_scratch")
 
 jid_cb_init=$( sbatch_submit "cb_predict" "${CB_TIME}" "${CB_CPUS}" "${CB_MEM}" "${ARRAY_SPEC}" "${RUN_CB}" "${jid_fm_init}" \
                SELFCAL="1" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" IMG_TAG="${IMG_TAGS[0]}" OUTPUT_COLUMN="${CB_OUTPUT_COLUMN}" \
-               INDEX="$(( SC_INDEX[0]-1 ))" SOURCE_LIST_PATTERN="${CB_SOURCE_LIST_PATTERN}" NUM_WORKERS="${CB_NUM_WORKERS}" ROW_CHUNKS="${CB_ROW_CHUNKS}" MODEL_CHUNKS="${CB_MODEL_CHUNKS}" \
-               MEMORY_FRACTION="${CB_MEMORY_FRACTION}" )
+               INDEX="$(( SC_INDEX[0]-1 ))" SOURCE_LIST_PATTERN="${CB_SOURCE_LIST_PATTERN}" NUM_WORKERS="${CB_NUM_WORKERS}" ROW_CHUNKS="${CB_ROW_CHUNKS}" \
+               MODEL_CHUNKS="${CB_MODEL_CHUNKS}" MEMORY_FRACTION="${CB_MEMORY_FRACTION}" CB_DISTRIBUTED="${CB_DISTRIBUTED}" CB_DASK_NWORKERS="${CB_DASK_NWORKERS}" \
+               CB_DASK_WORKER_CPUS="${CB_DASK_WORKER_CPUS}" CB_DASK_WORKER_MEM="${CB_DASK_WORKER_MEM}" )
 jid_cb_prev=$(chain "$jid_cb_init" "cb_initial_scratch")
 
 # Loop over selfcal rounds 1..N using arrays
@@ -145,7 +146,8 @@ for r in "${!SC_INDEX[@]}"; do
   jid_cb=$( sbatch_submit "cb_predict" "${CB_TIME}" "${CB_CPUS}" "${CB_MEM}" "${ARRAY_SPEC}" "${RUN_CB}" "${jid_fm}" \
             SELFCAL="1" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" IMG_TAG="${img_tag}" OUTPUT_COLUMN="${CB_OUTPUT_COLUMN}" \
             INDEX="$(( idx-1 ))" SOURCE_LIST_PATTERN="${CB_SOURCE_LIST_PATTERN}" NUM_WORKERS="${CB_NUM_WORKERS}" ROW_CHUNKS="${CB_ROW_CHUNKS}" MODEL_CHUNKS="${CB_MODEL_CHUNKS}" \
-            MEMORY_FRACTION="${CB_MEMORY_FRACTION}" )
+            MEMORY_FRACTION="${CB_MEMORY_FRACTION}" CB_DISTRIBUTED="${CB_DISTRIBUTED}" CB_DASK_NWORKERS="${CB_DASK_NWORKERS}" \
+            CB_DASK_WORKER_CPUS="${CB_DASK_WORKER_CPUS}" CB_DASK_WORKER_MEM="${CB_DASK_WORKER_MEM}" )
   jid_cb=$(chain "$jid_cb" "cb_${img_tag}")
 
   # Self-cal (mode/solint from arrays)
@@ -183,7 +185,8 @@ jid_fm_final=$(chain "$jid_fm_final" "flintmask_${IMG_TAGS[6]}")
 jid_cb6=$( sbatch_submit "cb_predict" "${CB_TIME}" "${CB_CPUS}" "${CB_MEM}" "${ARRAY_SPEC}" "${RUN_CB}" "${jid_fm_final}" \
           SELFCAL="1" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" IMG_TAG="${IMG_TAGS[6]}" OUTPUT_COLUMN="${CB_OUTPUT_COLUMN}" \
           INDEX="${last_idx}" SOURCE_LIST_PATTERN="${CB_SOURCE_LIST_PATTERN}" NUM_WORKERS="${CB_NUM_WORKERS}" ROW_CHUNKS="${CB_ROW_CHUNKS}" MODEL_CHUNKS="${CB_MODEL_CHUNKS}" \
-          MEMORY_FRACTION="${CB_MEMORY_FRACTION}" )
+          MEMORY_FRACTION="${CB_MEMORY_FRACTION}" CB_DISTRIBUTED="${CB_DISTRIBUTED}" CB_DASK_NWORKERS="${CB_DASK_NWORKERS}" \
+          CB_DASK_WORKER_CPUS="${CB_DASK_WORKER_CPUS}" CB_DASK_WORKER_MEM="${CB_DASK_WORKER_MEM}" )
 jid_cb6=$(chain "$jid_cb6" "cb_${IMG_TAGS[6]}")
 
 # UVSUB on concatenated self-cal result (original: G6 inputs + ext B0)
@@ -208,7 +211,8 @@ CB_NATIVE_INPUT_PATTERN="${applycal_pattern}"
 jid_cb_native=$( sbatch_submit "cb_predict_native" "${CB_TIME}" "${CB_CPUS}" "${CB_MEM}" "${ARRAY_SPEC}" "${RUN_CB}" "${jid_applycal}" \
                  SELFCAL="0" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${CB_NATIVE_INPUT_PATTERN}" IMG_TAG="${IMG_TAGS[6]}" OUTPUT_COLUMN="${CB_OUTPUT_COLUMN}" \
                  INDEX="${last_idx}" NUM_WORKERS="${CB_NUM_WORKERS}" ROW_CHUNKS="${CB_ROW_CHUNKS}" MODEL_CHUNKS="${CB_MODEL_CHUNKS}" \
-                 MEMORY_FRACTION="${CB_MEMORY_FRACTION}" )
+                 MEMORY_FRACTION="${CB_MEMORY_FRACTION}" CB_DISTRIBUTED="${CB_DISTRIBUTED}" CB_DASK_NWORKERS="${CB_DASK_NWORKERS}" \
+               CB_DASK_WORKER_CPUS="${CB_DASK_WORKER_CPUS}" CB_DASK_WORKER_MEM="${CB_DASK_WORKER_MEM}" )
 jid_cb_native=$(chain "$jid_cb_native" "cb_native")
 
 # UVSUB on native res (G6 calibrated)
