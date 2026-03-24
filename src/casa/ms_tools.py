@@ -178,6 +178,26 @@ def run_unflag(msname: str):
     print(f"Unflagging all flags -> {msname}")
     flagdata(vis=msname, mode='unflag', action='apply', flagbackup=False)
 
+def run_quack(msname: str, quackinterval: float = 20.0):
+    from casatasks import flagdata
+    print(f"Quack flagging all flags -> {msname}")
+
+    # Flag first 20 seconds of each scan
+    flagdata(
+        vis=msname,
+        mode='quack',
+        quackinterval=20.0,
+        quackmode='beg'
+    )
+
+    # Flag last 20 seconds of each scan
+    flagdata(
+        vis=msname,
+        mode='quack',
+        quackinterval=20.0,
+        quackmode='end'
+    )
+
 # From flagouter
 def run_flag_outer_antennas(msname: str):
     from casatasks import flagdata

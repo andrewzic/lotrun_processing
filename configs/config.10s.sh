@@ -33,6 +33,8 @@ FLINT_WSCLEAN_SIF="${FLINT_WSCLEAN_SIF:-${CONTAINER_DIR}/flint-containers_wsclea
 FLINT_CASA_SIF="${FLINT_CASA_SIF:-${CONTAINER_DIR}/flint-containers_casa.sif}"
 
 # -------------------- Wrapper scripts ------------------
+RUN_FIXDIR="${RUN_FIXDIR:-${SCRIPT_DIR}/scripts/slurm/run_fixdir.sh}"
+RUN_QUACK="${RUN_QUACK:-${SCRIPT_DIR}/scripts/slurm/run_quack_beams.sh}"
 RUN_UNFLAG="${RUN_UNFLAG:-${SCRIPT_DIR}/scripts/slurm/run_unflag_beams.sh}"
 RUN_FLAG="${RUN_FLAG:-${SCRIPT_DIR}/scripts/slurm/run_flag.sh}"
 
@@ -57,6 +59,8 @@ RUN_FLAGOUTER="${RUN_FLAGOUTER:-${SCRIPT_DIR}/scripts/slurm/run_flagouter_beams.
 FLAG_OUTER=${FLAG_OUTER:-"False"} # Whether to flag outer antennas to match the inner antennas used by CRACO
 
 # -------------------- Tools ---------------------
+FIXDIR_SCRIPT="${FIXDIR_SCRIPT:-${SCRIPT_DIR}/scripts/utils/fix_dir.py}"
+QUACK_SCRIPT="${QUACK_SCRIPT:-${SCRIPT_DIR}/src/casa/quack_ms_beams.py}"
 IMPORT_SCRIPT="${IMPORT_SCRIPT:-${SCRIPT_DIR}/src/casa/import_array.py}"
 AVERAGE_SCRIPT="${AVERAGE_SCRIPT:-${SCRIPT_DIR}/src/casa/average_ms_beams.py}"
 CONCAT_SCRIPT="${CONCAT_SCRIPT:-${SCRIPT_DIR}/src/casa/concat_ms_beams.py}"

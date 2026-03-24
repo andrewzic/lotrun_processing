@@ -49,7 +49,12 @@ mkdir -p logs plots
 # 0) Optional: ensure .ms present (if only .ms.tar exist, untar separately before running)
 #    This pipeline assumes the .ms have already been extracted alongside the .ms.tar
 
-# A) PRE-PROCESS: unflag then AOflagger on native 10s MS
+# A) PRE-PROCESS: fix_dir first
+jid_unflag=$( sbatch_submit "fixdir_ms" "${UNFLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM}" "${ARRAY_SPEC}" "${RUN_FIXDIR}" "" \
+  SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${NATIVE10S_PATTERN}" SCRIPT="${FIXDIR_SCRIPT}" )
+jid_unflag=$(chain "$jid_unflag" "unflag_native")
+
+#unflag then AOflagger on native 10s MS
 jid_unflag=$( sbatch_submit "unflag_ms" "${UNFLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM}" "${ARRAY_SPEC}" "${RUN_UNFLAG}" "" \
   SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${NATIVE10S_PATTERN}" CASA_SIF="${FLINT_CASA_SIF}" BIND_SRC="${BIND_SRC}" )
 jid_unflag=$(chain "$jid_unflag" "unflag_native")

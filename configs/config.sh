@@ -41,6 +41,7 @@ FLINT_CASA_SIF="${FLINT_CASA_SIF:-${CONTAINER_DIR}/flint-containers_casa.sif}"
 
 # -------------------- Wrapper scripts ------------------
 RUN_IMPORT="${RUN_IMPORT:-${SCRIPT_DIR}/scripts/slurm/run_import.sh}"
+RUN_QUACK="${RUN_QUACK:-${SCRIPT_DIR}/scripts/slurm/run_quack_beams.sh}"
 RUN_FLAG="${RUN_FLAG:-${SCRIPT_DIR}/scripts/slurm/run_flag.sh}"
 RUN_AVERAGE="${RUN_AVERAGE:-${SCRIPT_DIR}/scripts/slurm/run_average_beams.sh}"
 RUN_CONCAT="${RUN_CONCAT:-${SCRIPT_DIR}/scripts/slurm/run_concat_beams.sh}"
@@ -62,6 +63,7 @@ RUN_FLAGOUTER="${RUN_FLAGOUTER:-${SCRIPT_DIR}/scripts/slurm/run_flagouter_beams.
 
 # -------------------- Tool scripts ---------------------
 IMPORT_SCRIPT="${IMPORT_SCRIPT:-${SCRIPT_DIR}/src/casa/import_array.py}"
+QUACK_SCRIPT="${QUACK_SCRIPT:-${SCRIPT_DIR}/src/casa/quack_ms_beams.py}"
 AVERAGE_SCRIPT="${AVERAGE_SCRIPT:-${SCRIPT_DIR}/src/casa/average_ms_beams.py}"
 CONCAT_SCRIPT="${CONCAT_SCRIPT:-${SCRIPT_DIR}/src/casa/concat_ms_beams.py}"
 FLAGOUTER_SCRIPT="${FLAGOUTER_SCRIPT:-${SCRIPT_DIR}/src/casa/flagouter_beams.py}"
