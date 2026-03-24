@@ -14,6 +14,7 @@ DATA_ROOT=${DATA_ROOT:-/fred/oz451/${USER}/data}
 PATTERN=${PATTERN:-"*beam{beam:02d}_averaged_cal*.ms"}
 SCRIPT=${SCRIPT:-scripts/utils/fix_dir.py}
 CRYSTALBALL_ENV=${CRYSTALBALL_ENV:-/fred/oz451/${USER}/scripts/crystalball_nt/}
+INDEX=${INDEX:-0}
 # ---------------------------------------------------------------------
 
 mkdir -p logs
