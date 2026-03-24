@@ -52,5 +52,5 @@ for i in "${!msnames[@]}"
 do
     msname=${msnames[$i]}
     echo "found msname=$msname"
-    $PYTHON "$SCRIPT" "$msname"
+    python "$SCRIPT" "$msname"
 done
