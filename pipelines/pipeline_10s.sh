@@ -37,10 +37,6 @@ fi
 
 __DRY_JID_SEQ="${DRY_FAKE_START:-490000}"
 
-# Determine BIGARRAY_SPEC from the number of measuement sets matching UVFITS_PATTERN
-n=$( ls -1d "${DATA_ROOT}/${SBID}"/${UVFITS_PATTERN} | wc -l )
-BIGARRAY_SPEC="0-$((n>0 ? n-1 : 0))"
-
 source "$(dirname "$0")/slurm_helpers.sh"
 
 # -------------------- PIPELINE --------------------------
