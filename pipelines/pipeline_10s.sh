@@ -50,12 +50,12 @@ mkdir -p logs plots
 #    This pipeline assumes the .ms have already been extracted alongside the .ms.tar
 
 # A) PRE-PROCESS: fix_dir first
-jid_unflag=$( sbatch_submit "fixdir_ms" "${UNFLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM}" "${ARRAY_SPEC}" "${RUN_FIXDIR}" "" \
+jid_fixdir=$( sbatch_submit "fixdir_ms" "${UNFLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM}" "${ARRAY_SPEC}" "${RUN_FIXDIR}" "" \
   SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${NATIVE10S_PATTERN}" SCRIPT="${FIXDIR_SCRIPT}" )
-jid_unflag=$(chain "$jid_unflag" "unflag_native")
+jid_fixdir=$(chain "$jid_fixdir" "fixdir_native")
 
 #unflag then AOflagger on native 10s MS
-jid_unflag=$( sbatch_submit "unflag_ms" "${UNFLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM}" "${ARRAY_SPEC}" "${RUN_UNFLAG}" "" \
+jid_unflag=$( sbatch_submit "unflag_ms" "${UNFLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM}" "${ARRAY_SPEC}" "${RUN_UNFLAG}" "${jid_fixdir}" \
   SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${NATIVE10S_PATTERN}" CASA_SIF="${FLINT_CASA_SIF}" BIND_SRC="${BIND_SRC}" )
 jid_unflag=$(chain "$jid_unflag" "unflag_native")
 
@@ -67,7 +67,13 @@ if [ "$FLAG_OUTER" == "1" ]; then
 else
   jid_before_flag="$jid_unflag"
 fi
-jid_flag=$( sbatch_submit "aoflagger_array" "${FLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM}" "${ARRAY_SPEC}" "${RUN_FLAG}" "$jid_before_flag" \
+
+jid_quack=$( sbatch_submit "quack_ms" "${FLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM}" "${ARRAY_SPEC}" "${RUN_QUACK}" "$jid_before_flag" \
+SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${NATIVE10S_PATTERN}" SCRIPT_DIR="${SCRIPT_DIR}" CASA_SIF="${FLINT_CASA_SIF}" BIND_SRC="${BIND_SRC}" )
+jid_quack=$( chain "$jid_quack" "quack_native" )
+
+
+jid_flag=$( sbatch_submit "aoflagger_array" "${FLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM}" "${ARRAY_SPEC}" "${RUN_FLAG}" "$jid_quack" \
   SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${NATIVE10S_PATTERN}" SCRIPT_DIR="${SCRIPT_DIR}" COLUMN="${FLAG_COLUMN}" )
 jid_flag=$(chain "$jid_flag" "aoflagger_native")
 
