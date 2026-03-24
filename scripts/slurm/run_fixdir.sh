@@ -19,7 +19,6 @@ CRYSTALBALL_ENV=${CRYSTALBALL_ENV:-/fred/oz451/${USER}/scripts/crystalball_nt/}
 mkdir -p logs
 printf 'Job %s.%s on %s\n' "${SLURM_JOB_ID}" "${SLURM_ARRAY_TASK_ID}" "$(hostname)"
 echo "SBID=$SBID DATA_ROOT=$DATA_ROOT BEAM=$SLURM_ARRAY_TASK_ID PATTERN=$PATTERN"
-echo "Container: ${CASA_SIF}; Bind: ${BIND_SRC}"
 
 module load python-scientific/3.11.5-foss-2023b
 unset PYTHONPATH
