@@ -49,6 +49,11 @@ CB_DASK_SCHED_PORT_BASE=${CB_DASK_SCHED_PORT_BASE:-8786}
 # ---------------------------------------------------------------------------
 # ---------------- Start per-beam Dask cluster ----------------
 
+module load python-scientific/3.11.5-foss-2023b
+unset PYTHONPATH
+source ${CRYSTALBALL_ENV}/bin/activate
+
+
 if [[ "${CB_DISTRIBUTED}" == "1" ]]; then
 
     SCHED_LOG="logs/dask-scheduler_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}.out"
@@ -96,11 +101,6 @@ if [[ "${CB_DISTRIBUTED}" == "1" ]]; then
     # Give workers time to register
     sleep 10
 fi
-
-
-module load python-scientific/3.11.5-foss-2023b
-unset PYTHONPATH
-source ${CRYSTALBALL_ENV}/bin/activate
 
 mkdir -p logs
 
