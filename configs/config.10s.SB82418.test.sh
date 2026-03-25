@@ -169,7 +169,7 @@ WSCLEAN_OPTS[6]="${WSCLEAN_OPTS6:-"-data-column DATA -save-source-list -multisca
 # -------------------- Crystalball behaviour -------------
 CB_SOURCE_LIST_PATTERN=${CB_SOURCE_LIST_PATTERN:-"*beam{beam:02d}_averaged_cal.leakage.ms"}
 CB_OUTPUT_COLUMN="${CB_OUTPUT_COLUMN:-MODEL_DATA}"
-CB_NUM_WORKERS="${CB_NUM_WORKERS:-128}"
+CB_NUM_WORKERS="${CB_NUM_WORKERS:-0}"
 CB_ROW_CHUNKS="${CB_ROW_CHUNKS:-0}"
 CB_MODEL_CHUNKS="${CB_MODEL_CHUNKS:-0}"
 CB_MEMORY_FRACTION="${CB_MEMORY_FRACTION:-0.8}"
@@ -179,7 +179,7 @@ CB_DASK_NWORKERS="${CB_DASK_NWORKERS:-8}"
 # CPUs per Dask worker
 CB_DASK_WORKER_CPUS="${CB_DASK_WORKER_CPUS:-1}"
 # Memory per Dask worker
-CB_DASK_WORKER_MEM="${CB_DASK_WORKER_MEM:-8G}"
+CB_DASK_WORKER_MEM="${CB_DASK_WORKER_MEM:-12G}"
 
 # -------------------- Flint mask thresholds -------------
 FLOOD_FILL_POSITIVE_SEED_CLIP="${FLOOD_FILL_POSITIVE_SEED_CLIP:-1.1}"

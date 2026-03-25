@@ -23,7 +23,7 @@ SELFCAL=${SELFCAL:-1}
 
 # Crystalball runtime options (all optional; tune as needed)
 OUTPUT_COLUMN=${OUTPUT_COLUMN:-MODEL_DATA}          # crystalball -o
-NUM_WORKERS=${NUM_WORKERS:-8}                       # crystalball -j
+NUM_WORKERS=${NUM_WORKERS:-0}                       # crystalball -j
 ROW_CHUNKS=${ROW_CHUNKS:-0}                         # crystalball -rc (0 = auto)
 MODEL_CHUNKS=${MODEL_CHUNKS:-0}                     # crystalball -mc (0 = auto)
 FIELD=${FIELD:-}                                     # crystalball -f (empty = auto)
@@ -155,6 +155,10 @@ cb_opts=( "-o" "${OUTPUT_COLUMN}" "-j" "${NUM_WORKERS}" "-mf" "${MEMORY_FRACTION
 [[ -n "${REGION_FILE}" ]]     && cb_opts+=( "-w"  "${REGION_FILE}" )
 [[ -n "${PREDICT_ONLY}" ]]    && cb_opts+=( "-po" )
 [[ "${NUM_BRIGHTEST_SOURCES}" -gt 0 ]] && cb_opts+=( "-ns" "${NUM_BRIGHTEST_SOURCES}" )
+[[ "${CB_DISTRIBUTED}" == "1" ]]       && cb_opts+=( "--scheduler distributed" "--address ${DASK_SCHEDULER_ADDRESS}" )
+
+echo "Crystalball argv:"
+printf '  %q\n' "${cb_opts[@]}"
 
 for ms in "${msnames[@]}"; do
     # Derive the WSClean source list path from the earlier -name "${ms%.ms}.img"
