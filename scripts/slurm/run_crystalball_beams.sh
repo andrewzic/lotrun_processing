@@ -50,26 +50,34 @@ CB_DASK_SCHED_PORT_BASE=${CB_DASK_SCHED_PORT_BASE:-8786}
 # ---------------- Start per-beam Dask cluster ----------------
 
 if [[ "${CB_DISTRIBUTED}" == "1" ]]; then
-    echo "Starting per-beam distributed Dask cluster"
 
-    # Unique scheduler port per array task
-    DASK_SCHED_PORT=$((CB_DASK_SCHED_PORT_BASE + SLURM_ARRAY_TASK_ID))
-    export DASK_SCHEDULER_ADDRESS="tcp://127.0.0.1:${DASK_SCHED_PORT}"
+    SCHED_LOG="logs/dask-scheduler_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}.out"
 
-    echo "Dask scheduler address: ${DASK_SCHEDULER_ADDRESS}"
-
-    # Start scheduler in background
+    echo "Starting dask scheduler..."
     dask-scheduler \
-        --host 127.0.0.1 \
-        --port ${DASK_SCHED_PORT} \
-        > "logs/dask-scheduler_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}.out" 2>&1 &
+    --host "$(hostname)" \
+    --port 0 \
+    > "${SCHED_LOG}" 2>&1 &
 
     DASK_SCHED_PID=$!
 
-    # Give scheduler a moment to come up
-    sleep 5
-fi
-if [[ "${CB_DISTRIBUTED}" == "1" ]]; then
+    # Wait for scheduler to announce itself
+    for i in {1..30}; do
+    if grep -q "Scheduler at" "${SCHED_LOG}"; then
+        DASK_SCHEDULER_ADDRESS=$(grep "Scheduler at" "${SCHED_LOG}" | awk '{print $NF}')
+        export DASK_SCHEDULER_ADDRESS
+        echo "Scheduler running at ${DASK_SCHEDULER_ADDRESS}"
+        break
+    fi
+    sleep 1
+    done
+
+    if [[ -z "${DASK_SCHEDULER_ADDRESS:-}" ]]; then
+    echo "ERROR: Scheduler failed to start"
+    cat "${SCHED_LOG}"
+    exit 1
+    fi
+
     echo "Starting ${CB_DASK_NWORKERS} Dask workers for this beam"
 
     export OMP_NUM_THREADS=1
