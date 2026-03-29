@@ -9,6 +9,9 @@
 set -euo pipefail
 
 # -------------------- Inputs from sbatch --export (or env defaults) --------------------
+CRYSTALBALL_ENV=${CRYSTALBALL_ENV:-/fred/oz451/${USER}/scripts/crystalball_nt/}
+CRYSTALBALL_SIF=${CRYSTALBALL_SIF:-}
+
 SBID=${SBID:-SB77974}
 DATA_ROOT=${DATA_ROOT:-/fred/oz451/${USER}/data}
 
@@ -18,9 +21,16 @@ SKY_TOL_ARCSEC=${SKY_TOL_ARCSEC:-35.0}
 OUTDIR_DEFAULT="${DATA_ROOT}/${SBID}/candidates"
 
 # -------------------- Runtime environment ----------
-module load python-scientific/3.11.5-foss-2023b    # adjust if needed
-unset PYTHONPATH
-source /fred/oz451/azic/scripts/crystalball_nt/bin/activate
+if [ -n "${CRYSTALBALL_SIF}" ]; then
+    # container mode
+    FASTDUCC=${CRYSTALBALL:-apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CRYSTALBALL_SIF} fastducc}
+else
+    # venv mode
+    module load python-scientific/3.11.5-foss-2023b
+    unset PYTHONPATH
+    source "${CRYSTALBALL_ENV}/bin/activate"
+    FASTDUCC=${CRYSTALBALL:-fastducc}
+fi
 
 # -------------------- Run obs-level aggregation for each kind ------------------------
 obs_root="${DATA_ROOT}/${SBID}"
@@ -31,7 +41,7 @@ mkdir -p "${outdir}"
 for kind in ${KIND_LIST}; do
   echo "[ObsAgg] SBID=${SBID} kind=${kind} sky_tol=${SKY_TOL_ARCSEC} outdir=${outdir}"
   # use fastducc_run.py’s CLI entrypoint to dispatch into candidates.aggregate_observation_from_super_summaries
-  fastducc aggregate_obs --obs-root "${obs_root}" --kind "${kind}" --sky-tol-arcsec "${SKY_TOL_ARCSEC}" --outdir "${outdir}"
+  ${FASTDUCC} aggregate_obs --obs-root "${obs_root}" --kind "${kind}" --sky-tol-arcsec "${SKY_TOL_ARCSEC}" --outdir "${outdir}"
 done
 
 echo "[ObsAgg] Done: outputs in ${outdir}"

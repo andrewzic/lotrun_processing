@@ -15,8 +15,9 @@ SBID=${SBID:-SB77974}
 DATA_ROOT=${DATA_ROOT:-/fred/oz451/${USER}/data}
 PATTERN=${PATTERN:-"*beam{beam:02d}*.avg.calB0.ms"}    # relative under data-root/SBID
 SOURCE_LIST_PATTERN=${SOURCE_LIST_PATTERN:-"*beam{beam:02d}*.avg.calB0.ms"}
-#BIND_SRC=${BIND_SRC:-/fred/oz451}
+BIND_SRC=${BIND_SRC:-/fred/oz451}
 CRYSTALBALL_ENV=${CRYSTALBALL_ENV:-/fred/oz451/${USER}/scripts/crystalball_nt/}
+CRYSTALBALL_SIF=${CRYSTALBALL_SIF:-}
 IMG_TAG=${IMG_TAG:-"initial"}
 INDEX=${INDEX:-0}
 SELFCAL=${SELFCAL:-1}
@@ -49,14 +50,22 @@ CB_DASK_SCHED_PORT_BASE=${CB_DASK_SCHED_PORT_BASE:-8786}
 # ---------------------------------------------------------------------------
 # ---------------- Start per-beam Dask cluster ----------------
 
-module load python-scientific/3.11.5-foss-2023b
-unset PYTHONPATH
-source ${CRYSTALBALL_ENV}/bin/activate
+
+if [ -n "${CRYSTALBALL_SIF}" ]; then
+    # container mode
+    CRYSTALBALL=${CRYSTALBALL:-apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CRYSTALBALL_SIF} crystalball}
+else
+    # venv mode
+    module load python-scientific/3.11.5-foss-2023b
+    unset PYTHONPATH
+    source "${CRYSTALBALL_ENV}/bin/activate"
+    CRYSTALBALL=${CRYSTALBALL:-${CRYSTALBALL_ENV}/bin/crystalball}
+fi
 
 
 if [[ "${CB_DISTRIBUTED}" == "1" ]]; then
 
-    SCHED_LOG="logs/dask-scheduler_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}.out"
+    SCHED_LOG="logs/cb_dask-scheduler_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}.out"
 
     echo "Starting dask scheduler..."
     dask-scheduler \
@@ -65,6 +74,8 @@ if [[ "${CB_DISTRIBUTED}" == "1" ]]; then
     > "${SCHED_LOG}" 2>&1 &
 
     DASK_SCHED_PID=$!
+
+    sleep 10
 
     # Wait for scheduler to announce itself
     for i in {1..30}; do
@@ -192,8 +203,8 @@ for ms in "${msnames[@]}"; do
 
   # Execute crystalball CLI inside environment
   echo "running:"
-  echo "${CRYSTALBALL_ENV}/bin/crystalball ${ms} -sm ${src_list} ${cb_opts[@]}"
-  ${CRYSTALBALL_ENV}/bin/crystalball ${ms} -sm ${src_list} ${cb_opts[@]}
+  echo "${CRYSTALBALL} ${ms} -sm ${src_list} ${cb_opts[@]}"
+  $CRYSTALBALL ${ms} -sm ${src_list} ${cb_opts[@]}
   #apptainer exec --bind "${BIND_SRC}:${BIND_SRC}" "${CRYSTALBALL_SIF}" \
   #  crystalball "${ms}" -sm "${src_list}" "${cb_opts[@]}"
 done

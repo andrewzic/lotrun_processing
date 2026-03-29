@@ -10,6 +10,10 @@
 set -euo pipefail
 
 # -------------------- User-tunable env (with defaults) --------------------
+# environment variables
+CRYSTALBALL_ENV=${CRYSTALBALL_ENV:-/fred/oz451/${USER}/scripts/crystalball_nt/}
+CRYSTALBALL_SIF=${CRYSTALBALL_SIF:-}
+
 # Observation selection
 export SBID="${SBID:-SB77974}"
 export DATA_ROOT="${DATA_ROOT:-/fred/oz451/${USER}/data}"
@@ -52,12 +56,19 @@ mkdir -p "${root}/candidates" "logs" "dask-worker-space"
 
 # -------------------- Runtime environment for the launcher --------------------
 # This should mirror the orchestrator's default --job-prologue for workers.
-module load python-scientific/3.11.5-foss-2023b
-unset PYTHONPATH
-source /fred/oz451/azic/scripts/crystalball_nt/bin/activate
+if [ -n "${CRYSTALBALL_SIF}" ]; then
+    # container mode
+    PYTHON=${CRYSTALBALL:-apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CRYSTALBALL_SIF} python}
+else
+    # venv mode
+    module load python-scientific/3.11.5-foss-2023b
+    unset PYTHONPATH
+    source "${CRYSTALBALL_ENV}/bin/activate"
+    PYTHON=${CRYSTALBALL:-python}
+fi
 
 # -------------------- Build orchestrator command --------------------
-cmd=( python src/extract/extract_ds_orchestrator.py
+cmd=( ${PYTHON} src/extract/extract_ds_orchestrator.py
   --sbid "${SBID}"
   --data-root "${DATA_ROOT}"
   --kind "${KIND}"
@@ -104,7 +115,11 @@ if [[ -n "${DS_PROJECT}" ]]; then
 fi
 
 # Pass the *same* module/venv steps to the Dask workers via job prologue
-cmd+=( --job-prologue "module load python-scientific/3.11.5-foss-2023b ; unset PYTHONPATH; source /fred/oz451/azic/scripts/crystalball_nt/bin/activate" )
+if [ -n "${CRYSTALBALL_SIF}" ]; then
+  cmd+=( --job-prologue "" )
+else
+  cmd+=( --job-prologue "module load python-scientific/3.11.5-foss-2023b ; unset PYTHONPATH; source /fred/oz451/azic/scripts/crystalball_nt/bin/activate" )
+fi
 
 # -------------------- Run --------------------
 echo "[INFO] Running: ${cmd[*]}"

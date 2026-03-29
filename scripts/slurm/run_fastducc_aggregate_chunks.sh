@@ -13,6 +13,9 @@ SBID=${SBID:-SB77974}
 DATA_ROOT=${DATA_ROOT:-/fred/oz451/${USER}/data}
 CHUNK_GLOB=${CHUNK_GLOB:-202?*}
 
+CRYSTALBALL_ENV=${CRYSTALBALL_ENV:-/fred/oz451/${USER}/scripts/crystalball_nt/}
+CRYSTALBALL_SIF=${CRYSTALBALL_SIF:-}
+
 root="${DATA_ROOT}/${SBID}"
 
 # Discover chunk directories (sub-observations)
@@ -38,12 +41,19 @@ echo "Aggregating candidates for chunkdir: ${chunkdir}"
 mkdir -p "${chunkdir}/candidates"
 
 # Runtime environment
-module load python-scientific/3.11.5-foss-2023b
-unset PYTHONPATH
-source /fred/oz451/azic/scripts/crystalball_nt/bin/activate
+if [ -n "${CRYSTALBALL_SIF}" ]; then
+    # container mode
+    FASTDUCC=${CRYSTALBALL:-apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CRYSTALBALL_SIF} fastducc}
+else
+    # venv mode
+    module load python-scientific/3.11.5-foss-2023b
+    unset PYTHONPATH
+    source "${CRYSTALBALL_ENV}/bin/activate"
+    FASTDUCC=${CRYSTALBALL:-fastducc}
+fi
 
 # Run both kinds
-fastducc aggregate --obs-root "${chunkdir}/" --kind boxcar --outdir "${chunkdir}/candidates/"
-fastducc aggregate --obs-root "${chunkdir}/" --kind variance --outdir "${chunkdir}/candidates/"
+${FASTDUCC} aggregate --obs-root "${chunkdir}/" --kind boxcar --outdir "${chunkdir}/candidates/"
+${FASTDUCC} aggregate --obs-root "${chunkdir}/" --kind variance --outdir "${chunkdir}/candidates/"
 
 echo "Done: ${chunkdir}"

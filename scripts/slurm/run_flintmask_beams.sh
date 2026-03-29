@@ -16,6 +16,7 @@ DATA_ROOT=${DATA_ROOT:-/fred/oz451/${USER}/data}
 PATTERN=${PATTERN:-"*beam{beam:02d}*.avg.calB0.ms"}    # relative under data-root/SBID
 #BIND_SRC=${BIND_SRC:-/fred/oz451}
 CRYSTALBALL_ENV=${CRYSTALBALL_ENV:-/fred/oz451/${USER}/scripts/crystalball_nt/}
+CRYSTALBALL_SIF=${CRYSTALBALL_SIF:-}
 IMG_TAG=${IMG_TAG:-"initial"}
 INDEX=${INDEX:-0}
 SELFCAL=${SELFCAL:-1}
@@ -31,9 +32,16 @@ FLINT_MASK_OPTIONS="--flood-fill --flood-fill-positive-seed-clip ${FLOOD_FILL_PO
 
 # ---------------------------------------------------------------------------
 
-module load python-scientific/3.11.5-foss-2023b
-unset PYTHONPATH
-source ${CRYSTALBALL_ENV}/bin/activate
+if [ -n "${CRYSTALBALL_SIF}" ]; then
+    # container mode
+    FLINT_MASKING=${CRYSTALBALL:-apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CRYSTALBALL_SIF} flint_masking}
+else
+    # venv mode
+    module load python-scientific/3.11.5-foss-2023b
+    unset PYTHONPATH
+    source "${CRYSTALBALL_ENV}/bin/activate"
+    FLINT_MASKING=${CRYSTALBALL:-${CRYSTALBALL_ENV}/bin/flint_masking}
+fi
 
 mkdir -p logs
 
@@ -84,6 +92,6 @@ for ms in "${msnames[@]}"; do
     echo "Deriving fits mask from MFS fits image ${fits_image}"
     # Execute flint_masking CLI inside environment
     echo "running:"
-    echo "${CRYSTALBALL_ENV}/bin/flint_masking mask ${fits_image} ${FLINT_MASK_OPTIONS}"     
-    ${CRYSTALBALL_ENV}/bin/flint_masking mask  ${fits_image} ${FLINT_MASK_OPTIONS}
+    echo "$FLINT_MASKING mask ${fits_image} ${FLINT_MASK_OPTIONS}"     
+    $FLINT_MASKING mask  ${fits_image} ${FLINT_MASK_OPTIONS}
 done

@@ -9,6 +9,9 @@
 
 set -euo pipefail
 
+# environment variables
+CRYSTALBALL_ENV=${CRYSTALBALL_ENV:-/fred/oz451/${USER}/scripts/crystalball_nt/}
+CRYSTALBALL_SIF=${CRYSTALBALL_SIF:-}
 
 SBID=${SBID:-SB77974}
 DATA_ROOT=${DATA_ROOT:-/fred/oz451/${USER}/data}
@@ -63,16 +66,22 @@ for ms in "${msnames[@]}"; do
   echo "  - ${ms}"
 done
 
+if [ -n "${CRYSTALBALL_SIF}" ]; then
+    # container mode
+    FASTDUCC=${CRYSTALBALL:-apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CRYSTALBALL_SIF} fastducc}
+else
+    # venv mode
+    module load python-scientific/3.11.5-foss-2023b
+    unset PYTHONPATH
+    source "${CRYSTALBALL_ENV}/bin/activate"
+    FASTDUCC=${CRYSTALBALL:-fastducc}
+fi
+
 # ---------------------- Run fastducc on each MS ----------------------------
 for ms in "${msnames[@]}"; do
   echo "Running fastducc on: ${ms}"
-
-
-  module load python-scientific/3.11.5-foss-2023b
-  unset PYTHONPATH
-  source /fred/oz451/azic/scripts/crystalball_nt/bin/activate
   
-  cmd=( fastducc --msname "${ms}"
+  cmd=( ${FASTDUCC} --msname "${ms}"
     --chunk-size 512
     --corr-mode single
     --basis linear

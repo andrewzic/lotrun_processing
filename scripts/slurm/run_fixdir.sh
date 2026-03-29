@@ -14,6 +14,7 @@ DATA_ROOT=${DATA_ROOT:-/fred/oz451/${USER}/data}
 PATTERN=${PATTERN:-"*beam{beam:02d}_averaged_cal*.ms"}
 SCRIPT=${SCRIPT:-scripts/utils/fix_dir.py}
 CRYSTALBALL_ENV=${CRYSTALBALL_ENV:-/fred/oz451/${USER}/scripts/crystalball_nt/}
+CRYSTALBALL_SIF=${CRYSTALBALL_SIF:-}
 INDEX=${INDEX:-0}
 # ---------------------------------------------------------------------
 
@@ -21,9 +22,18 @@ mkdir -p logs
 printf 'Job %s.%s on %s\n' "${SLURM_JOB_ID}" "${SLURM_ARRAY_TASK_ID}" "$(hostname)"
 echo "SBID=$SBID DATA_ROOT=$DATA_ROOT BEAM=$SLURM_ARRAY_TASK_ID PATTERN=$PATTERN"
 
-module load python-scientific/3.11.5-foss-2023b
-unset PYTHONPATH
-source ${CRYSTALBALL_ENV}/bin/activate
+if [ -n "${CRYSTALBALL_SIF}" ]; then
+    # container mode
+    PYTHON=${CRYSTALBALL:-apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CRYSTALBALL_SIF} python}
+else
+    # venv mode
+    module load python-scientific/3.11.5-foss-2023b
+    unset PYTHONPATH
+    source "${CRYSTALBALL_ENV}/bin/activate"
+    PYTHON=${CRYSTALBALL:-${CRYSTALBALL_ENV}/bin/python3}
+fi
+
+
 
 # Resolve the beam-specific glob by formatting {beam:02d}
 beam="${SLURM_ARRAY_TASK_ID}"

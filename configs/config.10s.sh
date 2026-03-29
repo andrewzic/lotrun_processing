@@ -31,6 +31,7 @@ DRY_PRINT_CMDS="${DRY_PRINT_CMDS:-1}"
 # -------------------- Containers -----------------------
 FLINT_WSCLEAN_SIF="${FLINT_WSCLEAN_SIF:-${CONTAINER_DIR}/flint-containers_wsclean.sif}"
 FLINT_CASA_SIF="${FLINT_CASA_SIF:-${CONTAINER_DIR}/flint-containers_casa.sif}"
+CRYSTALBALL_SIF="${CRYSTALBALL_SIF:-${CONTAINER_DIR}/casacore_python.sif}"
 
 # -------------------- Wrapper scripts ------------------
 RUN_FIXDIR="${RUN_FIXDIR:-${SCRIPT_DIR}/scripts/slurm/run_fixdir.sh}"
