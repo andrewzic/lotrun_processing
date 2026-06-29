@@ -17,7 +17,7 @@ PATTERN=${PATTERN:-"*beam{beam:02d}*.avg.calB0.ms"}   # relative under data-root
 FLINT_WSCLEAN_SIF=${FLINT_WSCLEAN_SIF:-/fred/oz451/${USER}/containers/flint-containers_wsclean.sif}
 BIND_SRC=${BIND_SRC:-/fred/oz451}
 # You can override WSCLEAN_OPTS to tune imaging parameters:
-WSCLEAN_OPTS=${WSCLEAN_OPTS:-"-save-source-list -multiscale -multiscale-scale-bias 0.8 -niter 100000 -pol xx -weight briggs 0.5 -scale 12asec -size 856 856 -auto-threshold 3 -auto-mask 8 -join-channels -channels-out 2 -fit-spectral-pol 1"}
+WSCLEAN_OPTS=${WSCLEAN_OPTS:-"-save-source-list -mgain 0.8 -multiscale -multiscale-scale-bias 0.8 -niter 100000 -pol xx -weight briggs 0.5 -scale 12asec -size 856 856 -auto-threshold 3 -auto-mask 8 -join-channels -channels-out 2 -fit-spectral-pol 1"}
 FITS_MASK_TAG=${FITS_MASK_TAG:-}
 IMG_TAG=${IMG_TAG:-"initial"}
 INDEX=${INDEX:-0}
