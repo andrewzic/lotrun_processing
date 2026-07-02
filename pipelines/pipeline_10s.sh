@@ -9,11 +9,22 @@ set -euo pipefail
 # then runs aoflagger, before proceeding with the selfcal/imaging/uvsub steps.
 # =============================================================================
 
+# Usage: ./pipeline_10s.sh SBID=SBXXXXXX CONFIG=/path/to/config.10s.sh
+#   Both arguments are optional; environment variables and defaults are used as fallback.
+#   Priority: CLI arg > environment variable > default value
+
+# Parse KEY=VALUE command-line arguments
+for arg in "$@"; do
+  case "${arg}" in
+    SBID=*)   SBID="${arg#SBID=}" ;;
+    CONFIG=*) CONFIG="${arg#CONFIG=}" ;;
+    *) echo "Unknown argument: ${arg}" >&2; exit 1 ;;
+  esac
+done
+
 # Default SBID if not provided via CLI or environment
 DEFAULT_SBID="${DEFAULT_SBID:-SB77974}"
-
-# Priority: CLI ($1) > ENV ($SBID) > default
-SBID="${1:-${SBID:-$DEFAULT_SBID}}"
+SBID="${SBID:-${DEFAULT_SBID}}"
 
 # echo "doing symlink 10s"
 # # 1) symlink uvfits
@@ -24,7 +35,6 @@ SBID="${1:-${SBID:-$DEFAULT_SBID}}"
 # fi
 
 # -------------------- Config loader --------------------
-# Run: CONFIG=/path/to/config.sh ./pipeline_10s.sh SBXXXXX
 CONFIG="${CONFIG:-config.10s.sh}"
 if [[ -f "${CONFIG}" ]]; then
   # shellcheck source=/dev/null
@@ -86,12 +96,13 @@ jid_fm_init=$( sbatch_submit "flint_mask" "${FM_TIME}" "${FM_CPUS}" "${FM_MEM}" 
   FLOOD_FILL_MAC_BOX_SIZE="${FLOOD_FILL_MAC_BOX_SIZE:-350}" BEAM_SHAPE_ERODE_MIN_RESPONSE="${BEAM_SHAPE_ERODE_MIN_RESPONSE:-0.75}" )
 jid_fm_init=$(chain "$jid_fm_init" "flintmask_initial_scratch")
 
-jid_cb_init=$( sbatch_submit "cb_predict" "${CB_TIME}" "${CB_CPUS}" "${CB_MEM}" "${ARRAY_SPEC}" "${RUN_CB}" "$jid_fm_init" \
-  SELFCAL="1" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" IMG_TAG="initial_scratch" OUTPUT_COLUMN="${CB_OUTPUT_COLUMN}" \
-  INDEX="0" SOURCE_LIST_PATTERN="${CB_SOURCE_LIST_PATTERN}" NUM_WORKERS="${CB_NUM_WORKERS}" ROW_CHUNKS="${CB_ROW_CHUNKS}" MODEL_CHUNKS="${CB_MODEL_CHUNKS}" \
-  MEMORY_FRACTION="${CB_MEMORY_FRACTION}" CB_DISTRIBUTED="${CB_DISTRIBUTED}" CB_DASK_NWORKERS="${CB_DASK_NWORKERS}" CB_DASK_WORKER_CPUS="${CB_DASK_WORKER_CPUS}" \
-  CB_DASK_WORKER_MEM="${CB_DASK_WORKER_MEM}" )
-jid_prev=$(chain "$jid_cb_init" "cb_initial_scratch")
+# jid_cb_init=$( sbatch_submit "cb_predict" "${CB_TIME}" "${CB_CPUS}" "${CB_MEM}" "${ARRAY_SPEC}" "${RUN_CB}" "$jid_fm_init" \
+#   SELFCAL="1" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" IMG_TAG="initial_scratch" OUTPUT_COLUMN="${CB_OUTPUT_COLUMN}" \
+#   INDEX="0" SOURCE_LIST_PATTERN="${CB_SOURCE_LIST_PATTERN}" NUM_WORKERS="${CB_NUM_WORKERS}" ROW_CHUNKS="${CB_ROW_CHUNKS}" MODEL_CHUNKS="${CB_MODEL_CHUNKS}" \
+#   MEMORY_FRACTION="${CB_MEMORY_FRACTION}" CB_DISTRIBUTED="${CB_DISTRIBUTED}" CB_DASK_NWORKERS="${CB_DASK_NWORKERS}" CB_DASK_WORKER_CPUS="${CB_DASK_WORKER_CPUS}" \
+#   CB_DASK_WORKER_MEM="${CB_DASK_WORKER_MEM}" )
+# jid_prev=$(chain "$jid_cb_init" "cb_initial_scratch")
+jid_prev=$jid_fm_init
 
 # Selfcal rounds
 for r in "${!SC_INDEX[@]}"; do
@@ -111,13 +122,13 @@ for r in "${!SC_INDEX[@]}"; do
     FLOOD_FILL_MAC_BOX_SIZE="${FLOOD_FILL_MAC_BOX_SIZE:-350}" BEAM_SHAPE_ERODE_MIN_RESPONSE="${BEAM_SHAPE_ERODE_MIN_RESPONSE:-0.75}" )
   jid_fm=$(chain "$jid_fm" "flintmask_${img_tag}")
 
-  jid_cb=$( sbatch_submit "cb_predict" "${CB_TIME}" "${CB_CPUS}" "${CB_MEM}" "${ARRAY_SPEC}" "${RUN_CB}" "$jid_fm" \
-    SELFCAL="1" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" IMG_TAG="${img_tag}" OUTPUT_COLUMN="${CB_OUTPUT_COLUMN}" \
-    INDEX="$(( idx-1 ))" SOURCE_LIST_PATTERN="${CB_SOURCE_LIST_PATTERN}" NUM_WORKERS="${CB_NUM_WORKERS}" ROW_CHUNKS="${CB_ROW_CHUNKS}" MODEL_CHUNKS="${CB_MODEL_CHUNKS}" \
-    MEMORY_FRACTION="${CB_MEMORY_FRACTION}" CB_DISTRIBUTED="${CB_DISTRIBUTED}" CB_DASK_NWORKERS="${CB_DASK_NWORKERS}" CB_DASK_WORKER_CPUS="${CB_DASK_WORKER_CPUS}" \
-    CB_DASK_WORKER_MEM="${CB_DASK_WORKER_MEM}" )
-  jid_prev=$(chain "$jid_cb" "cb_${img_tag}")
-
+  # jid_cb=$( sbatch_submit "cb_predict" "${CB_TIME}" "${CB_CPUS}" "${CB_MEM}" "${ARRAY_SPEC}" "${RUN_CB}" "$jid_fm" \
+  #   SELFCAL="1" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" IMG_TAG="${img_tag}" OUTPUT_COLUMN="${CB_OUTPUT_COLUMN}" \
+  #   INDEX="$(( idx-1 ))" SOURCE_LIST_PATTERN="${CB_SOURCE_LIST_PATTERN}" NUM_WORKERS="${CB_NUM_WORKERS}" ROW_CHUNKS="${CB_ROW_CHUNKS}" MODEL_CHUNKS="${CB_MODEL_CHUNKS}" \
+  #   MEMORY_FRACTION="${CB_MEMORY_FRACTION}" CB_DISTRIBUTED="${CB_DISTRIBUTED}" CB_DASK_NWORKERS="${CB_DASK_NWORKERS}" CB_DASK_WORKER_CPUS="${CB_DASK_WORKER_CPUS}" \
+  #   CB_DASK_WORKER_MEM="${CB_DASK_WORKER_MEM}" )
+  # jid_prev=$(chain "$jid_cb" "cb_${img_tag}")
+  jid_prev=$jid_fm
   jid_sc=$( sbatch_submit "selfcal_ms" "${SC_TIME}" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_SELFCAL}" "$jid_prev" \
     SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" FLINT_CASA_SIF="${FLINT_CASA_SIF}" BIND_SRC="${BIND_SRC}" \
     SCRIPT="src/casa/selfcal_ms_beams.py" INDEX="${idx}" CALMODE="${SC_CALMODE[$r]}" SOLINT="${SC_SOLINT[$r]}" FIELD="${SC_FIELD}" SPW="${SC_SPW}" \
@@ -148,15 +159,15 @@ jid_fm_final=$( sbatch_submit "flint_mask" "${FM_TIME}" "${FM_CPUS}" "${FM_MEM}"
   FLOOD_FILL_MAC_BOX_SIZE="${FLOOD_FILL_MAC_BOX_SIZE:-350}" BEAM_SHAPE_ERODE_MIN_RESPONSE="${BEAM_SHAPE_ERODE_MIN_RESPONSE:-0.75}" )
 jid_fm_final=$(chain "$jid_fm_final" "flintmask_${IMG_TAGS[6]}")
 
-jid_cb_final=$( sbatch_submit "cb_predict" "${CB_TIME}" "${CB_CPUS}" "${CB_MEM}" "${ARRAY_SPEC}" "${RUN_CB}" "$jid_fm_final" \
-  SELFCAL="1" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" IMG_TAG="${IMG_TAGS[6]}" OUTPUT_COLUMN="${CB_OUTPUT_COLUMN}" \
-  INDEX="${last_idx}" SOURCE_LIST_PATTERN="${CB_SOURCE_LIST_PATTERN}" NUM_WORKERS="${CB_NUM_WORKERS}" ROW_CHUNKS="${CB_ROW_CHUNKS}" MODEL_CHUNKS="${CB_MODEL_CHUNKS}" \
-  MEMORY_FRACTION="${CB_MEMORY_FRACTION}" CB_DISTRIBUTED="${CB_DISTRIBUTED}" CB_DASK_NWORKERS="${CB_DASK_NWORKERS}" CB_DASK_WORKER_CPUS="${CB_DASK_WORKER_CPUS}" \
-  CB_DASK_WORKER_MEM="${CB_DASK_WORKER_MEM}" )
-jid_cb_final=$(chain "$jid_cb_final" "cb_${IMG_TAGS[6]}")
+# jid_cb_final=$( sbatch_submit "cb_predict" "${CB_TIME}" "${CB_CPUS}" "${CB_MEM}" "${ARRAY_SPEC}" "${RUN_CB}" "$jid_fm_final" \
+#   SELFCAL="1" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" IMG_TAG="${IMG_TAGS[6]}" OUTPUT_COLUMN="${CB_OUTPUT_COLUMN}" \
+#   INDEX="${last_idx}" SOURCE_LIST_PATTERN="${CB_SOURCE_LIST_PATTERN}" NUM_WORKERS="${CB_NUM_WORKERS}" ROW_CHUNKS="${CB_ROW_CHUNKS}" MODEL_CHUNKS="${CB_MODEL_CHUNKS}" \
+#   MEMORY_FRACTION="${CB_MEMORY_FRACTION}" CB_DISTRIBUTED="${CB_DISTRIBUTED}" CB_DASK_NWORKERS="${CB_DASK_NWORKERS}" CB_DASK_WORKER_CPUS="${CB_DASK_WORKER_CPUS}" \
+#   CB_DASK_WORKER_MEM="${CB_DASK_WORKER_MEM}" )
+# jid_cb_final=$(chain "$jid_cb_final" "cb_${IMG_TAGS[6]}")
 
 # C) Single uvsub on native 10s MS (no separate applycal loop)
-jid_uvs_native=$( sbatch_submit "uvsub_ms" "${UVSUB_TIME}" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_UVSUB}" "$jid_cb_final" \
+jid_uvs_native=$( sbatch_submit "uvsub_ms" "${UVSUB_TIME}" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_UVSUB}" "$jid_fm_final" \
   SELFCAL="0" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" FLINT_CASA_SIF="${FLINT_CASA_SIF}" \
   BIND_SRC="${BIND_SRC}" SCRIPT="src/casa/uvsub_ms_beams.py" INDEX="${last_idx}" EXTENSION="G6" OUT_PREFIX="uvsub" )
 jid_uvs_native=$(chain "$jid_uvs_native" "uvsub_native")

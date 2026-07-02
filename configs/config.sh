@@ -3,12 +3,11 @@
 # ASKAP high-time-res imaging/selfcal/uvsub/transient pipeline — configuration
 # =============================================================================
 # Usage:
-#   source pipeline.config.sh          # sets defaults in current shell
-#   CONFIG=my.config.sh ./pipeline.sh  # pipeline.sh will source CONFIG
+#   ./pipeline.sh SBID=SBXXXXXX CONFIG=/path/to/config.sh
 #
 # Notes:
-# - Every value here can still be overridden by exporting the env var before
-#   sourcing (or before invoking pipeline.sh).
+# - All variables here can be overridden by passing them as KEY=VALUE arguments
+#   to pipeline.sh, or by exporting them before invocation.
 # - Keep strings double-quoted; paths without spaces are fine unquoted.
 # =============================================================================
 

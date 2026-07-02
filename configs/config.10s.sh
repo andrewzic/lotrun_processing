@@ -4,11 +4,11 @@
 # 10s native-resolution variant
 # ============================================================================
 # Usage:
-#   source config.10s.sh
-#   CONFIG=config.10s.sh ./pipeline_10s.sh SBXXXXX
+#   ./pipeline_10s.sh SBID=SBXXXXXX CONFIG=/path/to/config.10s.sh
 #
 # Notes:
-# - All variables here can be overridden by exporting them before sourcing.
+# - All variables here can be overridden by passing them as KEY=VALUE arguments
+#   to pipeline_10s.sh, or by exporting them before invocation.
 # - Keep strings in double quotes.
 # ============================================================================
 
