@@ -40,6 +40,14 @@ else
   ${SCRIPT_DIR}/scripts/utils/symlink_uvfits.sh "${SBID}"
 fi
 
+n_chunks=$( ls -d ${DATA_ROOT}/${SBID}/${CHUNK_GLOB} | wc -l )
+if (( n_chunks > 0 ))
+then
+  CHUNK_ARRAY_SPEC="0-$((n_chunks-1))"
+else
+  CHUNK_ARRAY_SPEC="0-0"
+fi
+
 CONFIG="${CONFIG:-config.SB82418.sh}"
 if [[ -f "${CONFIG}" ]]; then
     # shellcheck source=/dev/null
