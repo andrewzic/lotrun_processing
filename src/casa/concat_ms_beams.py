@@ -4,7 +4,7 @@ casaconfig.logfile = "/dev/null"
 import argparse
 import os
 import sys
-from ms_tools import find_ms_files, ensure_casa_concat, strip_scanid_from_path, do_concat
+from ms_tools import find_ms_files, ensure_casa_concat, strip_scanid_from_path, do_concat, get_timebin
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Concatenate MS per beam for a given SBID.")
@@ -59,7 +59,9 @@ def main():
 
         if not args.dry_run:
             any_work = True
-            do_concat(msnames, output_msname)
+            # Assuming all ms are timebinned the same
+            timebin = get_timebin(msnames[0])
+            do_concat(msnames, output_msname, timebin=timebin)
 
     if not any_work and not args.dry_run:
         print("No concatenations performed (no inputs found).", file=sys.stderr)

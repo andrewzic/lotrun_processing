@@ -103,7 +103,7 @@ jid_fl3=$(chain "$jid_fl3" "flag_avg")
 
 # 8) concat beams (averaged)
 jid_cat=$( sbatch_submit "concat_ms" "${CONCAT_TIME}" "${CONCAT_CPUS}" "${CONCAT_MEM}" "${ARRAY_SPEC}" "${RUN_CONCAT}" "${jid_fl3}" \
-           SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" OUT_ROOT="${OUT_ROOT}" PATTERN="${CONCAT_INPUT_PATTERN}" PYTHON="${CONCAT_PYTHON}" SCRIPT="${CONCAT_SCRIPT}" )
+           SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" OUT_ROOT="${CONT_OUT_ROOT}" PATTERN="${CONCAT_AVG_INPUT_PATTERN}" PYTHON="${CONCAT_PYTHON}" SCRIPT="${CONCAT_SCRIPT}" )
 jid_cat=$(chain "$jid_cat" "concat")
 
 # -------------------- Imaging / Mask / Predict / Selfcal (looped) --------------------
@@ -200,22 +200,26 @@ jid_fm_final=$(chain "$jid_fm_final" "flintmask_${IMG_TAGS[6]}")
 # UVSUB on concatenated self-cal result (original: G6 inputs + ext B0)
 jid_uvsub_concat=$( sbatch_submit "uvsub_ms" "${UVSUB_TIME}" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_UVSUB}" "${jid_fm_final}" \
                     SELFCAL="1" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${UVSUB_CONCAT_INPUT_PATTERN}" FLINT_CASA_SIF="${FLINT_CASA_SIF}" \
-                    BIND_SRC="${BIND_SRC}" SCRIPT="src/casa/uvsub_ms_beams.py" INDEX="${last_idx}" EXTENSION="B0" OUT_PREFIX="${UVSUB_OUT_PREFIX}" )
+                    BIND_SRC="${BIND_SRC}" SCRIPT="${UVSUB_SCRIPT}" INDEX="${last_idx}" EXTENSION="B0" OUT_PREFIX="${UVSUB_OUT_PREFIX}" )
 jid_uvsub_concat=$(chain "$jid_uvsub_concat" "uvsub_concat")
 
 # -------------------- Apply selfcal to native res, predict, uvsub --------------------
 jid_prev="$jid_uvsub_concat"
 
+# 8) concat beams (native)
+jid_cat_native=$( sbatch_submit "concat_ms" "${CONCAT_TIME}" "${CONCAT_CPUS}" "${CONCAT_MEM}" "${ARRAY_SPEC}" "${RUN_CONCAT}" "${jid_uvsub_concat}" \
+           SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" OUT_ROOT="${NATIVE_OUT_ROOT}" PATTERN="${CONCAT_NATIVE_INPUT_PATTERN}" PYTHON="${CONCAT_PYTHON}" SCRIPT="${CONCAT_SCRIPT}" )
+jid_cat_native=$(chain "$jid_cat_native" "concat_native")
+
 # Applycal loop on native-res: apply all calG<i>
 applycal_pattern="${APPLYCAL_NATIVE_START_PATTERN}"
 jid_applycal=$( sbatch_submit "applycal_ms" "${APPLYCAL_TIME}" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_APPLYCAL}" "${jid_prev}" \
                  SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${applycal_pattern}" FLINT_CASA_SIF="${FLINT_CASA_SIF}" BIND_SRC="${BIND_SRC}" \
-                 SCRIPT="src/casa/applycal_ms_beams.py" CAL_DIR="caltables" EXTENSION="G*" DELETE_PREVIOUS="" )
+                 SCRIPT="${APPLYCAL_SCRIPT}" CAL_DIR="caltables" EXTENSION="G*" DELETE_PREVIOUS="" )
 jid_applycal=$(chain "$jid_applycal" "applycal_native")
 
 # Predict from 2h continuum model onto native res (pattern is last produced calG<last_idx>)
-CB_NATIVE_INPUT_PATTERN="${applycal_pattern}"
-
+# CB_NATIVE_INPUT_PATTERN="${applycal_pattern}"
 jid_cb_native=$( sbatch_submit "cb_predict_native" "${CB_TIME}" "${CB_CPUS}" "${CB_MEM}" "${ARRAY_SPEC}" "${RUN_CB}" "${jid_applycal}" \
                  SELFCAL="0" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${CB_NATIVE_INPUT_PATTERN}" IMG_TAG="${IMG_TAGS[6]}" OUTPUT_COLUMN="${CB_OUTPUT_COLUMN}" \
                  INDEX="${last_idx}" NUM_WORKERS="${CB_NUM_WORKERS}" ROW_CHUNKS="${CB_ROW_CHUNKS}" MODEL_CHUNKS="${CB_MODEL_CHUNKS}" \
@@ -224,11 +228,9 @@ jid_cb_native=$( sbatch_submit "cb_predict_native" "${CB_TIME}" "${CB_CPUS}" "${
 jid_cb_native=$(chain "$jid_cb_native" "cb_native")
 
 # UVSUB on native res (G6 calibrated)
-UVSUB_NATIVE_INPUT_PATTERN="${CB_NATIVE_INPUT_PATTERN}"
-
 jid_uvs_native=$( sbatch_submit "uvsub_ms" "${UVSUB_TIME}" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_UVSUB}" "${jid_cb_native}" \
                   SELFCAL="0" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${UVSUB_NATIVE_INPUT_PATTERN}" FLINT_CASA_SIF="${FLINT_CASA_SIF}" \
-                  BIND_SRC="${BIND_SRC}" SCRIPT="src/casa/uvsub_ms_beams.py" INDEX="${last_idx}" EXTENSION="G6" OUT_PREFIX="${UVSUB_OUT_PREFIX}" )
+                  BIND_SRC="${BIND_SRC}" SCRIPT="${UVSUB_SCRIPT}" INDEX="${last_idx}" EXTENSION="G6" OUT_PREFIX="${UVSUB_OUT_PREFIX}" )
 jid_uvs_native=$(chain "$jid_uvs_native" "uvsub_native")
 
 # fastducc on uvsubbed native MS
@@ -239,7 +241,7 @@ jid_fastducc=$(chain "$jid_fastducc" "fastducc")
 
 # aggregate per chunk
 jid_agg=$( sbatch_submit "fastducc_agg" "${AGG_TIME}" "${AGG_CPUS}" "${AGG_MEM}" "${CHUNK_ARRAY_SPEC}" "${RUN_FASTDUCC_AGG}" "${jid_fastducc}" \
-           SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" CHUNK_GLOB="${CHUNK_GLOB}" )
+           SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" CHUNK_GLOB="${FD_CHUNK_GLOB}" )
 jid_agg=$(chain "$jid_agg" "fastducc_aggregate_chunks")
 
 # (optional) aggregate observation if wrapper provided

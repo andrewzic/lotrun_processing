@@ -127,6 +127,21 @@ def determine_highest_extension(caltables):
                 max_ext = ext
     return max_ext if max_ext else "B0"
 
+def get_timebin(msname: str) -> float:
+    """
+    Get the timebin of the MS from the TIME column.
+    """
+    import numpy as np
+    from casatools import table
+    tb = table()
+    tb.open(msname)
+    times = tb.getcol('TIME')
+    tb.close()
+    
+    time_diffs = np.diff(times)
+    timebin = np.median(time_diffs)
+    return timebin
+
 def run_applycal(msname: str, caltables: List[str], delete_previous: bool = False) -> str:
     """
     Apply a calibration table to 'msname' and split the corrected data to a new MS
@@ -232,10 +247,55 @@ def strip_scanid_from_path(ms_path: str, sbid: str, out_root: str) -> str:
     return os.path.join(out_dir, fname_clean)
 
     
-def do_concat(msnames: list, output_path: str):
-    from casatasks import concat
+def do_concat(msnames: list, output_path: str, timebin: str | None = None):
+    """Concatenate MSes and optionally regrid to a uniform time/frequency grid.
+
+    After concat the constituent scans may be non-contiguous or have
+    slightly different time/frequency stamps.  When *timebin* is given,
+    ``mstransform`` is run to resample everything onto a regular grid.
+
+    Note: mstransform cannot synthesise new rows for true data gaps
+    (e.g. missing integrations between scans).  Any such gaps will
+    simply be absent in the output rather than filled with zeros.
+    Gap-filling with zeroed, flagged rows requires a bespoke post-processing
+    step (to be added separately).
+
+    Args:
+        msnames:     List of input Measurement Set paths.
+        output_path: Path for the concatenated output MS.
+        timebin:     If given (e.g. ``'10s'``), run mstransform with
+                     timeaverage to enforce a uniform time grid.
+                     Set to None (default) to skip regridding.
+    """
+    import os
+    import shutil
+    from casatasks import concat, mstransform
+
     print(f"Concatenating {len(msnames)} MS -> {output_path}")
+    # for each ms, get the scan id from the filename and edit the SCAN_NUMBER column to the scan id
+    for msname in msnames:
+        scan_id = parse_candidate_filename(msname)["scan_id"]
+        tb.open(msname)
+        tb.putcol("SCAN_NUMBER", scan_id)
+        tb.close()
+        #print(f"Set SCAN_NUMBER of {msname} to {scan_id}")
+        
     concat(msnames, concatvis=output_path, timesort=True)
+
+    if timebin is not None:
+        tmp_path = output_path.rstrip("/") + "_regrid_tmp"
+        print(f"Regridding to uniform time grid (timebin={timebin}) -> {output_path}")
+        mstransform(
+            vis=output_path,
+            outputvis=tmp_path,
+            timeaverage=True,
+            timebin=timebin,
+            keepflags=True,       # preserve existing flags
+            datacolumn="all",
+        )
+        shutil.rmtree(output_path)
+        shutil.move(tmp_path, output_path)
+        print(f"Regrid complete: {output_path}")
 
 def do_average(msname: str, outputvis: str, timebin: str='9.90s'):
     from casatasks import mstransform

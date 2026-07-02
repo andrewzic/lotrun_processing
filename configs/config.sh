@@ -15,9 +15,11 @@
 # -------------------- Basic context --------------------
 USER="${USER:-$(whoami)}"
 # SBID="${SBID:-SB77974}"
-USER_PATH="/fred/oz451"
-DATA_ROOT="${USER_PATH}/${USER}/data}"
-OUT_ROOT="${USER_PATH}/${USER}/data}"
+USER_PATH="/fred/oz451" #location on machine where user directory is
+DATA_ROOT="${USER_PATH}/${USER}/data}" # location where data is kept
+OUT_ROOT="${USER_PATH}/${USER}/data}" #location where 
+CONT_OUT_ROOT="${USER_PATH}/${USER}/data/cont_combined}"
+NATIVE_OUT_ROOT="${USER_PATH}/${USER}/data/native_combined}"
 BIND_SRC="${USER_PATH}"
 CONTAINER_DIR="${USER_PATH}/${USER}/containers}"
 LOG_DIR="${USER_PATH}/${USER}/lotrun_processing/logs}"
@@ -69,6 +71,8 @@ QUACK_SCRIPT="${QUACK_SCRIPT:-${SCRIPT_DIR}/src/casa/quack_ms_beams.py}"
 AVERAGE_SCRIPT="${AVERAGE_SCRIPT:-${SCRIPT_DIR}/src/casa/average_ms_beams.py}"
 CONCAT_SCRIPT="${CONCAT_SCRIPT:-${SCRIPT_DIR}/src/casa/concat_ms_beams.py}"
 FLAGOUTER_SCRIPT="${FLAGOUTER_SCRIPT:-${SCRIPT_DIR}/src/casa/flagouter_beams.py}"
+APPLYCAL_SCRIPT="${APPLYCAL_SCRIPT:-${SCRIPT_DIR}/src/casa/applycal_ms_beams.py}"
+UVSUB_SCRIPT="${UVSUB_SCRIPT:-${SCRIPT_DIR}/src/casa/uvsub_ms_beams.py}"
 
 # -------------------- Python launchers -----------------
 AVERAGE_PYTHON="${AVERAGE_PYTHON:-apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CONTAINER_DIR}/flint-containers_casa.sif python3}"
@@ -125,7 +129,8 @@ COPY_MEM="${COPY_MEM:-2G}"
 # -------------------- Stage parameters -----------------
 TIMEBIN="${TIMEBIN:-9.90s}"
 UVSUB_OUT_PREFIX="${UVSUB_OUT_PREFIX:-uvsub}"
-CHUNK_GLOB="${CHUNK_GLOB:-202?*}"
+CHUNK_GLOB="${CHUNK_GLOB:-202?*}" #was 202?*
+FD_CHUNK_GLOB="${FD_CHUNK_GLOB:-native_combined*}" #was 202?*
 KIND="${KIND:-boxcar}"
 FLAG_COLUMN="${FLAG_COLUMN:-DATA}"
 
@@ -214,19 +219,27 @@ AVERAGE_INPUT_PATTERN="20??*/*beam*.20????????????.calB0.ms"
 FLAG_AVG_PATTERN="20??*/*beam*.20????????????.avg.calB0.ms"
 
 # Concat inputs (averaged)
-CONCAT_INPUT_PATTERN="20??*/*beam{beam:02d}*.20????????????.avg.calB0.ms"
+CONCAT_AVG_INPUT_PATTERN="20??*/*beam{beam:02d}*.20????????????.avg.calB0.ms"
+CONCAT_NATIVE_INPUT_PATTERN="20??/*beam{beam:02d}*.20????????????.calB0.ms"
 
 # Imaging/selfcal (concatenated)
-WSCLEAN_PATTERN="*beam{beam:02d}.avg.calB0.ms"
+WSCLEAN_PATTERN="cont_combined/*beam{beam:02d}.avg.calB0.ms"
 
 # UVSUB on concatenated self-cal result
-UVSUB_CONCAT_INPUT_PATTERN="*beam{beam:02d}.avg.calG6.ms"
+UVSUB_CONCAT_INPUT_PATTERN="cont_combined/*beam{beam:02d}.avg.calG6.ms"
 
 # Applycal on native res (start from calB0; loop produces calG<i>)
-APPLYCAL_NATIVE_START_PATTERN="20??*/*beam{beam:02d}*.20????????????.calB0.ms"
+APPLYCAL_NATIVE_START_PATTERN="native_combined/*beam{beam:02d}*.calB0.ms"
+
+# Crystalball inputs on native res
+# note that B0 will get changed to G<whatever> in the run_crystalball_beams.sh script
+CB_NATIVE_INPUT_PATTERN="native_combined/*beam{beam:02d}*.calB0.ms"
+
+# UVSUB on concatenated calibrated native resolution data
+UVSUB_NATIVE_INPUT_PATTERN="native_combined/*beam{beam:02d}*.calB0.ms"
 
 # fastducc on uvsubbed native res
-FASTDUCC_INPUT_PATTERN="20??*/*beam{beam:02d}*.20????????????.calB0.uvsub.ms"
+FASTDUCC_INPUT_PATTERN="native_combined/*beam{beam:02d}*.calB0.uvsub.ms"
 
 # -------------------- dstools extract-ds -----------------
 DS_N_WORKERS="${DS_N_WORKERS:-48}"
@@ -256,3 +269,5 @@ DS_SCAN_SCOPE="${DS_SCAN_SCOPE:-all}"   # 'all' or 'catalogue'
 
 # -------------------- Sanity: required dirs --------------
 mkdir -p "${OUT_ROOT}"
+mkdir -p "${CONT_OUT_ROOT}"
+mkdir -p "${NATIVE_OUT_ROOT}"
