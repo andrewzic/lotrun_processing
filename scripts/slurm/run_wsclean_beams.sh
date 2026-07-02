@@ -21,6 +21,7 @@ WSCLEAN_OPTS=${WSCLEAN_OPTS:-"-save-source-list -mgain 0.8 -multiscale -multisca
 FITS_MASK_TAG=${FITS_MASK_TAG:-}
 IMG_TAG=${IMG_TAG:-"initial"}
 INDEX=${INDEX:-0}
+DELETE_TEMP_IMGS=${DELETE_TEMP_IMGS:-1}
 
 # -----------------------------------------------------------------------
 
@@ -95,10 +96,12 @@ do
     echo "Running WSClean: MS=${msname} -> name=${outname}"
     echo "apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${FLINT_WSCLEAN_SIF} wsclean -name ${outname} ${NEW_WSCLEAN_OPTS} ${msname}"
     apptainer exec --bind "${BIND_SRC}:${BIND_SRC}" "${FLINT_WSCLEAN_SIF}" wsclean -name "${outname}" ${NEW_WSCLEAN_OPTS} "${msname}"
-    rm -rf "${outname}*-00*.fits"
-    rm -rf "${outname}-MFS-dirty.fits"
-    rm -rf "${outname}-MFS-psf.fits"
-    rm -rf "${outname}-MFS-residual.fits"
+    if (( DELETE_TEMP_IMGS == 1 )); then
+	rm -rf "${outname}*-00*.fits"
+	rm -rf "${outname}-MFS-dirty.fits"
+	rm -rf "${outname}-MFS-psf.fits"
+	rm -rf "${outname}-MFS-residual.fits"
+    fi
     #rm -rf "${outname}-MFS-model.fits"
 done
 
