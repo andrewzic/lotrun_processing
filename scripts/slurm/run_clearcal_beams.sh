@@ -13,12 +13,13 @@ module load apptainer
 
 # -------- User-configurable via --export or edit defaults here --------
 SBID=${SBID:-SB77974}
-DATA_ROOT=${DATA_ROOT:-/fred/oz451/${USER}/data}
+DATA_ROOT=${DATA_ROOT:-${USER_PATH:-/fred/oz451}/${USER}/data}
 PATTERN=${PATTERN:-"20*/*beam{beam:02d}*.calG6.ms"}
-SCRIPT=${SCRIPT:-src/casa/clearcal_ms_beams.py}
+SCRIPT_DIR=${SCRIPT_DIR:-${USER_PATH:-/fred/oz451}/${USER}/scripts/lotrun_processing}
+SCRIPT=${SCRIPT:-${SCRIPT_DIR}/src/casa/clearcal_ms_beams.py}
 # Apptainer CASA container (flint-containers_casa) default runner:
-CASA_SIF=${CASA_SIF:-/fred/oz451/${USER}/containers/flint-containers_casa.sif}
-BIND_SRC=${BIND_SRC:-/fred/oz451}
+CASA_SIF=${CASA_SIF:-${USER_PATH:-/fred/oz451}/${USER}/containers/flint-containers_casa.sif}
+BIND_SRC=${BIND_SRC:-${USER_PATH:-/fred/oz451}}
 PYTHON=${PYTHON:-apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CASA_SIF} python3}
 # ---------------------------------------------------------------------
 

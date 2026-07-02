@@ -11,7 +11,7 @@ set -euo pipefail
 # Path to the list of MS files (one per line)
 
 SBID=${SBID:-SB77974}
-DATA_ROOT=${DATA_ROOT:-/fred/oz451/${USER}/data}
+DATA_ROOT=${DATA_ROOT:-${USER_PATH:-/fred/oz451}/${USER}/data}
 
 # -----------------------------------------------------
 

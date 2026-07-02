@@ -16,11 +16,11 @@ set -euo pipefail
 # Path to the list of MS files (one per line)
 
 SBID=${SBID:-SB77974}
-DATA_ROOT=${DATA_ROOT:-/fred/oz451/${USER}/data}
+DATA_ROOT=${DATA_ROOT:-${USER_PATH:-/fred/oz451}/${USER}/data}
 PATTERN=${PATTERN:-"20??*/*beam*.20????????????*.ms"}   # relative under data-root/SBID
-SCRIPT_DIR=${SCRIPT_DIR:-/fred/oz451/${USER}/scripts/lotrun_processing}
-FLINT_AOFLAGGER_SIF=${FLINT_AOFLAGGER_SIF:-/fred/oz451/${USER}/containers/flint-containers_aoflagger.sif}
-BIND_SRC=${BIND_SRC:-/fred/oz451}
+SCRIPT_DIR=${SCRIPT_DIR:-${USER_PATH:-/fred/oz451}/${USER}/scripts/lotrun_processing}
+FLINT_AOFLAGGER_SIF=${FLINT_AOFLAGGER_SIF:-${USER_PATH:-/fred/oz451}/${USER}/containers/flint-containers_aoflagger.sif}
+BIND_SRC=${BIND_SRC:-${USER_PATH:-/fred/oz451}}
 
 # Path to flag.sh
 #FLAG_SCRIPT=${FLAG_SCRIPT:-${SCRIPT_DIR}/flag.sh}

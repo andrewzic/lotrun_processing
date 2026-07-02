@@ -11,11 +11,12 @@ set -euo pipefail
 
 # ---------------------- User-configurable via --export ----------------------
 SBID=${SBID:-SB77974}
-DATA_ROOT=${DATA_ROOT:-/fred/oz451/${USER}/data}
+DATA_ROOT=${DATA_ROOT:-${USER_PATH:-/fred/oz451}/${USER}/data}
 PATTERN=${PATTERN:-"*beam{beam:02d}*.avg.calB0.ms"}  # relative under data-root/SBID
-FLINT_CASA_SIF=${FLINT_CASA_SIF:-/fred/oz451/${USER}/containers/flint-containers_casa.sif}
-BIND_SRC=${BIND_SRC:-/fred/oz451}
-SCRIPT=${SCRIPT:-src/casa/selfcal_ms_beams.py}
+FLINT_CASA_SIF=${FLINT_CASA_SIF:-${USER_PATH:-/fred/oz451}/${USER}/containers/flint-containers_casa.sif}
+BIND_SRC=${BIND_SRC:-${USER_PATH:-/fred/oz451}}
+SCRIPT_DIR=${SCRIPT_DIR:-${USER_PATH:-/fred/oz451}/${USER}/scripts/lotrun_processing}
+SCRIPT=${SCRIPT:-${SCRIPT_DIR}/src/casa/selfcal_ms_beams.py}
 
 # Self-cal parameters (override per submission as needed)
 SOLINT=${SOLINT:-"300s"}

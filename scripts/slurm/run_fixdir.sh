@@ -10,10 +10,10 @@ set -euo pipefail
 module load apptainer
 # -------- User-configurable via --export or edit defaults here --------
 SBID=${SBID:-SB82418}
-DATA_ROOT=${DATA_ROOT:-/fred/oz451/${USER}/data}
+DATA_ROOT=${DATA_ROOT:-${USER_PATH:-/fred/oz451}/${USER}/data}
 PATTERN=${PATTERN:-"*beam{beam:02d}_averaged_cal*.ms"}
 SCRIPT=${SCRIPT:-scripts/utils/fix_dir.py}
-CRYSTALBALL_ENV=${CRYSTALBALL_ENV:-/fred/oz451/${USER}/scripts/crystalball_nt/}
+CRYSTALBALL_ENV=${CRYSTALBALL_ENV:-${USER_PATH:-/fred/oz451}/${USER}/scripts/crystalball_nt/}
 CRYSTALBALL_SIF=${CRYSTALBALL_SIF:-}
 INDEX=${INDEX:-0}
 # ---------------------------------------------------------------------

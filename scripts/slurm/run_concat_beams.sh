@@ -12,11 +12,12 @@ set -euo pipefail
 
 # -------- User-configurable via --export or edit defaults here --------
 SBID=${SBID:-SB77974}
-DATA_ROOT=${DATA_ROOT:-/fred/oz451/${USER}/data}
-OUT_ROOT=${OUT_ROOT:-/fred/oz451/${USER}/data}
+DATA_ROOT=${DATA_ROOT:-${USER_PATH:-/fred/oz451}/${USER}/data}
+OUT_ROOT=${OUT_ROOT:-${USER_PATH:-/fred/oz451}/${USER}/data}
 PATTERN=${PATTERN:-"20??*/*beam{beam:02d}*.20????????????.avg.calB0.ms"}   # relative under data-root/SBID
-PYTHON=${PYTHON:-'apptainer exec --bind /fred/oz451:/fred/oz451 /fred/oz451/${USER}/containers/flint-containers_casa.sif python3'}
-SCRIPT=${SCRIPT:-src/casa/concat_ms_beams.py}
+PYTHON=${PYTHON:-'apptainer exec --bind ${USER_PATH:-/fred/oz451}:${USER_PATH:-/fred/oz451} ${USER_PATH:-/fred/oz451}/${USER}/containers/flint-containers_casa.sif python3'}
+SCRIPT_DIR=${SCRIPT_DIR:-${USER_PATH:-/fred/oz451}/${USER}/scripts/lotrun_processing}
+SCRIPT=${SCRIPT:-${SCRIPT_DIR}/src/casa/concat_ms_beams.py}
 # ---------------------------------------------------------------------
 
 # Resolve the beam-specific glob by formatting {beam:02d}

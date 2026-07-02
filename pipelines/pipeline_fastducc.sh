@@ -4,13 +4,13 @@ set -euo pipefail
 # -------------------- USER DEFAULTS (override via env or edit) --------------------
 USER=$( whoami )
 SBID=${SBID:-SB77974}
-DATA_ROOT=${DATA_ROOT:-/fred/oz451/"${USER}"/data}
+DATA_ROOT=${DATA_ROOT:-${USER_PATH:-/fred/oz451}/"${USER}"/data}
 UVFITS_PATTERN=${UVFITS_PATTERN:-"20??*/*beam*.uvfits"}             # relative under DATA_ROOT/SBID
 PATTERN=${PATTERN:-"*beam{beam:02d}*.avg.calB0.ms"}             # relative under DATA_ROOT/SBID
-BIND_SRC=${BIND_SRC:-/fred/oz451}
+BIND_SRC=${BIND_SRC:-${USER_PATH:-/fred/oz451}}
 
-FLINT_WSCLEAN_SIF=${FLINT_WSCLEAN_SIF:-/fred/oz451/containers/flint-containers_wsclean.sif}
-FLINT_CASA_SIF=${FLINT_CASA_SIF:-/fred/oz451/containers/flint-containers_casa.sif}
+FLINT_WSCLEAN_SIF=${FLINT_WSCLEAN_SIF:-${USER_PATH:-/fred/oz451}/containers/flint-containers_wsclean.sif}
+FLINT_CASA_SIF=${FLINT_CASA_SIF:-${USER_PATH:-/fred/oz451}/containers/flint-containers_casa.sif}
 
 IMPORT_SCRIPT=${IMPORT_SCRIPT:-import_array.py}
 RUN_IMPORT=${RUN_IMPORT:-run_import.sh}
@@ -22,18 +22,18 @@ RUN_FLAG=${RUN_FLAG:-run_flag.sh}
 FLAG_COLUMN="DATA"
 FLAG_CPUS=${FLAG_CPUS:-4}
 FLAG_MEM=${FLAG_MEM:-12G}
-SCRIPT_DIR=${SCRIPT_DIR:-/fred/oz451/$USER/scripts/lotrun_processing}
+SCRIPT_DIR=${SCRIPT_DIR:-${USER_PATH:-/fred/oz451}/$USER/scripts/lotrun_processing}
 
 AVERAGE_SCRIPT=${AVERAGE_SCRIPT:-average_ms_beams.py}
-AVERAGE_PYTHON=${AVERAGE_PYTHON:-"apptainer exec --bind /fred/oz451:/fred/oz451 /fred/oz451/${USER}/containers/flint-containers_casa.sif python3"}
+AVERAGE_PYTHON=${AVERAGE_PYTHON:-"apptainer exec --bind ${USER_PATH:-/fred/oz451}:${USER_PATH:-/fred/oz451} ${USER_PATH:-/fred/oz451}/${USER}/containers/flint-containers_casa.sif python3"}
 TIMEBIN=${TIMEBIN:-"9.90s"}
 RUN_AVERAGE=${RUN_AVERAGE:-run_average_beams.sh}
 AVERAGE_CPUS=${AVERAGE_CPUS:-4}
 AVERAGE_MEM=${AVERAGE_MEM:-4G}
 
-OUT_ROOT=${OUT_ROOT:-/fred/oz451/$USER/data}
+OUT_ROOT=${OUT_ROOT:-${USER_PATH:-/fred/oz451}/$USER/data}
 PATTERN=${PATTERN:-"20??*/*beam{beam:02d}*.20????????????.avg.ms"}
-CONCAT_PYTHON=${CONCAT_PYTHON:-"apptainer exec --bind /fred/oz451:/fred/oz451 /fred/oz451/$USER/containers/flint-containers_casa.sif python3"}
+CONCAT_PYTHON=${CONCAT_PYTHON:-"apptainer exec --bind ${USER_PATH:-/fred/oz451}:${USER_PATH:-/fred/oz451} ${USER_PATH:-/fred/oz451}/$USER/containers/flint-containers_casa.sif python3"}
 CONCAT_SCRIPT=${CONCAT_SCRIPT:-concat_ms_beams.py}
 RUN_CONCAT=${RUN_CONCAT:-run_concat_beams.sh}
 CONCAT_CPUS=${CONCAT_CPUS:-4}

@@ -9,11 +9,11 @@
 set -euo pipefail
 
 # -------------------- Inputs from sbatch --export (or env defaults) --------------------
-CRYSTALBALL_ENV=${CRYSTALBALL_ENV:-/fred/oz451/${USER}/scripts/crystalball_nt/}
+CRYSTALBALL_ENV=${CRYSTALBALL_ENV:-${USER_PATH:-/fred/oz451}/${USER}/scripts/crystalball_nt/}
 CRYSTALBALL_SIF=${CRYSTALBALL_SIF:-}
 
 SBID=${SBID:-SB77974}
-DATA_ROOT=${DATA_ROOT:-/fred/oz451/${USER}/data}
+DATA_ROOT=${DATA_ROOT:-${USER_PATH:-/fred/oz451}/${USER}/data}
 
 # Optional overrides (CLI pattern / outdir); you can export these too if you want
 KIND_LIST=${KIND_LIST:-"variance boxcar"}   # run both families by default

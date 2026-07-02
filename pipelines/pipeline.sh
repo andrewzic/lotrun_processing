@@ -25,12 +25,12 @@ SBID="${SBID:-${DEFAULT_SBID}}"
 
 # ----------- USER DEFAULTS (ideally edit config.sh to change these) -----------
 USER="${USER:-$(whoami)}"
-DATA_ROOT="${DATA_ROOT:-/fred/oz451/${USER}/data}"
-OUT_ROOT="${OUT_ROOT:-/fred/oz451/${USER}/data}"
-BIND_SRC="${BIND_SRC:-/fred/oz451}"
-CONTAINER_DIR="${CONTAINER_DIR:-/fred/oz451/${USER}/containers}"
-LOG_DIR="${LOG_DIR:-/fred/oz451/${USER}/lotrun_processing/logs}"
-SCRIPT_DIR="${SCRIPT_DIR:-/fred/oz451/$USER/scripts/lotrun_processing}"
+DATA_ROOT="${DATA_ROOT:-${USER_PATH:-/fred/oz451}/${USER}/data}"
+OUT_ROOT="${OUT_ROOT:-${USER_PATH:-/fred/oz451}/${USER}/data}"
+BIND_SRC="${BIND_SRC:-${USER_PATH:-/fred/oz451}}"
+CONTAINER_DIR="${CONTAINER_DIR:-${USER_PATH:-/fred/oz451}/${USER}/containers}"
+LOG_DIR="${LOG_DIR:-${USER_PATH:-/fred/oz451}/${USER}/lotrun_processing/logs}"
+SCRIPT_DIR="${SCRIPT_DIR:-${USER_PATH:-/fred/oz451}/$USER/scripts/lotrun_processing}"
 
 echo "doing symlink"
 # 1) symlink uvfits

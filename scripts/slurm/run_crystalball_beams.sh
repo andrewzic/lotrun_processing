@@ -12,11 +12,11 @@ set -euo pipefail
 
 # ---------------------- User-configurable via --export ----------------------
 SBID=${SBID:-SB77974}
-DATA_ROOT=${DATA_ROOT:-/fred/oz451/${USER}/data}
+DATA_ROOT=${DATA_ROOT:-${USER_PATH:-/fred/oz451}/${USER}/data}
 PATTERN=${PATTERN:-"*beam{beam:02d}*.avg.calB0.ms"}    # relative under data-root/SBID
 SOURCE_LIST_PATTERN=${SOURCE_LIST_PATTERN:-"*beam{beam:02d}*.avg.calB0.ms"}
-BIND_SRC=${BIND_SRC:-/fred/oz451}
-CRYSTALBALL_ENV=${CRYSTALBALL_ENV:-/fred/oz451/${USER}/scripts/crystalball_nt/}
+BIND_SRC=${BIND_SRC:-${USER_PATH:-/fred/oz451}}
+CRYSTALBALL_ENV=${CRYSTALBALL_ENV:-${USER_PATH:-/fred/oz451}/${USER}/scripts/crystalball_nt/}
 CRYSTALBALL_SIF=${CRYSTALBALL_SIF:-}
 IMG_TAG=${IMG_TAG:-"initial"}
 INDEX=${INDEX:-0}

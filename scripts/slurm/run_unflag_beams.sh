@@ -10,11 +10,12 @@ set -euo pipefail
 module load apptainer
 # -------- User-configurable via --export or edit defaults here --------
 SBID=${SBID:-SB82418}
-DATA_ROOT=${DATA_ROOT:-/fred/oz451/${USER}/data}
+DATA_ROOT=${DATA_ROOT:-${USER_PATH:-/fred/oz451}/${USER}/data}
 PATTERN=${PATTERN:-"*beam{beam:02d}_averaged_cal*.ms"}
-SCRIPT=${SCRIPT:-src/casa/unflag_ms_beams.py}
-CASA_SIF=${CASA_SIF:-/fred/oz451/${USER}/containers/flint-containers_casa.sif}
-BIND_SRC=${BIND_SRC:-/fred/oz451}
+SCRIPT_DIR=${SCRIPT_DIR:-${USER_PATH:-/fred/oz451}/${USER}/scripts/lotrun_processing}
+SCRIPT=${SCRIPT:-${SCRIPT_DIR}/src/casa/unflag_ms_beams.py}
+CASA_SIF=${CASA_SIF:-${USER_PATH:-/fred/oz451}/${USER}/containers/flint-containers_casa.sif}
+BIND_SRC=${BIND_SRC:-${USER_PATH:-/fred/oz451}}
 PYTHON=${PYTHON:-apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CASA_SIF} python3}
 # ---------------------------------------------------------------------
 mkdir -p logs

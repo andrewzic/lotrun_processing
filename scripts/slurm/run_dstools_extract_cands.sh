@@ -11,12 +11,12 @@ set -euo pipefail
 
 # -------------------- User-tunable env (with defaults) --------------------
 # environment variables
-CRYSTALBALL_ENV=${CRYSTALBALL_ENV:-/fred/oz451/${USER}/scripts/crystalball_nt/}
+CRYSTALBALL_ENV=${CRYSTALBALL_ENV:-${USER_PATH:-/fred/oz451}/${USER}/scripts/crystalball_nt/}
 CRYSTALBALL_SIF=${CRYSTALBALL_SIF:-}
 
 # Observation selection
 export SBID="${SBID:-SB77974}"
-export DATA_ROOT="${DATA_ROOT:-/fred/oz451/${USER}/data}"
+export DATA_ROOT="${DATA_ROOT:-${USER_PATH:-/fred/oz451}/${USER}/data}"
 export KIND="${KIND:-boxcar}"                 # 'boxcar' or 'variance'
 export DS_MIN_SNR="${DS_MIN_SNR:-8.0}"                 # e.g. 7.0 (blank to disable)
 export DS_SOURCE_ID="${DS_SOURCE_ID:-}"             # restrict to one source_id (blank to disable)
@@ -118,7 +118,7 @@ fi
 if [ -n "${CRYSTALBALL_SIF}" ]; then
   cmd+=( --job-prologue "" )
 else
-  cmd+=( --job-prologue "module load python-scientific/3.11.5-foss-2023b ; unset PYTHONPATH; source /fred/oz451/azic/scripts/crystalball_nt/bin/activate" )
+  cmd+=( --job-prologue "module load python-scientific/3.11.5-foss-2023b ; unset PYTHONPATH; source ${USER_PATH:-/fred/oz451}/${USER}/scripts/crystalball_nt/bin/activate" )
 fi
 
 # -------------------- Run --------------------

@@ -15,11 +15,11 @@ set -euo pipefail
 
 # -------------------- USER CONFIG --------------------
 SBID=${SBID:-SB77974}
-DATA_ROOT=${DATA_ROOT:-/fred/oz451/${USER}/data}
+DATA_ROOT=${DATA_ROOT:-${USER_PATH:-/fred/oz451}/${USER}/data}
 UVFITS_PATTERN=${UVFITS_PATTERN:-"20??*/*beam*.20????????????*.uvfits"}
 IMPORT_SCRIPT=${IMPORT_SCRIPT:-${PWD}/import_array.py}
-FLINT_CASA_SIF=${FLINT_CASA_SIF:-/fred/oz451/${USER}/containers/flint-containers_casa.sif}
-BIND_SRC=${BIND_SRC:-/fred/oz451}
+FLINT_CASA_SIF=${FLINT_CASA_SIF:-${USER_PATH:-/fred/oz451}/${USER}/containers/flint-containers_casa.sif}
+BIND_SRC=${BIND_SRC:-${USER_PATH:-/fred/oz451}}
 PYTHON=${PYTHON:-apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${FLINT_CASA_SIF} python3}
 # -----------------------------------------------------
 

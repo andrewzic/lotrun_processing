@@ -17,12 +17,12 @@ set -euo pipefail
 # Path to the list of MS files (one per line)
 
 SBID=${SBID:-SB77974}
-DATA_ROOT=${DATA_ROOT:-/fred/oz451/${USER}/data}
+DATA_ROOT=${DATA_ROOT:-${USER_PATH:-/fred/oz451}/${USER}/data}
 PATTERN=${PATTERN:-"20??*/*beam*.20????????????.calB0.ms"}   # relative under data-root/SBID
-#SCRIPT_DIR=${SCRIPT_DIR:-/fred/oz451/${USER}/scripts/lotrun_processing}
-SCRIPT=${SCRIPT:-src/casa/average_ms_beams.py}
-CASA_SIF=${CASA_SIF:-/fred/oz451/${USER}/containers/flint-containers_casa.sif}
-BIND_SRC=${BIND_SRC:-/fred/oz451}
+SCRIPT_DIR=${SCRIPT_DIR:-${USER_PATH:-/fred/oz451}/${USER}/scripts/lotrun_processing}
+SCRIPT=${SCRIPT:-${SCRIPT_DIR}/src/casa/average_ms_beams.py}
+CASA_SIF=${CASA_SIF:-${USER_PATH:-/fred/oz451}/${USER}/containers/flint-containers_casa.sif}
+BIND_SRC=${BIND_SRC:-${USER_PATH:-/fred/oz451}}
 PYTHON=${PYTHON:-apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CASA_SIF} python3}
 
 # Column to use in average ("DATA" default)

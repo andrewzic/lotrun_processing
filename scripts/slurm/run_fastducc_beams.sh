@@ -10,11 +10,11 @@
 set -euo pipefail
 
 # environment variables
-CRYSTALBALL_ENV=${CRYSTALBALL_ENV:-/fred/oz451/${USER}/scripts/crystalball_nt/}
+CRYSTALBALL_ENV=${CRYSTALBALL_ENV:-${USER_PATH:-/fred/oz451}/${USER}/scripts/crystalball_nt/}
 CRYSTALBALL_SIF=${CRYSTALBALL_SIF:-}
 
 SBID=${SBID:-SB77974}
-DATA_ROOT=${DATA_ROOT:-/fred/oz451/${USER}/data}
+DATA_ROOT=${DATA_ROOT:-${USER_PATH:-/fred/oz451}/${USER}/data}
 EXTENSION=${EXTENSION:-"B0"}
 # pattern relative to data-root/SBID; {beam:02d} will be replaced with the beam index
 PATTERN=${PATTERN:-"*beam{beam:02d}*.cal${EXTENSION}.ms"}

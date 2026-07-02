@@ -2,8 +2,8 @@
 
 SBID=$1
 USER=$( whoami )
-DATA_SRC_ROOT=${DATA_SRC_ROOT:-/fred/oz451/data/craco/}
-DATA_ROOT=${DATA_ROOT:-/fred/oz451/${USER}/data/}
+DATA_SRC_ROOT=${DATA_SRC_ROOT:-${USER_PATH:-/fred/oz451}/data/craco/}
+DATA_ROOT=${DATA_ROOT:-${USER_PATH:-/fred/oz451}/${USER}/data/}
 
 for f in $( find "${DATA_SRC_ROOT}/${SBID}/" -name "*.uvfits" )
 do
