@@ -83,7 +83,7 @@ jid_imp=$( sbatch_submit "importuvfits_array" "${IMPORT_TIME}" "${IMPORT_CPUS}" 
 jid_imp=$(chain "$jid_imp" "importuvfits")
 
 jid_quack=$( sbatch_submit "quack_ms" "${FLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM}" "${ARRAY_SPEC}" "${RUN_QUACK}" "$jid_imp" \
-SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${FLAG_NATIVE_PATTERN}" SCRIPT_DIR="${SCRIPT_DIR}" CASA_SIF="${FLINT_CASA_SIF}" BIND_SRC="${BIND_SRC}" )
+SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${FLAG_QUACK_PATTERN}" SCRIPT_DIR="${SCRIPT_DIR}" CASA_SIF="${FLINT_CASA_SIF}" BIND_SRC="${BIND_SRC}" )
 jid_quack=$( chain "$jid_quack" "quack_native" )
 
 # 3) flag native-resolution MS
