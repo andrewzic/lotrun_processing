@@ -129,6 +129,7 @@ COPY_CPUS="1"
 COPY_MEM="2G"
 
 # -------------------- Stage parameters -----------------
+CLOBBER="False"
 TIMEBIN="9.90s"
 UVSUB_OUT_PREFIX="uvsub"
 CHUNK_GLOB="202?*" #was 202?*

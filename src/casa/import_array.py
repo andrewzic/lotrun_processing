@@ -27,9 +27,9 @@ def main():
         help="List of UVFITS files to process (space-separated)."
     )
     parser.add_argument(
-        "--no-clobber",
+        "--clobber",
         action="store_true",
-        help="Do not clobber (overwrite) existing uvfits files"
+        help="Clobber (overwrite) existing ms files"
     )
 
     args = parser.parse_args()
@@ -45,11 +45,12 @@ def main():
     msfile = uvfile.replace(".uvfits", ".ms")
 
     if os.path.exists(msfile):
-        if not args.no_clobber:
+        if args.clobber:
+            print(f"INFO: clobber is set to {args.clobber} and {msfile} exists. Overwriting {msfile}")
             shutil.rmtree(msfile)
             importuvfits(fitsfile=uvfile, vis=msfile)
         else:
-            raise RuntimeError(f"no_clobber is set to {args.no_clobber} but {msfile} already exists")
+            print(f"INFO: clobber is set to {args.clobber} and {msfile} exists. Skipping {msfile}")
     else:
         importuvfits(fitsfile=uvfile, vis=msfile)
 
