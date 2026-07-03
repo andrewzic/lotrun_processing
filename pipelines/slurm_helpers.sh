@@ -53,8 +53,12 @@ sbatch_submit() {
   fi
 
   # Real submission path
-  "${cmd[@]}" | awk '{print $4}'
-}
+  local jid
+  jid=$("${cmd[@]}" | awk '{print $4}')
+  if [[ "${VERBOSE:-0}" == "1" ]]; then
+    log "Submitted stage '${name}' → job ${jid}"
+  fi
+  echo "${jid}"
 
 
 chain() {
@@ -62,6 +66,9 @@ chain() {
   if [[ -z "$jid" ]]; then
     echo "sbatch not successful for ${label}. exiting"
     exit 1
+  fi
+  if [[ "${VERBOSE:-0}" == "1" ]]; then
+    log "Stage '${label}' confirmed → job ${jid}"
   fi
   echo "$jid"
 }

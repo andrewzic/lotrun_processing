@@ -5,18 +5,21 @@ set -euo pipefail
 # =============================================================================
 
 # -------------------- Config loader --------------------
-# Usage: ./pipeline.sh SBID=SBXXXXXX CONFIG=/path/to/config.sh
-#   Both arguments are optional; environment variables and defaults are used as fallback.
+# Usage: ./pipeline.sh SBID=SBXXXXXX CONFIG=/path/to/config.sh [VERBOSE=1]
+#   All arguments are optional; environment variables and defaults are used as fallback.
 #   Priority: CLI arg > environment variable > default value
+#   VERBOSE=1  — after each stage, echo the submitted command name and Slurm job ID to stderr
 
 # Parse KEY=VALUE command-line arguments
 for arg in "$@"; do
   case "${arg}" in
-    SBID=*)   SBID="${arg#SBID=}" ;;
-    CONFIG=*) CONFIG="${arg#CONFIG=}" ;;
+    SBID=*)    SBID="${arg#SBID=}" ;;
+    CONFIG=*)  CONFIG="${arg#CONFIG=}" ;;
+    VERBOSE=*) VERBOSE="${arg#VERBOSE=}" ;;
     *) echo "Unknown argument: ${arg}" >&2; exit 1 ;;
   esac
 done
+VERBOSE="${VERBOSE:-0}"
 
 # Default SBID if not provided via CLI or environment
 DEFAULT_SBID="${DEFAULT_SBID:-SB77974}"
