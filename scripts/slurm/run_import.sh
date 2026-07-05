@@ -18,6 +18,7 @@ SBID=${SBID:-SB77974}
 DATA_ROOT=${DATA_ROOT:-${USER_PATH:-/fred/oz451}/${USER}/data}
 UVFITS_PATTERN=${UVFITS_PATTERN:-"20??*/*beam*.20????????????*.uvfits"}
 IMPORT_SCRIPT=${IMPORT_SCRIPT:-${PWD}/import_array.py}
+CLOBBER=${CLOBBER:-"False"}
 FLINT_CASA_SIF=${FLINT_CASA_SIF:-${USER_PATH:-/fred/oz451}/${USER}/containers/flint-containers_casa.sif}
 BIND_SRC=${BIND_SRC:-${USER_PATH:-/fred/oz451}}
 PYTHON=${PYTHON:-apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${FLINT_CASA_SIF} python3}
@@ -66,6 +67,6 @@ fi
 
 module load apptainer
 
-$PYTHON "${IMPORT_SCRIPT}" -i "${SLURM_ARRAY_TASK_ID}" -f "${uvfits[@]}"
+$PYTHON "${IMPORT_SCRIPT}" -i "${SLURM_ARRAY_TASK_ID}" -f "${uvfits[@]}" --clobber ${CLOBBER}
 
 echo "Job ${SLURM_JOB_ID}.${SLURM_ARRAY_TASK_ID} completed."
