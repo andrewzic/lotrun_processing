@@ -305,7 +305,7 @@ def do_concat(msnames: list, output_path: str, timebin: str | None = None):
     import os
     import shutil
     from casatasks import concat, mstransform
-
+    from casatools import table as tb
     
     # for each ms, get the scan id from the filename and edit the SCAN_NUMBER column to the scan id
     for msname in msnames:
