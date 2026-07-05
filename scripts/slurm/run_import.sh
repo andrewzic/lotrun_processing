@@ -67,6 +67,6 @@ fi
 
 module load apptainer
 
-$PYTHON "${IMPORT_SCRIPT}" -i "${SLURM_ARRAY_TASK_ID}" -f "${uvfits[@]}" --clobber ${CLOBBER}
+$PYTHON "${IMPORT_SCRIPT}" -i "${SLURM_ARRAY_TASK_ID}" -f "${uvfits[@]}"
 
 echo "Job ${SLURM_JOB_ID}.${SLURM_ARRAY_TASK_ID} completed."
