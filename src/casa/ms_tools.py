@@ -309,10 +309,16 @@ def do_concat(msnames: list, output_path: str, timebin: str | None = None):
     
     # for each ms, get the scan id from the filename and edit the SCAN_NUMBER column to the scan id
     for msname in msnames:
-        scan_id = parse_ms_filename(msname)["scan_id"]
-        tb.open(msname)
-        tb.putcol("SCAN_NUMBER", scan_id)
-        tb.close()
+        scan_id = int(parse_ms_filename(msname)["scan_id"])
+        tb_tool = tb()
+        tb_tool.open(msname, nomodify=False)
+        
+        # putcol typically requires an array of the correct shape
+        scan_col = tb_tool.getcol("SCAN_NUMBER")
+        scan_col[:] = scan_id
+        tb_tool.putcol("SCAN_NUMBER", scan_col)
+        
+        tb_tool.close()
         print(f"Set SCAN_NUMBER of {msname} to {scan_id}")
         
     print(f"Concatenating {len(msnames)} MS -> {output_path}")
