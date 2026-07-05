@@ -5,9 +5,51 @@
 # -------------------- GENERIC SUBMISSION + HELPERS --------------------
 log(){ printf '[%s] %s\n' "$(date +'%F %T')" "$*" >&2; }
 
+should_skip() {
+  local target_stage="$1"
+  local start_stage="${START_STAGE:-}"
+  
+  # If START_STAGE is not set or empty, never skip
+  if [[ -z "$start_stage" ]]; then
+    return 1 # false (do not skip)
+  fi
+
+  # Find indices
+  local start_idx=-1
+  local target_idx=-1
+  local i
+  for i in "${!PIPELINE_STAGES[@]}"; do
+    if [[ "${PIPELINE_STAGES[$i]}" == "$start_stage" ]]; then
+      start_idx=$i
+    fi
+    if [[ "${PIPELINE_STAGES[$i]}" == "$target_stage" ]]; then
+      target_idx=$i
+    fi
+  done
+  
+  # If the target stage isn't found in the list, default to not skipping
+  if [[ $target_idx -eq -1 ]]; then
+    return 1
+  fi
+  
+  # If the target is BEFORE the start stage, skip it
+  if [[ $target_idx -lt $start_idx ]]; then
+    return 0 # true (skip)
+  else
+    return 1 # false (do not skip)
+  fi
+}
+
 # sbatch_submit <name> <time> <cpus> <mem> <array_spec_or_empty> <wrapper> <dep_jid_or_empty> [KEY=VAL ...]
 sbatch_submit() {
   local name="$1" time="$2" cpus="$3" mem="$4" array="$5" wrapper="$6" dep="${7:-}"; shift 7
+  
+  if should_skip "$name"; then
+    log "Skipping stage '${name}'"
+    echo "SKIPPED"
+    return 0
+  fi
+  
   local -a exports=( "$@" )
 
   # Build one --export argument (no newline, no trailing comma)
@@ -29,7 +71,7 @@ sbatch_submit() {
                  --output="logs/${name}_%A_%a.out"
                  --error="logs/${name}_%A_%a.err" )
   [[ -n "$array" ]] && cmd+=( "--array=$array" )
-  [[ -n "$dep"   ]] && cmd+=( "--dependency=afterok:${dep}" )
+  [[ -n "$dep" && "$dep" != "SKIPPED" ]] && cmd+=( "--dependency=afterok:${dep}" )
   cmd+=( "$export_arg" "$wrapper" )
 
   if [[ "${DRY_RUN:-0}" == "1" ]]; then
@@ -64,6 +106,11 @@ sbatch_submit() {
 
 chain() {
   local jid="$1" label="$2"
+  if [[ "$jid" == "SKIPPED" ]]; then
+    echo "SKIPPED"
+    return 0
+  fi
+  
   if [[ -z "$jid" ]]; then
     echo "sbatch not successful for ${label}. exiting"
     exit 1
