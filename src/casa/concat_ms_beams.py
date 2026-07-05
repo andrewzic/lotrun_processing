@@ -61,6 +61,7 @@ def main():
             any_work = True
             # Assuming all ms are timebinned the same
             timebin = get_timebin(msnames[0])
+            timebin = f"{timebin}s"
             do_concat(msnames, output_msname, timebin=timebin)
 
     if not any_work and not args.dry_run:

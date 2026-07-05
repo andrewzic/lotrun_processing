@@ -170,11 +170,19 @@ def get_timebin(msname: str) -> float:
     from casatools import table
     tb = table()
     tb.open(msname)
-    times = tb.getcol('TIME')
+    try:
+        times = tb.getcol('TIME_CENTROID')
+    except Exception:
+        times = tb.getcol('TIME')
     tb.close()
     
-    time_diffs = np.diff(times)
-    timebin = np.median(time_diffs)
+    times = np.sort(np.unique(times))
+    if len(times) > 1:
+        timebin = np.median(np.diff(times))
+    else:
+        # Fallback if there is only 1 time interval
+        timebin = 1.0
+
     return timebin
 
 def run_applycal(msname: str, caltables: List[str], delete_previous: bool = False) -> str:
