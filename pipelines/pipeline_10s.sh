@@ -57,21 +57,21 @@ mkdir -p logs plots
 
 # A) PRE-PROCESS: fix_dir first
 jid_fixdir=$( sbatch_submit "fixdir_ms" "${UNFLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM}" "${ARRAY_SPEC}" "${RUN_FIXDIR}" "" \
-  SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${NATIVE10S_PATTERN}" SCRIPT="${FIXDIR_SCRIPT}" )
+  SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${NATIVE10S_PATTERN}" SCRIPT_DIR="${SCRIPT_DIR}" SCRIPT="${FIXDIR_SCRIPT}" )
 jid_fixdir=$(chain "$jid_fixdir" "fixdir_native")
 
 #unflag then AOflagger on native 10s MS
-jid_unflag=$( sbatch_submit "unflag_ms" "${UNFLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM}" "${ARRAY_SPEC}" "${RUN_UNFLAG}" "${jid_fixdir}" \
-  SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${NATIVE10S_PATTERN}" CASA_SIF="${FLINT_CASA_SIF}" BIND_SRC="${BIND_SRC}" )
-jid_unflag=$(chain "$jid_unflag" "unflag_native")
+# jid_unflag=$( sbatch_submit "unflag_ms" "${UNFLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM}" "${ARRAY_SPEC}" "${RUN_UNFLAG}" "${jid_fixdir}" \
+#   SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${NATIVE10S_PATTERN}" CASA_SIF="${FLINT_CASA_SIF}" BIND_SRC="${BIND_SRC}" SCRIPT_DIR="${SCRIPT_DIR}" )
+# jid_unflag=$(chain "$jid_unflag" "unflag_native")
 
 if [ "$FLAG_OUTER" == "1" ]; then 
-  jid_flagouter=$( sbatch_submit "flagouter" "${FLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM}" "${ARRAY_SPEC}" "${RUN_FLAGOUTER}" "${jid_unflag}" \
+  jid_flagouter=$( sbatch_submit "flagouter" "${FLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM}" "${ARRAY_SPEC}" "${RUN_FLAGOUTER}" "${jid_fixdir}" \
     SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${NATIVE10S_PATTERN}" SCRIPT_DIR="${SCRIPT_DIR}" SCRIPT=${FLAGOUTER_SCRIPT} COLUMN="${FLAG_COLUMN}" )
   jid_flagouter=$(chain "$jid_flagouter" "flagouter_native")
   jid_before_flag="$jid_flagouter"
 else
-  jid_before_flag="$jid_unflag"
+  jid_before_flag="$jid_fixdir"
 fi
 
 jid_quack=$( sbatch_submit "quack_ms" "${FLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM}" "${ARRAY_SPEC}" "${RUN_QUACK}" "$jid_before_flag" \
@@ -131,9 +131,9 @@ for r in "${!SC_INDEX[@]}"; do
   jid_prev=$jid_fm
   jid_sc=$( sbatch_submit "selfcal_ms" "${SC_TIME}" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_SELFCAL}" "$jid_prev" \
     SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" FLINT_CASA_SIF="${FLINT_CASA_SIF}" BIND_SRC="${BIND_SRC}" \
-    SCRIPT="src/casa/selfcal_ms_beams.py" INDEX="${idx}" CALMODE="${SC_CALMODE[$r]}" SOLINT="${SC_SOLINT[$r]}" FIELD="${SC_FIELD}" SPW="${SC_SPW}" \
-    REFANT="${SC_REFANT}" COMBINE="${SC_COMBINE}" MINSNR="${SC_MINSNR}" PARANG="${SC_PARANG}" CALTABLE_PREFIX="${SC_PREFIX[$r]}" \
-    PLOT_DIR="plots" APPLY_CALWT="${SC_APPLY_CALWT}" )
+    SCRIPT_DIR="${SCRIPT_DIR}" SCRIPT="${SELFCAL_SCRIPT}" INDEX="${idx}" CALMODE="${SC_CALMODE[$r]}" SOLINT="${SC_SOLINT[$r]}" \
+    FIELD="${SC_FIELD}" SPW="${SC_SPW}" REFANT="${SC_REFANT}" COMBINE="${SC_COMBINE}" MINSNR="${SC_MINSNR}" PARANG="${SC_PARANG}" \
+    CALTABLE_PREFIX="${SC_PREFIX[$r]}" PLOT_DIR="plots" APPLY_CALWT="${SC_APPLY_CALWT}" )
   jid_prev=$(chain "$jid_sc" "selfcal_${img_tag}")
 
 done
@@ -169,7 +169,7 @@ jid_fm_final=$(chain "$jid_fm_final" "flintmask_${IMG_TAGS[6]}")
 # C) Single uvsub on native 10s MS (no separate applycal loop)
 jid_uvs_native=$( sbatch_submit "uvsub_ms" "${UVSUB_TIME}" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_UVSUB}" "$jid_fm_final" \
   SELFCAL="0" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" FLINT_CASA_SIF="${FLINT_CASA_SIF}" \
-  BIND_SRC="${BIND_SRC}" SCRIPT="src/casa/uvsub_ms_beams.py" INDEX="${last_idx}" EXTENSION="G6" OUT_PREFIX="uvsub" )
+  BIND_SRC="${BIND_SRC}" SCRIPT_DIR="${SCRIPT_DIR}" SCRIPT="${UVSUB_SCRIPT}" INDEX="${last_idx}" EXTENSION="G6" OUT_PREFIX="uvsub" )
 jid_uvs_native=$(chain "$jid_uvs_native" "uvsub_native")
 
 # D) fastducc on uvsubbed native MS

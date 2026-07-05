@@ -17,7 +17,8 @@ EXTENSION=${EXTENSION:-"B0"}
 PATTERN=${PATTERN:-"*beam{beam:02d}*.avg.cal${EXTENSION}.ms"}  # relative under data-root/SBID
 FLINT_CASA_SIF=${FLINT_CASA_SIF:-${USER_PATH:-/fred/oz451}/${USER}/containers/flint-containers_casa.sif}
 BIND_SRC=${BIND_SRC:-${USER_PATH:-/fred/oz451}}
-SCRIPT=${SCRIPT:-uvsub_ms_beams.py}
+SCRIPT_DIR=${SCRIPT_DIR:-${USER_PATH:-/fred/oz451}/${USER}/scripts/lotrun_processing}
+SCRIPT=${SCRIPT:-${SCRIPT_DIR}/src/casa/uvsub_ms_beams.py}
 
 # uvsub parameters (override per submission as needed)
 OUT_PREFIX=${OUT_PREFIX:-"uvsub"}

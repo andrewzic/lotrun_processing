@@ -70,9 +70,11 @@ RUN_FLAGOUTER="${SCRIPT_DIR}/scripts/slurm/run_flagouter_beams.sh"
 # -------------------- Tool scripts ---------------------
 IMPORT_SCRIPT="${SCRIPT_DIR}/src/casa/import_array.py"
 QUACK_SCRIPT="${SCRIPT_DIR}/src/casa/quack_ms_beams.py"
+BANDPASS_SCRIPT="${SCRIPT_DIR}/src/casa/applycal_ms_beams.py"
 AVERAGE_SCRIPT="${SCRIPT_DIR}/src/casa/average_ms_beams.py"
 CONCAT_SCRIPT="${SCRIPT_DIR}/src/casa/concat_ms_beams.py"
 FLAGOUTER_SCRIPT="${SCRIPT_DIR}/src/casa/flagouter_beams.py"
+SELFCAL_SCRIPT="${SCRIPT_DIR}/src/casa/selfcal_ms_beams.py"
 APPLYCAL_SCRIPT="${SCRIPT_DIR}/src/casa/applycal_ms_beams.py"
 UVSUB_SCRIPT="${SCRIPT_DIR}/src/casa/uvsub_ms_beams.py"
 

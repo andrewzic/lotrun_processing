@@ -64,11 +64,15 @@ FLAG_OUTER="False" # Whether to flag outer antennas to match the inner antennas 
 
 # -------------------- Tools ---------------------
 FIXDIR_SCRIPT="${SCRIPT_DIR}/scripts/utils/fix_dir.py"
-QUACK_SCRIPT="${SCRIPT_DIR}/src/casa/quack_ms_beams.py"
 IMPORT_SCRIPT="${SCRIPT_DIR}/src/casa/import_array.py"
+QUACK_SCRIPT="${SCRIPT_DIR}/src/casa/quack_ms_beams.py"
+BANDPASS_SCRIPT="${SCRIPT_DIR}/src/casa/applycal_ms_beams.py"
 AVERAGE_SCRIPT="${SCRIPT_DIR}/src/casa/average_ms_beams.py"
 CONCAT_SCRIPT="${SCRIPT_DIR}/src/casa/concat_ms_beams.py"
-FLAGOUTER_SCRIPT="${SCRIPT_DIR}/src/casa/flagouter_ms_beams.py"
+FLAGOUTER_SCRIPT="${SCRIPT_DIR}/src/casa/flagouter_beams.py"
+SELFCAL_SCRIPT="${SCRIPT_DIR}/src/casa/selfcal_ms_beams.py"
+APPLYCAL_SCRIPT="${SCRIPT_DIR}/src/casa/applycal_ms_beams.py"
+UVSUB_SCRIPT="${SCRIPT_DIR}/src/casa/uvsub_ms_beams.py"
 
 # -------------------- Python launchers -----------------
 AVERAGE_PYTHON="apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CONTAINER_DIR}/flint-containers_casa.sif python3"
