@@ -44,6 +44,41 @@ def ensure_casatasks() -> bool:
         print(f"ERROR: casatasks.applycal, uvsub, split not available: {e}", file=sys.stderr)
         return False
 
+def parse_ms_filename(path: str) -> dict:
+    """
+    Parse pipeline ms filenames.
+    """
+    fname = os.path.basename(path)
+    info = {
+        "field": "",
+        "sbid": "",
+        "beam": "",
+        "scan_id": "",
+    }
+
+    m_field_prefix = re.match(r'^(?P<field>[^.]+)\.', fname)
+    if m_field_prefix:
+        info["field"] = m_field_prefix.group("field")
+
+    m_sbid = re.search(r'(SB\d{5,})', fname)
+    if m_sbid:
+        info["sbid"] = m_sbid.group(1)
+
+    m_beam = re.search(r'(beam\d+)', fname)
+    if m_beam:
+        info["beam"] = m_beam.group(1)
+
+    m_scan = re.search(r'(\d{14})', fname)
+    if m_scan:
+        info["scan_id"] = m_scan.group(1)
+    else:
+        # Catch "combined" scan directories (e.g. cont_combined, native_combined)
+        m_combined = re.search(r'(\w+_combined)', fname)
+        if m_combined:
+            info["scan_id"] = m_combined.group(1)
+
+    return info
+
 # Common utilities
 def _ms_nrows(ms_path: str) -> int:
     """Return the number of rows in the main table of a Measurement Set."""
@@ -271,15 +306,16 @@ def do_concat(msnames: list, output_path: str, timebin: str | None = None):
     import shutil
     from casatasks import concat, mstransform
 
-    print(f"Concatenating {len(msnames)} MS -> {output_path}")
+    
     # for each ms, get the scan id from the filename and edit the SCAN_NUMBER column to the scan id
     for msname in msnames:
-        scan_id = parse_candidate_filename(msname)["scan_id"]
+        scan_id = parse_ms_filename(msname)["scan_id"]
         tb.open(msname)
         tb.putcol("SCAN_NUMBER", scan_id)
         tb.close()
-        #print(f"Set SCAN_NUMBER of {msname} to {scan_id}")
+        print(f"Set SCAN_NUMBER of {msname} to {scan_id}")
         
+    print(f"Concatenating {len(msnames)} MS -> {output_path}")
     concat(msnames, concatvis=output_path, timesort=True)
 
     if timebin is not None:
