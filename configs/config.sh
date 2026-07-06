@@ -23,6 +23,7 @@ OUT_ROOT="${USER_PATH}/${USER}/data" #location where output goes
 CONT_OUT_ROOT="${USER_PATH}/${USER}/data"
 NATIVE_OUT_ROOT="${USER_PATH}/${USER}/data"
 CONT_OUT_SUBDIR="cont_combined"
+CONT_CALTABLE_DIR="caltables"
 NATIVE_OUT_SUBDIR="native_combined"
 BIND_SRC="${USER_PATH}"
 CONTAINER_DIR="${USER_PATH}/${USER}/containers"

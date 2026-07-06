@@ -262,11 +262,14 @@ jid_cat_native=$( sbatch_submit "concat_native" "${CONCAT_TIME}" "${CONCAT_CPUS}
            SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" OUT_ROOT="${NATIVE_OUT_ROOT}" OUT_SUBDIR="${NATIVE_OUT_SUBDIR}" PATTERN="${CONCAT_NATIVE_INPUT_PATTERN}" PYTHON="${CONCAT_PYTHON}" SCRIPT="${CONCAT_SCRIPT}" )
 jid_cat_native=$(chain "$jid_cat_native" "concat_native")
 
+#link caltables to native-res directory for applycal script
+ln -s ${CONT_OUT_ROOT}/${SBID}/${CONT_CALTABLE_DIR} ${CONT_OUT_ROOT}/${SBID}
+
 # Applycal loop on native-res: apply all calG<i>
 applycal_pattern="${APPLYCAL_NATIVE_START_PATTERN}"
 jid_applycal=$( sbatch_submit "applycal_native" "${APPLYCAL_TIME}" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_APPLYCAL}" "${jid_prev}" \
                  SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${applycal_pattern}" FLINT_CASA_SIF="${FLINT_CASA_SIF}" BIND_SRC="${BIND_SRC}" \
-                 SCRIPT_DIR="${SCRIPT_DIR}" SCRIPT="${APPLYCAL_SCRIPT}" CAL_DIR="caltables" EXTENSION="G*" DELETE_PREVIOUS="" )
+                 SCRIPT_DIR="${SCRIPT_DIR}" SCRIPT="${APPLYCAL_SCRIPT}" CAL_DIR="${CONT_CALTABLE_DIR}" EXTENSION="G*" DELETE_PREVIOUS="" )
 jid_applycal=$(chain "$jid_applycal" "applycal_native")
 
 # Predict from 2h continuum model onto native res (pattern is last produced calG<last_idx>)
