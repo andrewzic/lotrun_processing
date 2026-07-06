@@ -3,3 +3,5 @@
 *.*~
 *.log
 core*
+src/dstools/__pycache__/extract_ds_orchestrator.cpython-313.pyc
+src/casa/test.py
