@@ -14,6 +14,7 @@ set -euo pipefail
 SBID=${SBID:-SB77974}
 DATA_ROOT=${DATA_ROOT:-${USER_PATH:-/fred/oz451}/${USER}/data}
 OUT_ROOT=${OUT_ROOT:-${USER_PATH:-/fred/oz451}/${USER}/data}
+OUT_SUBDIR=${OUT_SUBDIR:-concat_beam}
 PATTERN=${PATTERN:-"20??*/*beam{beam:02d}*.20????????????.avg.calB0.ms"}   # relative under data-root/SBID
 PYTHON=${PYTHON:-'apptainer exec --bind ${USER_PATH:-/fred/oz451}:${USER_PATH:-/fred/oz451} ${USER_PATH:-/fred/oz451}/${USER}/containers/flint-containers_casa.sif python3'}
 SCRIPT_DIR=${SCRIPT_DIR:-${USER_PATH:-/fred/oz451}/${USER}/scripts/lotrun_processing}
@@ -34,5 +35,5 @@ echo "SBID=$SBID DATA_ROOT=$DATA_ROOT OUT_ROOT=$OUT_ROOT BEAM=$SLURM_ARRAY_TASK_
 module load apptainer
 
 # ------------------------- EXECUTION LINE -----------------------------
-$PYTHON "$SCRIPT" --sbid "$SBID" --data-root "$DATA_ROOT" --out-root "$OUT_ROOT" --pattern "${glob}" --beam "$SLURM_ARRAY_TASK_ID"
+$PYTHON "$SCRIPT" --sbid "$SBID" --data-root "$DATA_ROOT" --out-root "$OUT_ROOT" --out-subdir "$OUT_SUBDIR" --pattern "${glob}" --beam "$SLURM_ARRAY_TASK_ID"
 # ---------------------------------------------------------------------
