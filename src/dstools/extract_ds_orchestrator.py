@@ -94,12 +94,17 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p.add_argument('--catalogue', default='', help='Obs-level super-summary VOTable; if empty, auto-discover by KIND')
     p.add_argument('--kind', choices=['boxcar','variance'], default='boxcar', help='Used only for auto-discovery if --catalogue not provided')
 
+    # Dataset Mode
+    p.add_argument('--mode', choices=['combined', 'per-scan'], default='combined',
+                   help="Extraction mode: 'combined' expects a single concatenated dataset, 'per-scan' processes individual scans.")
+    p.add_argument('--combined-dir', default='native_combined', help="Subdirectory name for combined mode dataset (e.g. 'native_combined').")
+
     # Beam mapping mode
     p.add_argument('--beam-scope', choices=['union','strict'], default='union',
                    help="Use obs-level union beams (union) or derive per-scan beams by matching per-scan super-summary VOTs (strict)")
     
     p.add_argument('--scan-scope', choices=['catalogue','all'], default='catalogue',
-                   help="Which scans to consider per candidate: those listed in the catalogue ('catalogue') or all scans found on disk under the SBID ('all').")
+                   help="Which scans to consider per candidate (per-scan mode): those listed in the catalogue ('catalogue') or all scans found on disk ('all').")
     p.add_argument('--match-arcsec', type=float, default=35.0, help='Sky match radius when --beam-scope=strict')
 
     # File discovery & outputs
@@ -148,25 +153,13 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
 def wrap_ra_0_360(ra_deg: float) -> float:
     if not math.isfinite(ra_deg):
         return ra_deg
-    ra = ra_deg % 360.0
-    if ra < 0.0:
-        ra += 360.0
-    return ra
+    return ra_deg % 360.0
 
 
 def split_list(s: str) -> List[str]:
     if not s:
         return []
-    s = s.strip().strip('"')
-    if not s:
-        return []
-    out = []
-    for tok in s.split(','):
-        tok = tok.strip()
-        if not tok:
-            continue
-        out.extend(t for t in tok.split() if t)
-    return out
+    return re.findall(r'[^\s,]+', s.strip('"'))
 
 def load_obs_catalogue(vot_path: Path, min_snr: Optional[float] = None, only_source_id: str = '') -> List[Dict[str, str]]:
     """Load obs-level super-summary from VOTable and return normalized rows.
@@ -178,15 +171,18 @@ def load_obs_catalogue(vot_path: Path, min_snr: Optional[float] = None, only_sou
     t = Table.read(vot_path, format='votable')
     rows: List[Dict[str, str | List[str]]] = []
     # Column fallbacks
-    col_sid = 'source_id' if 'source_id' in t.colnames else None
-    col_name = 'srcname' if 'srcname' in t.colnames else None
-    col_ra = 'ra_deg' if 'ra_deg' in t.colnames else None
-    col_dec = 'dec_deg' if 'dec_deg' in t.colnames else None
-    col_snr = 'max_snr' if 'max_snr' in t.colnames else None
-    col_scans = 'scan_ids' if 'scan_ids' in t.colnames else ('scan_ids_all' if 'scan_ids_all' in t.colnames else None)
-    col_beams = 'beams_all' if 'beams_all' in t.colnames else None
-    col_max_beam = 'max_snr_beam' if 'max_snr_beam' in t.colnames else None
-    col_max_time = 'max_snr_time_center' if 'max_snr_time_center' in t.colnames else None
+    def get_col(*names):
+        return next((n for n in names if n in t.colnames), None)
+
+    col_sid = get_col('source_id')
+    col_name = get_col('srcname')
+    col_ra = get_col('ra_deg')
+    col_dec = get_col('dec_deg')
+    col_snr = get_col('max_snr')
+    col_scans = get_col('scan_ids', 'scan_ids_all')
+    col_beams = get_col('beams_all')
+    col_max_beam = get_col('max_snr_beam')
+    col_max_time = get_col('max_snr_time_center')
 
 
 
@@ -235,38 +231,23 @@ def load_obs_catalogue(vot_path: Path, min_snr: Optional[float] = None, only_sou
 
 def discover_catalogue(sbid_dir: Path, sbid: str, kind: str) -> Path:
     cand_dir = sbid_dir / 'candidates'
-    # prefer VOTable
-    pats = list(cand_dir.glob(f"*.{sbid}_obs_{kind}_super_summary.vot"))
-    if not pats:
-        pats = list(cand_dir.glob(f"*.{sbid}_obs_{kind}_super_summary.xml"))
-    if not pats:
-        raise FileNotFoundError(f"No VOTable found under {cand_dir} for kind={kind}")
-    return pats[0]
+    for ext in ['vot', 'xml']:
+        if pats := list(cand_dir.glob(f"*.{sbid}_obs_{kind}_super_summary.{ext}")):
+            return pats[0]
+    raise FileNotFoundError(f"No VOTable found under {cand_dir} for kind={kind}")
 
 def discover_all_scans(sbid_dir: Path) -> list[str]:
     """
-    Discover scan IDs under <SBID> using glob only.
+    Discover scan IDs under <SBID>.
     Matches immediate subdirectories whose names are exactly 14 digits,
     e.g. /.../SB77974/20251015072402
     """
-    # Build a 14-digit glob: '[0-9]' repeated 14 times
-    pattern = ''.join(['[0-9]'] * 14)  # => '[0-9][0-9]...[0-9]' (14 times)
-    # Glob only immediate children; filter to directories
-    scans = [p.name for p in sbid_dir.glob(pattern) if p.is_dir()]
-    # Sort lexicographically (works naturally for yyyymmddHHMMSS)
-    scans.sort()
-    return scans
+    scans = [p.name for p in sbid_dir.iterdir() if p.is_dir() and re.match(r'^\d{14}$', p.name)]
+    return sorted(scans)
 
 
 def find_ms_for_scan_beam(scan_dir: Path, beam_id: str, ms_glob_template: str) -> List[Path]:
-    pat = ms_glob_template % beam_id
-    cur = os.getcwd()
-    try:
-        os.chdir(scan_dir)
-        paths = glob.glob(pat, recursive=True)
-    finally:
-        os.chdir(cur)
-    return [scan_dir / p for p in paths]
+    return list(scan_dir.glob(ms_glob_template % beam_id))
 
 
 def per_scan_beams_strict(sbid_dir: Path, scan_id: str, ra_deg: float, dec_deg: float,
@@ -409,6 +390,8 @@ def build_tasks(
     fieldname: str,
     sbid: str,
     scan_scope: str,
+    mode: str,
+    combined_dir: str,
 ) -> List[ExtractTask]:
     tasks: List[ExtractTask] = []
 
@@ -418,36 +401,55 @@ def build_tasks(
         name_raw = row['srcname']
         name = safe_name(name_raw)
         ra = float(row['ra_deg']); dec = float(row['dec_deg'])
-        scan_ids = all_scans if (all_scans is not None) else row['scan_ids'] #choose according to scope
         union_beams = row['beams_all']
         max_beam = str(row.get('max_snr_beam', '') or '').strip()
-        for sc in scan_ids:
-            scan_dir = sbid_dir / sc
-            if not scan_dir.is_dir():
-                print(f"[WARN] Missing scan dir: {scan_dir}")
-                continue
-            # Always prefer the max S/N beam if present 
-            if max_beam:
-                beams = {max_beam}
-            else:
-                # legacy fallback (older catalogues)
-                if beam_scope == 'strict':
-                    beams = per_scan_beams_strict(sbid_dir, sc, ra, dec, kind, match_arcsec) or set(union_beams)
-                else:
-                    beams = set(union_beams)
 
+        if mode == 'combined':
+            scan_dir = sbid_dir / combined_dir
+            if not scan_dir.is_dir():
+                print(f"[WARN] Missing combined scan dir: {scan_dir}")
+                continue
+            beams = {max_beam} if max_beam else set(union_beams)
             for b in sorted(beams):
                 ms_list = find_ms_for_scan_beam(scan_dir, b, ms_glob_template)
                 if not ms_list:
-                    print(f"[INFO] No MS for scan={sc} beam={b}; skipping")
+                    print(f"[INFO] No MS for combined dir beam={b}; skipping")
                     continue
-                # Output as <SBID>/<scan>/candidates/<fieldname>.<SBID>.beam<beam>.<scan>_cand_<srcname>.ds
                 cand_dir = scan_dir / 'candidates'
                 cand_dir.mkdir(parents=True, exist_ok=True)
-                out_name = f"{fieldname}.{sbid}.{b}.{sc}_cand_{name}.ds"
+                out_name = f"{fieldname}.{sbid}.{b}.combined_cand_{name}.ds"
                 out_file = cand_dir / out_name
                 for ms in ms_list:
-                    tasks.append(ExtractTask(sid, name, ra, dec, sc, b, ms, out_file))
+                    tasks.append(ExtractTask(sid, name, ra, dec, 'combined', b, ms, out_file))
+        else:
+            scan_ids = all_scans if (all_scans is not None) else row['scan_ids'] #choose according to scope
+            for sc in scan_ids:
+                scan_dir = sbid_dir / sc
+                if not scan_dir.is_dir():
+                    print(f"[WARN] Missing scan dir: {scan_dir}")
+                    continue
+                # Always prefer the max S/N beam if present 
+                if max_beam:
+                    beams = {max_beam}
+                else:
+                    # legacy fallback (older catalogues)
+                    if beam_scope == 'strict':
+                        beams = per_scan_beams_strict(sbid_dir, sc, ra, dec, kind, match_arcsec) or set(union_beams)
+                    else:
+                        beams = set(union_beams)
+
+                for b in sorted(beams):
+                    ms_list = find_ms_for_scan_beam(scan_dir, b, ms_glob_template)
+                    if not ms_list:
+                        print(f"[INFO] No MS for scan={sc} beam={b}; skipping")
+                        continue
+                    # Output as <SBID>/<scan>/candidates/<fieldname>.<SBID>.beam<beam>.<scan>_cand_<srcname>.ds
+                    cand_dir = scan_dir / 'candidates'
+                    cand_dir.mkdir(parents=True, exist_ok=True)
+                    out_name = f"{fieldname}.{sbid}.{b}.{sc}_cand_{name}.ds"
+                    out_file = cand_dir / out_name
+                    for ms in ms_list:
+                        tasks.append(ExtractTask(sid, name, ra, dec, sc, b, ms, out_file))
     return tasks
 
 # ---------------- Dask submission -------------------------------------------
@@ -540,6 +542,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         rows, sbid_dir, args.ms_glob_template,
         args.beam_scope, args.kind, args.match_arcsec,
         fieldname=fieldname, sbid=args.sbid, scan_scope=args.scan_scope,
+        mode=args.mode, combined_dir=args.combined_dir,
     )
     if not tasks:
         print('[INFO] No tasks to run (no MS found for requested combos).')
