@@ -11,6 +11,7 @@ def parse_args():
     parser.add_argument("--sbid", required=True, help="Scheduling Block ID, e.g., SB77974")
     parser.add_argument("--data-root", default="data", help="Root directory containing data/<SBID>")
     parser.add_argument("--out-root", default=None, help="Output root (default: same as --data-root)")
+    parser.add_argument("--out-subdir", default=None, help="Subdirectory under out_root under which to place the concatenated data (default: None = no subdir)")
     parser.add_argument(
         "--pattern",
         default="*/*beam{beam:02d}*.avg.ms",
@@ -38,7 +39,11 @@ def main():
         beams = list(range(0, 36)) if args.beams == "all" else [int(x) for x in args.beams.split(",")]
 
     out_root = args.out_root or args.data_root
-    out_dir = os.path.join(out_root, args.sbid)
+    out_subdir = args.out_subdir
+    if out_subdir is not None:
+        out_dir = os.path.join(out_root, args.sbid, out_subdir)
+    else:
+        out_dir = os.path.join(out_root, args.sbid)
     os.makedirs(out_dir, exist_ok=True)
 
     if not args.dry_run and not ensure_casa_concat():
@@ -51,7 +56,7 @@ def main():
             print(f"WARN: No MS found for SBID={args.sbid} beam={beam:02d} using pattern '{args.pattern}'")
             continue
 
-        output_msname = strip_scanid_from_path(msnames[0], args.sbid, out_root)
+        output_msname = strip_scanid_from_path(msnames[0], args.sbid, out_root, out_subdir=out_subdir)
         print(f"Beam {beam:02d}: {len(msnames)} inputs")
         for m in msnames:
             print(f"  - {m}")

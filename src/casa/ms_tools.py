@@ -264,7 +264,7 @@ def run_flag_outer_antennas(msname: str):
     flagdata(vis=msname, mode='manual', antenna='24~35', action='apply', flagbackup=False)
 
 # From average
-def strip_scanid_from_path(ms_path: str, sbid: str, out_root: str) -> str:
+def strip_scanid_from_path(ms_path: str, sbid: str, out_root: str, out_subdir: str | None = None ) -> str:
     """
     From an input path like:
       data/SB77974/20251015072402/cracoData.LTR_1733-2344.SB77974.beam17.20251015072402.avg.ms
@@ -286,6 +286,8 @@ def strip_scanid_from_path(ms_path: str, sbid: str, out_root: str) -> str:
 
     # Place output under out_root/SBID
     out_dir = os.path.join(out_root, sbid)
+    if out_subdir is not None:
+        out_dir = os.path.join(out_dir, out_subdir)
     os.makedirs(out_dir, exist_ok=True)
     return os.path.join(out_dir, fname_clean)
 
