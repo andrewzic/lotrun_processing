@@ -164,24 +164,25 @@ def determine_highest_extension(caltables):
 
 def get_timebin(msname: str) -> float:
     """
-    Get the timebin of the MS from the TIME column.
+    Get the timebin of the MS from the INTERVAL column.
     """
     import numpy as np
     from casatools import table
     tb = table()
     tb.open(msname)
     try:
-        times = tb.getcol('TIME_CENTROID')
+        intervals = tb.getcol('INTERVAL')
+        timebin = float(np.median(intervals))
     except Exception:
+        # Fallback to TIME if INTERVAL is somehow missing
         times = tb.getcol('TIME')
-    tb.close()
-    
-    times = np.sort(np.unique(times))
-    if len(times) > 1:
-        timebin = np.median(np.diff(times))
-    else:
-        # Fallback if there is only 1 time interval
-        timebin = 1.0
+        times = np.sort(np.unique(times))
+        if len(times) > 1:
+            timebin = float(np.median(np.diff(times)))
+        else:
+            timebin = 1.0
+    finally:
+        tb.close()
 
     return timebin
 
