@@ -267,7 +267,16 @@ jid_cat_native=$( sbatch_submit "concat_native" "${CONCAT_TIME}" "${CONCAT_CPUS}
 jid_cat_native=$(chain "$jid_cat_native" "concat_native")
 
 #link caltables to native-res directory for applycal script
-ln -s ${CONT_OUT_ROOT}/${SBID}/${CONT_OUT_SUBDIR}/${CONT_CALTABLE_DIR} ${CONT_OUT_ROOT}/${SBID}
+_caltable_link="${CONT_OUT_ROOT}/${SBID}/${CONT_CALTABLE_DIR}"
+_caltable_src="${CONT_OUT_ROOT}/${SBID}/${CONT_OUT_SUBDIR}/${CONT_CALTABLE_DIR}"
+if [[ -d "${_caltable_link}" ]]; then
+  echo "Caltable symlink already exists and is valid: ${_caltable_link}"
+elif [[ -L "${_caltable_link}" ]]; then
+  echo "WARN: Dangling symlink at ${_caltable_link}, replacing"
+  ln -sf "${_caltable_src}" "${CONT_OUT_ROOT}/${SBID}"
+else
+  ln -s "${_caltable_src}" "${CONT_OUT_ROOT}/${SBID}"
+fi
 
 # Applycal loop on native-res: apply all calG<i>
 applycal_pattern="${APPLYCAL_NATIVE_START_PATTERN}"
