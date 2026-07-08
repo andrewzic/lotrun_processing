@@ -114,6 +114,10 @@ BIGARRAY_SPEC="0-$((n>0 ? n-1 : 0))"
 # 2) import uvfits
 echo $SBID
 echo $DATA_ROOT
+
+NATIVE_ROOT="${NATIVE_OUT_ROOT}/${SBID}/${NATIVE_OUT_SUBDIR}"
+CONT_ROOT="${CONT_OUT_ROOT}/${SBID}/${CONT_OUT_SUBDIR}"
+
 #exit
 jid_start=""
 jid_imp=$( sbatch_submit "importuvfits" "${IMPORT_TIME}" "${IMPORT_CPUS}" "${IMPORT_MEM}" "${BIGARRAY_SPEC}" "${RUN_IMPORT}" "${jid_start}" \
@@ -263,7 +267,7 @@ jid_cat_native=$( sbatch_submit "concat_native" "${CONCAT_TIME}" "${CONCAT_CPUS}
 jid_cat_native=$(chain "$jid_cat_native" "concat_native")
 
 #link caltables to native-res directory for applycal script
-ln -s ${CONT_OUT_ROOT}/${SBID}/${CONT_CALTABLE_DIR} ${CONT_OUT_ROOT}/${SBID}
+ln -s ${CONT_OUT_ROOT}/${SBID}/${CONT_OUT_SUBDIR}/${CONT_CALTABLE_DIR} ${CONT_OUT_ROOT}/${SBID}
 
 # Applycal loop on native-res: apply all calG<i>
 applycal_pattern="${APPLYCAL_NATIVE_START_PATTERN}"
