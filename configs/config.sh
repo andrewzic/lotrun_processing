@@ -231,7 +231,7 @@ CONCAT_NATIVE_INPUT_PATTERN="20????????????/*beam{beam:02d}*.20????????????.calB
 WSCLEAN_PATTERN="cont_combined/*beam{beam:02d}.avg.calB0.ms"
 
 # UVSUB on concatenated self-cal result
-UVSUB_CONCAT_INPUT_PATTERN="cont_combined/*beam{beam:02d}.avg.calG6.ms"
+UVSUB_CONCAT_INPUT_PATTERN="cont_combined/*beam{beam:02d}.avg.calB0.ms"
 
 # Applycal on native res (start from calB0; loop produces calG<i>)
 APPLYCAL_NATIVE_START_PATTERN="native_combined/*beam{beam:02d}*.calB0.ms"

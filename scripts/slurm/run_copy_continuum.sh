@@ -26,7 +26,7 @@ for beam in $(seq 0 35); do
     printf -v beam2 "%02d" "${beam}"
 
     # Gather all candidate selfcal images for this beam
-    candidates=( "${src_root}"/*"beam${beam2}"*selfcal_*_img-MFS-image.fits )
+    candidates=( "${src_root}"/cont_combined/*"beam${beam2}"*selfcal_*_img-MFS-image.fits )
 
    if (( ${#candidates[@]} == 0 )); then
         echo "Beam ${beam2}: no selfcal images found, skipping."

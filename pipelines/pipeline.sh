@@ -271,7 +271,7 @@ ln -s ${CONT_OUT_ROOT}/${SBID}/${CONT_OUT_SUBDIR}/${CONT_CALTABLE_DIR} ${CONT_OU
 
 # Applycal loop on native-res: apply all calG<i>
 applycal_pattern="${APPLYCAL_NATIVE_START_PATTERN}"
-jid_applycal=$( sbatch_submit "applycal_native" "${APPLYCAL_TIME}" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_APPLYCAL}" "${jid_prev}" \
+jid_applycal=$( sbatch_submit "applycal_native" "${APPLYCAL_TIME}" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_APPLYCAL}" "${jid_cat_native}" \
                  SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${applycal_pattern}" FLINT_CASA_SIF="${FLINT_CASA_SIF}" BIND_SRC="${BIND_SRC}" \
                  SCRIPT_DIR="${SCRIPT_DIR}" SCRIPT="${APPLYCAL_SCRIPT}" CAL_DIR="${CONT_CALTABLE_DIR}" EXTENSION="G*" DELETE_PREVIOUS="" )
 jid_applycal=$(chain "$jid_applycal" "applycal_native")
