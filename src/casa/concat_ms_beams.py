@@ -3,6 +3,7 @@ import casaconfig
 casaconfig.logfile = "/dev/null"
 import argparse
 import os
+import shutil
 import sys
 from ms_tools import find_ms_files, ensure_casa_concat, strip_scanid_from_path, do_concat, get_timebin
 
