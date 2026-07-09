@@ -23,6 +23,9 @@ def parse_args():
         default="all",
         help='Comma-separated beam list (e.g., "0,1,2") or "all" for 0..36'
     )
+    parser.add_argument("--clobber", action="store_true", help="Clobber pre-existing files before concatenation")
+    parser.add_argument("--no-clobber", action="store_false", dest="clobber", help="Do not clobber pre-existing files before concatenation")
+    parser.set_defaults(clobber=True)
     parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -55,8 +58,15 @@ def main():
         if not msnames:
             print(f"WARN: No MS found for SBID={args.sbid} beam={beam:02d} using pattern '{args.pattern}'")
             continue
-
+        
         output_msname = strip_scanid_from_path(msnames[0], args.sbid, out_root, out_subdir=out_subdir)
+
+        if os.path.exists(output_msname) and not args.clobber:
+            print(f"WARN: Output MS {output_msname} exists and --no-clobber is set. Skipping beam {beam:02d}.")
+            continue
+        elif os.path.exists(output_msname) and args.clobber:
+            print(f"INFO: Output MS {output_msname} exists and --clobber is set. Removing before concatenation.")
+            shutil.rmtree(output_msname)
         print(f"Beam {beam:02d}: {len(msnames)} inputs")
         for m in msnames:
             print(f"  - {m}")

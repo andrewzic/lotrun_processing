@@ -155,7 +155,7 @@ jid_fl3=$( sbatch_submit "flag_avg" "${FLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM}" 
 jid_fl3=$(chain "$jid_fl3" "flag_avg")
 
 # 8) concat beams (averaged)
-jid_cat=$( sbatch_submit "concat" "${CONCAT_TIME}" "${CONCAT_CPUS}" "${CONCAT_MEM}" "${ARRAY_SPEC}" "${RUN_CONCAT}" "${jid_fl3}" \
+jid_cat=$( sbatch_submit "concat" "${CONCAT_CONT_TIME}" "${CONCAT_CPUS}" "${CONCAT_MEM}" "${ARRAY_SPEC}" "${RUN_CONCAT}" "${jid_fl3}" \
            SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" OUT_ROOT="${CONT_OUT_ROOT}" OUT_SUBDIR="${CONT_OUT_SUBDIR}" PATTERN="${CONCAT_AVG_INPUT_PATTERN}" \
            PYTHON="${CONCAT_PYTHON}" SCRIPT_DIR="${SCRIPT_DIR}" SCRIPT="${CONCAT_SCRIPT}" )
 jid_cat=$(chain "$jid_cat" "concat")
@@ -262,7 +262,7 @@ jid_uvsub_concat=$(chain "$jid_uvsub_concat" "uvsub_concat")
 jid_prev="$jid_uvsub_concat"
 
 # 8) concat beams (native)
-jid_cat_native=$( sbatch_submit "concat_native" "${CONCAT_TIME}" "${CONCAT_CPUS}" "${CONCAT_MEM}" "${ARRAY_SPEC}" "${RUN_CONCAT}" "${jid_uvsub_concat}" \
+jid_cat_native=$( sbatch_submit "concat_native" "${CONCAT_NATIVE_TIME}" "${CONCAT_CPUS}" "${CONCAT_MEM}" "${ARRAY_SPEC}" "${RUN_CONCAT}" "${jid_uvsub_concat}" \
            SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" OUT_ROOT="${NATIVE_OUT_ROOT}" OUT_SUBDIR="${NATIVE_OUT_SUBDIR}" PATTERN="${CONCAT_NATIVE_INPUT_PATTERN}" PYTHON="${CONCAT_PYTHON}" SCRIPT="${CONCAT_SCRIPT}" )
 jid_cat_native=$(chain "$jid_cat_native" "concat_native")
 
