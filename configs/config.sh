@@ -176,6 +176,8 @@ WSCLEAN_OPTS[6]="${WSCLEAN_OPTS6:-"-data-column DATA -save-source-list -multisca
 
 # Crystalball behaviour
 CB_SOURCE_LIST_PATTERN="*beam{beam:02d}*.avg.calB0.ms"
+CB_SUBDIR="native_combined"
+CB_SRCLIST_SUBDIR="cont_combined"
 CB_OUTPUT_COLUMN="MODEL_DATA"
 CB_NUM_WORKERS="0"
 CB_ROW_CHUNKS="0"

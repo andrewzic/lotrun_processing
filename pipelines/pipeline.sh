@@ -289,7 +289,7 @@ jid_applycal=$(chain "$jid_applycal" "applycal_native")
 # CB_NATIVE_INPUT_PATTERN="${applycal_pattern}"
 jid_cb_native=$( sbatch_submit "cb_native" "${CB_TIME}" "${CB_CPUS}" "${CB_MEM}" "${ARRAY_SPEC}" "${RUN_CB}" "${jid_applycal}" \
                  SELFCAL="0" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${CB_NATIVE_INPUT_PATTERN}" IMG_TAG="${IMG_TAGS[6]}" OUTPUT_COLUMN="${CB_OUTPUT_COLUMN}" \
-                 INDEX="${last_idx}" NUM_WORKERS="${CB_NUM_WORKERS}" ROW_CHUNKS="${CB_ROW_CHUNKS}" MODEL_CHUNKS="${CB_MODEL_CHUNKS}" \
+                 CB_SUBDIR="${CB_SUBDIR}" CB_SRCLIST_SUBDIR="${CB_SRCLIST_SUBDIR}" INDEX="${last_idx}" NUM_WORKERS="${CB_NUM_WORKERS}" ROW_CHUNKS="${CB_ROW_CHUNKS}" MODEL_CHUNKS="${CB_MODEL_CHUNKS}" \
                  MEMORY_FRACTION="${CB_MEMORY_FRACTION}" CB_DISTRIBUTED="${CB_DISTRIBUTED}" CB_DASK_NWORKERS="${CB_DASK_NWORKERS}" \
                CB_DASK_WORKER_CPUS="${CB_DASK_WORKER_CPUS}" CB_DASK_WORKER_MEM="${CB_DASK_WORKER_MEM}" )
 jid_cb_native=$(chain "$jid_cb_native" "cb_native")
