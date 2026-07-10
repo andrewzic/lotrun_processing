@@ -3,8 +3,8 @@
 #SBATCH --output=logs/crystalball_%A_%a.out
 #SBATCH --error=logs/crystalball_%A_%a.err
 #SBATCH --time=08:00:00
-#SBATCH --cpus-per-task=8
-#SBATCH --mem=24G
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=32G
 #SBATCH --array=0-36
 # Optional: #SBATCH --partition=standard
 
@@ -42,9 +42,9 @@ CB_DISTRIBUTED=${CB_DISTRIBUTED:-1}
 
 # Per-beam Dask cluster limits (VERY IMPORTANT)
 # These control how hard ONE beam can hit the cluster
-CB_DASK_NWORKERS=${CB_DASK_NWORKERS:-8}        # max workers for this beam
+CB_DASK_NWORKERS=${CB_DASK_NWORKERS:-4}        # max workers for this beam
 CB_DASK_WORKER_CPUS=${CB_DASK_WORKER_CPUS:-1}  # CPUs per worker
-CB_DASK_WORKER_MEM=${CB_DASK_WORKER_MEM:-8G}   # Memory per worker
+CB_DASK_WORKER_MEM=${CB_DASK_WORKER_MEM:-4G}   # Memory per worker
 
 # Port offsets so array tasks don't collide
 CB_DASK_SCHED_PORT_BASE=${CB_DASK_SCHED_PORT_BASE:-8786}
@@ -127,6 +127,7 @@ printf -v beam2 "%02d" "${beam}"
 root="${DATA_ROOT}/${SBID}/${CB_SUBDIR}"
 root_srclist="${DATA_ROOT}/${SBID}/${CB_SRCLIST_SUBDIR}"
 glob="${PATTERN//\{beam:02d\}/$beam2}"
+glob="${glob##*/}"
 if (( SELFCAL == 1 ))
 then
     if (( INDEX > 0 )); then

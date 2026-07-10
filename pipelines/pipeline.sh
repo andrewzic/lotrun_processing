@@ -17,6 +17,7 @@ for arg in "$@"; do
     CONFIG=*)  CONFIG="${arg#CONFIG=}" ;;
     START_STAGE=*) START_STAGE="${arg#START_STAGE=}" ;;
     VERBOSE=*) VERBOSE="${arg#VERBOSE=}" ;;
+    NO_SYMLINK=*) NO_SYMLINK="${arg#NO_SYMLINK=}" ;;
     *) echo "Unknown argument: ${arg}" >&2; exit 1 ;;
   esac
 done
@@ -37,12 +38,14 @@ CONTAINER_DIR="${CONTAINER_DIR:-${USER_PATH:-/fred/oz451}/${USER}/containers}"
 LOG_DIR="${LOG_DIR:-${USER_PATH:-/fred/oz451}/${USER}/lotrun_processing/logs}"
 SCRIPT_DIR="${SCRIPT_DIR:-${USER_PATH:-/fred/oz451}/$USER/scripts/lotrun_processing}"
 
-echo "doing symlink"
-# 1) symlink uvfits
-if [[ "${DRY_RUN:-0}" == "1" ]]; then
-  echo "DRY local: ./scripts/utils/symlink_uvfits.sh ${SBID}" >&2
-else
-  ${SCRIPT_DIR}/scripts/utils/symlink_uvfits.sh "${SBID}"
+if [[ "${NO_SYMLINK:-0}" == "0" ]]; then
+  echo "doing symlink"
+  # 1) symlink uvfits
+  if [[ "${DRY_RUN:-0}" == "1" ]]; then
+    echo "DRY local: ./scripts/utils/symlink_uvfits.sh ${SBID}" >&2
+  else
+    ${SCRIPT_DIR}/scripts/utils/symlink_uvfits.sh "${SBID}"
+  fi
 fi
 
 CONFIG="${CONFIG:-config.sh}"
@@ -289,7 +292,7 @@ jid_applycal=$(chain "$jid_applycal" "applycal_native")
 # CB_NATIVE_INPUT_PATTERN="${applycal_pattern}"
 jid_cb_native=$( sbatch_submit "cb_native" "${CB_TIME}" "${CB_CPUS}" "${CB_MEM}" "${ARRAY_SPEC}" "${RUN_CB}" "${jid_applycal}" \
                  SELFCAL="0" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${CB_NATIVE_INPUT_PATTERN}" IMG_TAG="${IMG_TAGS[6]}" OUTPUT_COLUMN="${CB_OUTPUT_COLUMN}" \
-                 CB_SUBDIR="${CB_SUBDIR}" CB_SRCLIST_SUBDIR="${CB_SRCLIST_SUBDIR}" INDEX="${last_idx}" NUM_WORKERS="${CB_NUM_WORKERS}" ROW_CHUNKS="${CB_ROW_CHUNKS}" MODEL_CHUNKS="${CB_MODEL_CHUNKS}" \
+                 CB_SUBDIR="${CB_SUBDIR}" CB_SRCLIST_SUBDIR="${CB_SRCLIST_SUBDIR}" SOURCE_LIST_PATTERN="${CB_SOURCE_LIST_PATTERN}" INDEX="${last_idx}" NUM_WORKERS="${CB_NUM_WORKERS}" ROW_CHUNKS="${CB_ROW_CHUNKS}" MODEL_CHUNKS="${CB_MODEL_CHUNKS}" \
                  MEMORY_FRACTION="${CB_MEMORY_FRACTION}" CB_DISTRIBUTED="${CB_DISTRIBUTED}" CB_DASK_NWORKERS="${CB_DASK_NWORKERS}" \
                CB_DASK_WORKER_CPUS="${CB_DASK_WORKER_CPUS}" CB_DASK_WORKER_MEM="${CB_DASK_WORKER_MEM}" )
 jid_cb_native=$(chain "$jid_cb_native" "cb_native")
