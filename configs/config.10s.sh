@@ -181,11 +181,11 @@ CB_MODEL_CHUNKS="0"
 CB_MEMORY_FRACTION="0.8"
 CB_DISTRIBUTED="1"
 # Max number of Dask workers per beam
-CB_DASK_NWORKERS="8"
+CB_DASK_NWORKERS="4"
 # CPUs per Dask worker
 CB_DASK_WORKER_CPUS="1"
-# Memory per Dask worker
-CB_DASK_WORKER_MEM="12G"
+# Memory per Dask worker  (4 workers × 4G = 16G, within 32G SLURM alloc)
+CB_DASK_WORKER_MEM="4G"
 
 # -------------------- Flint mask thresholds -------------
 FLOOD_FILL_POSITIVE_SEED_CLIP="1.1"
