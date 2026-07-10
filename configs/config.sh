@@ -103,11 +103,12 @@ FD_CPUS="1"
 FD_MEM="32G"
 
 # Crystalball runs in DISTRIBUTED mode.
-# CB_CPUS/CB_MEM apply ONLY to the client job.
-# Real compute happens in bounded per-beam Dask workers.
+# CB_CPUS/CB_MEM set the SLURM allocation for the entire crystalball job
+# (client + scheduler + all dask workers run inside this allocation).
+
 CB_TIME="03:15:00"
-CB_CPUS="2"
-CB_MEM="4G"
+CB_CPUS="4"
+CB_MEM="32G"
 
 AGG_TIME="00:30:00"
 AGG_CPUS="1"
@@ -127,7 +128,7 @@ CONCAT_NATIVE_TIME="03:00:00"
 WSCLEAN_TIME="04:00:00"
 FM_TIME="00:30:00"
 SC_TIME="02:00:00"
-UVSUB_TIME="02:00:00"
+UVSUB_TIME="03:00:00"
 BANDPASS_TIME="02:00:00"
 
 COPY_TIME="00:15:00"
@@ -185,11 +186,11 @@ CB_MODEL_CHUNKS="0"
 CB_MEMORY_FRACTION="0.8"
 CB_DISTRIBUTED="1"
 # Max number of Dask workers per beam
-CB_DASK_NWORKERS="8"
+CB_DASK_NWORKERS="4"
 # CPUs per Dask worker
 CB_DASK_WORKER_CPUS="1"
-# Memory per Dask worker
-CB_DASK_WORKER_MEM="12G"
+# Memory per Dask worker  (4 workers × 4G = 16G, within 32G SLURM alloc)
+CB_DASK_WORKER_MEM="4G"
 
 # Flint mask thresholds
 FLOOD_FILL_POSITIVE_SEED_CLIP="1.1"
