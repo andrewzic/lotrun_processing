@@ -183,14 +183,16 @@ CB_OUTPUT_COLUMN="MODEL_DATA"
 CB_NUM_WORKERS="0"
 CB_ROW_CHUNKS="0"
 CB_MODEL_CHUNKS="0"
-CB_MEMORY_FRACTION="0.8"
+CB_MEMORY_FRACTION="0.5"
 CB_DISTRIBUTED="1"
 # Max number of Dask workers per beam
 CB_DASK_NWORKERS="4"
 # CPUs per Dask worker
 CB_DASK_WORKER_CPUS="1"
-# Memory per Dask worker  (4 workers × 4G = 16G, within 32G SLURM alloc)
-CB_DASK_WORKER_MEM="4G"
+# Memory per Dask worker  (4 workers × 7G = 28G, within 32G SLURM alloc)
+CB_DASK_WORKER_MEM="7G"
+# Local directory for Dask worker scratch space (spill to disk)
+CB_DASK_LOCAL_DIR="${SCRIPT_DIR}/dask-worker-space"
 
 # Flint mask thresholds
 FLOOD_FILL_POSITIVE_SEED_CLIP="1.1"

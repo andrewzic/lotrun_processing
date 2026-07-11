@@ -5,6 +5,7 @@
 #SBATCH --time=08:00:00
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=32G
+#SBATCH --tmp=20GB
 #SBATCH --array=0-36
 # Optional: #SBATCH --partition=standard
 
@@ -30,7 +31,7 @@ NUM_WORKERS=${NUM_WORKERS:-0}                       # crystalball -j
 ROW_CHUNKS=${ROW_CHUNKS:-0}                         # crystalball -rc (0 = auto)
 MODEL_CHUNKS=${MODEL_CHUNKS:-0}                     # crystalball -mc (0 = auto)
 FIELD=${FIELD:-}                                     # crystalball -f (empty = auto)
-MEMORY_FRACTION=${MEMORY_FRACTION:-0.8}             # crystalball -mf
+MEMORY_FRACTION=${MEMORY_FRACTION:-0.5}             # crystalball -mf
 REGION_FILE=${REGION_FILE:-}                         # crystalball -w (optional DS9 region)
 PREDICT_ONLY=${PREDICT_ONLY:-}                       # crystalball -po (set to 1 to enable)
 NUM_BRIGHTEST_SOURCES=${NUM_BRIGHTEST_SOURCES:-0}   # crystalball -ns (0 = all)
@@ -44,7 +45,7 @@ CB_DISTRIBUTED=${CB_DISTRIBUTED:-1}
 # These control how hard ONE beam can hit the cluster
 CB_DASK_NWORKERS=${CB_DASK_NWORKERS:-4}        # max workers for this beam
 CB_DASK_WORKER_CPUS=${CB_DASK_WORKER_CPUS:-1}  # CPUs per worker
-CB_DASK_WORKER_MEM=${CB_DASK_WORKER_MEM:-4G}   # Memory per worker
+CB_DASK_WORKER_MEM=${CB_DASK_WORKER_MEM:-7G}   # Memory per worker
 
 # Port offsets so array tasks don't collide
 CB_DASK_SCHED_PORT_BASE=${CB_DASK_SCHED_PORT_BASE:-8786}
@@ -103,11 +104,21 @@ if [[ "${CB_DISTRIBUTED}" == "1" ]]; then
     export MKL_NUM_THREADS=1
     export NUMEXPR_NUM_THREADS=1
 
+    # Local directory for Dask worker scratch space (spill to disk)
+    # Prefer fast node-local SSD ($JOBFS) if available, otherwise fall back to config or /fred
+    if [[ -n "${JOBFS:-}" && -d "${JOBFS}" ]]; then
+        CB_DASK_LOCAL_DIR="${JOBFS}/dask-worker-space"
+    else
+        CB_DASK_LOCAL_DIR=${CB_DASK_LOCAL_DIR:-"${SCRIPT_DIR:-/fred/oz451/azic/scripts/lotrun_processing}/dask-worker-space"}
+    fi
+    mkdir -p "${CB_DASK_LOCAL_DIR}"
+
     for ((i=0; i<CB_DASK_NWORKERS; i++)); do
         dask-worker \
             "${DASK_SCHEDULER_ADDRESS}" \
             --nthreads ${CB_DASK_WORKER_CPUS} \
             --memory-limit ${CB_DASK_WORKER_MEM} \
+            --local-directory "${CB_DASK_LOCAL_DIR}" \
             > "logs/dask-worker_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}_${i}.out" 2>&1 &
     done
 
