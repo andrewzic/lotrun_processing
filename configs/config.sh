@@ -103,8 +103,9 @@ FD_CPUS="1"
 FD_MEM="32G"
 
 # Crystalball runs in DISTRIBUTED mode.
-# CB_CPUS/CB_MEM set the SLURM allocation for the entire crystalball job
-# (client + scheduler + all dask workers run inside this allocation).
+# CB_CPUS/CB_MEM set the SLURM allocation for the scheduler/client job.
+# In "slurm" mode, workers run as separate SLURM jobs so this can be small.
+# In "local" mode, all workers share this allocation.
 
 CB_TIME="03:15:00"
 CB_CPUS="4"
@@ -181,16 +182,30 @@ CB_SUBDIR="native_combined"
 CB_SRCLIST_SUBDIR="cont_combined"
 CB_OUTPUT_COLUMN="MODEL_DATA"
 CB_NUM_WORKERS="0"
-CB_ROW_CHUNKS="0"
-CB_MODEL_CHUNKS="0"
-CB_MEMORY_FRACTION="0.5"
+CB_ROW_CHUNKS="200000"
+CB_MODEL_CHUNKS="125"
+CB_MEMORY_FRACTION="0.3"
 CB_DISTRIBUTED="1"
-# Max number of Dask workers per beam
-CB_DASK_NWORKERS="4"
-# CPUs per Dask worker
-CB_DASK_WORKER_CPUS="1"
-# Memory per Dask worker  (4 workers × 7G = 28G, within 32G SLURM alloc)
-CB_DASK_WORKER_MEM="7G"
+
+# -------------------- Dask cluster mode --------------------
+# "local"  = spawn workers on the same node (original behaviour)
+# "slurm"  = submit workers as separate SLURM jobs (queue-allocated)
+CB_DASK_MODE="slurm"
+
+# --- Local-mode settings (used when CB_DASK_MODE="local") ---
+CB_DASK_LOCAL_NWORKERS="4"       # max workers on this node
+CB_DASK_LOCAL_WORKER_CPUS="1"    # CPUs per worker
+CB_DASK_LOCAL_WORKER_MEM="7G"    # memory per worker
+
+# --- SLURM-mode settings (used when CB_DASK_MODE="slurm") ---
+CB_DASK_SLURM_NWORKERS="512"       # max worker jobs to submit
+CB_DASK_SLURM_WORKER_CPUS="1"      # CPUs per worker job
+CB_DASK_SLURM_WORKER_MEM="16G"      # memory per worker job
+CB_DASK_SLURM_WORKER_TIME="00:45:00" # walltime per worker job
+CB_DASK_SLURM_ACCOUNT=""            # SLURM account (empty = inherit default)
+CB_DASK_SLURM_PARTITION=""          # SLURM partition (empty = default queue)
+CB_DASK_SLURM_TMP="5GB"             # local SSD per worker for spill
+
 # Local directory for Dask worker scratch space (spill to disk)
 CB_DASK_LOCAL_DIR="${SCRIPT_DIR}/dask-worker-space"
 

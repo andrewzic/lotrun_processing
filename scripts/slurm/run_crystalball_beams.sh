@@ -28,10 +28,10 @@ SELFCAL=${SELFCAL:-1}
 # Crystalball runtime options (all optional; tune as needed)
 OUTPUT_COLUMN=${OUTPUT_COLUMN:-MODEL_DATA}          # crystalball -o
 NUM_WORKERS=${NUM_WORKERS:-0}                       # crystalball -j
-ROW_CHUNKS=${ROW_CHUNKS:-0}                         # crystalball -rc (0 = auto)
-MODEL_CHUNKS=${MODEL_CHUNKS:-0}                     # crystalball -mc (0 = auto)
+ROW_CHUNKS=${ROW_CHUNKS:-200000}                         # crystalball -rc (0 = auto)
+MODEL_CHUNKS=${MODEL_CHUNKS:-125}                     # crystalball -mc (0 = auto)
 FIELD=${FIELD:-}                                     # crystalball -f (empty = auto)
-MEMORY_FRACTION=${MEMORY_FRACTION:-0.5}             # crystalball -mf
+MEMORY_FRACTION=${MEMORY_FRACTION:-0.3}             # crystalball -mf
 REGION_FILE=${REGION_FILE:-}                         # crystalball -w (optional DS9 region)
 PREDICT_ONLY=${PREDICT_ONLY:-}                       # crystalball -po (set to 1 to enable)
 NUM_BRIGHTEST_SOURCES=${NUM_BRIGHTEST_SOURCES:-0}   # crystalball -ns (0 = all)
@@ -41,14 +41,36 @@ NUM_BRIGHTEST_SOURCES=${NUM_BRIGHTEST_SOURCES:-0}   # crystalball -ns (0 = all)
 # Enable per-beam distributed Dask cluster
 CB_DISTRIBUTED=${CB_DISTRIBUTED:-1}
 
-# Per-beam Dask cluster limits (VERY IMPORTANT)
-# These control how hard ONE beam can hit the cluster
-CB_DASK_NWORKERS=${CB_DASK_NWORKERS:-4}        # max workers for this beam
-CB_DASK_WORKER_CPUS=${CB_DASK_WORKER_CPUS:-1}  # CPUs per worker
-CB_DASK_WORKER_MEM=${CB_DASK_WORKER_MEM:-7G}   # Memory per worker
+# Dask cluster mode: "local" or "slurm"
+CB_DASK_MODE=${CB_DASK_MODE:-local}
 
-# Port offsets so array tasks don't collide
-CB_DASK_SCHED_PORT_BASE=${CB_DASK_SCHED_PORT_BASE:-8786}
+# --- Local-mode defaults ---
+CB_DASK_LOCAL_NWORKERS=${CB_DASK_LOCAL_NWORKERS:-4}
+CB_DASK_LOCAL_WORKER_CPUS=${CB_DASK_LOCAL_WORKER_CPUS:-1}
+CB_DASK_LOCAL_WORKER_MEM=${CB_DASK_LOCAL_WORKER_MEM:-7G}
+
+# --- SLURM-mode defaults ---
+CB_DASK_SLURM_NWORKERS=${CB_DASK_SLURM_NWORKERS:-512}
+CB_DASK_SLURM_WORKER_CPUS=${CB_DASK_SLURM_WORKER_CPUS:-1}
+CB_DASK_SLURM_WORKER_MEM=${CB_DASK_SLURM_WORKER_MEM:-16G}
+CB_DASK_SLURM_WORKER_TIME=${CB_DASK_SLURM_WORKER_TIME:-00:45:00}
+CB_DASK_SLURM_ACCOUNT=${CB_DASK_SLURM_ACCOUNT:-}
+CB_DASK_SLURM_PARTITION=${CB_DASK_SLURM_PARTITION:-}
+CB_DASK_SLURM_TMP=${CB_DASK_SLURM_TMP:-5GB}
+
+# Path to the Dask worker helper script (for SLURM mode)
+if [[ -z "${SCRIPT_DIR:-}" ]]; then
+    if [[ -n "${SLURM_SUBMIT_DIR:-}" ]]; then
+        if [[ "${SLURM_SUBMIT_DIR}" == */pipelines ]]; then
+            SCRIPT_DIR=$(dirname "${SLURM_SUBMIT_DIR}")
+        else
+            SCRIPT_DIR="${SLURM_SUBMIT_DIR}"
+        fi
+    else
+        SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
+    fi
+fi
+RUN_DASK_WORKER="${SCRIPT_DIR}/scripts/slurm/run_dask_worker.sh"
 
 # ---------------------------------------------------------------------------
 # ---------------- Start per-beam Dask cluster ----------------
@@ -65,6 +87,24 @@ else
     CRYSTALBALL=${CRYSTALBALL:-${CRYSTALBALL_ENV}/bin/crystalball}
 fi
 
+
+# Track SLURM worker job IDs for cleanup
+SLURM_WORKER_JIDS=""
+
+# Cleanup function: kill scheduler and cancel any SLURM worker jobs
+cleanup_dask() {
+    echo "Cleaning up Dask cluster for beam ${SLURM_ARRAY_TASK_ID:-?}..."
+    if [[ -n "${DASK_SCHED_PID:-}" ]]; then
+        kill "${DASK_SCHED_PID}" 2>/dev/null || true
+    fi
+    if [[ -n "${SLURM_WORKER_JIDS}" ]]; then
+        echo "Cancelling SLURM worker jobs: ${SLURM_WORKER_JIDS}"
+        for wjid in ${SLURM_WORKER_JIDS}; do
+            scancel "${wjid}" 2>/dev/null || true
+        done
+    fi
+}
+trap cleanup_dask EXIT
 
 if [[ "${CB_DISTRIBUTED}" == "1" ]]; then
 
@@ -97,33 +137,88 @@ if [[ "${CB_DISTRIBUTED}" == "1" ]]; then
     exit 1
     fi
 
-    echo "Starting ${CB_DASK_NWORKERS} Dask workers for this beam"
-
     export OMP_NUM_THREADS=1
     export OPENBLAS_NUM_THREADS=1
     export MKL_NUM_THREADS=1
     export NUMEXPR_NUM_THREADS=1
 
-    # Local directory for Dask worker scratch space (spill to disk)
-    # Prefer fast node-local SSD ($JOBFS) if available, otherwise fall back to config or /fred
-    if [[ -n "${JOBFS:-}" && -d "${JOBFS}" ]]; then
-        CB_DASK_LOCAL_DIR="${JOBFS}/dask-worker-space"
+    # ====================== LOCAL MODE ======================
+    if [[ "${CB_DASK_MODE}" == "local" ]]; then
+
+        echo "[DASK] Local mode: starting ${CB_DASK_LOCAL_NWORKERS} workers on $(hostname)"
+
+        # Local directory for Dask worker scratch space (spill to disk)
+        # Prefer fast node-local SSD ($JOBFS) if available
+        if [[ -n "${JOBFS:-}" && -d "${JOBFS}" ]]; then
+            CB_DASK_LOCAL_DIR="${JOBFS}/dask-worker-space"
+        else
+            CB_DASK_LOCAL_DIR=${CB_DASK_LOCAL_DIR:-"${SCRIPT_DIR:-/fred/oz451/azic/scripts/lotrun_processing}/dask-worker-space"}
+        fi
+        mkdir -p "${CB_DASK_LOCAL_DIR}"
+
+        for ((i=0; i<CB_DASK_LOCAL_NWORKERS; i++)); do
+            dask-worker \
+                "${DASK_SCHEDULER_ADDRESS}" \
+                --nthreads "${CB_DASK_LOCAL_WORKER_CPUS}" \
+                --memory-limit "${CB_DASK_LOCAL_WORKER_MEM}" \
+                --local-directory "${CB_DASK_LOCAL_DIR}" \
+                > "logs/dask-worker_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}_${i}.out" 2>&1 &
+        done
+
+        # Give local workers time to register
+        sleep 10
+
+    # ====================== SLURM MODE ======================
+    elif [[ "${CB_DASK_MODE}" == "slurm" ]]; then
+
+        echo "[DASK] SLURM mode: submitting ${CB_DASK_SLURM_NWORKERS} worker jobs"
+
+        # Build sbatch command for worker jobs
+        worker_sbatch_args=(
+            --job-name="dask_worker_b${SLURM_ARRAY_TASK_ID}"
+            --time="${CB_DASK_SLURM_WORKER_TIME}"
+            --cpus-per-task="${CB_DASK_SLURM_WORKER_CPUS}"
+            --mem="${CB_DASK_SLURM_WORKER_MEM}"
+            --tmp="${CB_DASK_SLURM_TMP}"
+            --output="logs/dask-worker-slurm_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}_%j.out"
+            --error="logs/dask-worker-slurm_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}_%j.err"
+        )
+        [[ -n "${CB_DASK_SLURM_ACCOUNT}" ]] && worker_sbatch_args+=(--account="${CB_DASK_SLURM_ACCOUNT}")
+        [[ -n "${CB_DASK_SLURM_PARTITION}" ]] && worker_sbatch_args+=(--partition="${CB_DASK_SLURM_PARTITION}")
+
+        # Export variables needed by the worker script
+        worker_export="DASK_SCHEDULER_ADDRESS=${DASK_SCHEDULER_ADDRESS}"
+        worker_export+=",CRYSTALBALL_ENV=${CRYSTALBALL_ENV}"
+        worker_export+=",CRYSTALBALL_SIF=${CRYSTALBALL_SIF:-}"
+        worker_export+=",BIND_SRC=${BIND_SRC}"
+        worker_export+=",CB_DASK_SLURM_WORKER_CPUS=${CB_DASK_SLURM_WORKER_CPUS}"
+        worker_export+=",CB_DASK_SLURM_WORKER_MEM=${CB_DASK_SLURM_WORKER_MEM}"
+
+        # Submit worker jobs
+        for ((i=0; i<CB_DASK_SLURM_NWORKERS; i++)); do
+            wjid=$(sbatch "${worker_sbatch_args[@]}" \
+                --export="${worker_export}" \
+                "${RUN_DASK_WORKER}" | awk '{print $4}')
+            if [[ -n "${wjid}" ]]; then
+                SLURM_WORKER_JIDS+="${wjid} "
+            fi
+        done
+
+        echo "[DASK] Submitted worker jobs: ${SLURM_WORKER_JIDS}"
+
+        # Wait for at least 1 worker to connect (timeout 5 min)
+        echo "[DASK] Waiting for workers to connect..."
+        python3 "${SCRIPT_DIR}/scripts/wait_for_workers.py" \
+            "${DASK_SCHEDULER_ADDRESS}" --timeout 3600 --interval 60
+        if [[ $? -ne 0 ]]; then
+            echo "ERROR: Timed out waiting for SLURM Dask workers"
+            exit 1
+        fi
+
     else
-        CB_DASK_LOCAL_DIR=${CB_DASK_LOCAL_DIR:-"${SCRIPT_DIR:-/fred/oz451/azic/scripts/lotrun_processing}/dask-worker-space"}
+        echo "ERROR: Unknown CB_DASK_MODE='${CB_DASK_MODE}'. Must be 'local' or 'slurm'."
+        exit 1
     fi
-    mkdir -p "${CB_DASK_LOCAL_DIR}"
-
-    for ((i=0; i<CB_DASK_NWORKERS; i++)); do
-        dask-worker \
-            "${DASK_SCHEDULER_ADDRESS}" \
-            --nthreads ${CB_DASK_WORKER_CPUS} \
-            --memory-limit ${CB_DASK_WORKER_MEM} \
-            --local-directory "${CB_DASK_LOCAL_DIR}" \
-            > "logs/dask-worker_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}_${i}.out" 2>&1 &
-    done
-
-    # Give workers time to register
-    sleep 10
 fi
 
 mkdir -p logs
@@ -229,8 +324,8 @@ for ms in "${msnames[@]}"; do
 done
 
 # ---------------- Teardown Dask cluster ----------------
-
+# cleanup_dask is called automatically via the EXIT trap set earlier.
+# This explicit call provides a visible log message.
 if [[ "${CB_DISTRIBUTED}" == "1" ]]; then
     echo "Stopping Dask cluster for beam ${beam2}"
-    kill ${DASK_SCHED_PID} || true
 fi
