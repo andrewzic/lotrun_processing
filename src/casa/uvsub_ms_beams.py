@@ -1,8 +1,16 @@
 #!/usr/bin/env python3
 import argparse
 import sys
-import casaconfig
-casaconfig.logfile = "/dev/null"
+try:
+    from casaconfig import config
+    config.nologfile = True
+    config.logfile = "/dev/null"
+except Exception:
+    try:
+        import casaconfig
+        casaconfig.logfile = "/dev/null"
+    except Exception:
+        pass
 
 from ms_tools import ensure_casatasks, run_uvsub
 

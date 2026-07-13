@@ -2,10 +2,15 @@
 import argparse
 import sys
 try:
-    import casaconfig
-    casaconfig.logfile = "/dev/null"
+    from casaconfig import config
+    config.nologfile = True
+    config.logfile = "/dev/null"
 except Exception:
-    pass
+    try:
+        import casaconfig
+        casaconfig.logfile = "/dev/null"
+    except Exception:
+        pass
 
 from ms_tools import ensure_casa_flagdata, find_ms_files, run_quack
 

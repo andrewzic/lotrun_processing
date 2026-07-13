@@ -6,10 +6,15 @@ import re
 from typing import List
 from datetime import datetime
 try:
-    import casaconfig
-    casaconfig.logfile = "/dev/null"
+    from casaconfig import config
+    config.nologfile = True
+    config.logfile = "/dev/null"
 except Exception:
-    pass
+    try:
+        import casaconfig
+        casaconfig.logfile = "/dev/null"
+    except Exception:
+        pass
 
 # Common CASA ensure functions
 def ensure_casa_applycal() -> bool:

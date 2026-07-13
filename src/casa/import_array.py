@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
-import casaconfig
-casaconfig.logfile = "/dev/null"
+try:
+    from casaconfig import config
+    config.nologfile = True
+    config.logfile = "/dev/null"
+except Exception:
+    try:
+        import casaconfig
+        casaconfig.logfile = "/dev/null"
+    except Exception:
+        pass
 import argparse
 import os
 import sys
