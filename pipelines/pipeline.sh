@@ -298,7 +298,7 @@ jid_predict_native=$( sbatch_submit "predict_native" "${CB_TIME}" "${CB_CPUS}" "
                  CB_DASK_LOCAL_NWORKERS="${CB_DASK_LOCAL_NWORKERS}" CB_DASK_LOCAL_WORKER_CPUS="${CB_DASK_LOCAL_WORKER_CPUS}" CB_DASK_LOCAL_WORKER_MEM="${CB_DASK_LOCAL_WORKER_MEM}" \
                  CB_DASK_SLURM_NWORKERS="${CB_DASK_SLURM_NWORKERS}" CB_DASK_SLURM_WORKER_CPUS="${CB_DASK_SLURM_WORKER_CPUS}" CB_DASK_SLURM_WORKER_MEM="${CB_DASK_SLURM_WORKER_MEM}" \
                  CB_DASK_SLURM_WORKER_TIME="${CB_DASK_SLURM_WORKER_TIME}" CB_DASK_SLURM_ACCOUNT="${CB_DASK_SLURM_ACCOUNT}" CB_DASK_SLURM_PARTITION="${CB_DASK_SLURM_PARTITION}" CB_DASK_SLURM_TMP="${CB_DASK_SLURM_TMP}" \
-                 SCRIPT_DIR="${SCRIPT_DIR}" CHANNELS_OUT="${PREDICT_CHANNELS_OUT}" )
+                 SCRIPT_DIR="${SCRIPT_DIR}" CHANNELS_OUT="${WSCLEAN_CHANNELS_OUT}" )
 jid_predict_native=$(chain "$jid_predict_native" "predict_native")
 
 # UVSUB on native res (G6 calibrated)
@@ -307,7 +307,7 @@ jid_uvs_native=$( sbatch_submit "uvsub_native" "${UVSUB_TIME}" "${SC_CPUS}" "${S
                   BIND_SRC="${BIND_SRC}" SCRIPT_DIR="${SCRIPT_DIR}" SCRIPT="${UVSUB_SCRIPT}" INDEX="${last_idx}" EXTENSION="G6" OUT_PREFIX="${UVSUB_OUT_PREFIX}" )
 jid_uvs_native=$(chain "$jid_uvs_native" "uvsub_native")
 
-# 8) concat beams (native)
+# 8) concat scans (native)
 jid_cat_native=$( sbatch_submit "concat_native" "${CONCAT_NATIVE_TIME}" "${CONCAT_CPUS}" "${CONCAT_MEM}" "${ARRAY_SPEC}" "${RUN_CONCAT}" "${jid_uvs_native}" \
            SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" OUT_ROOT="${NATIVE_OUT_ROOT}" OUT_SUBDIR="${NATIVE_OUT_SUBDIR}" PATTERN="${CONCAT_NATIVE_INPUT_PATTERN}" PYTHON="${CONCAT_PYTHON}" SCRIPT="${CONCAT_SCRIPT}" CONCAT_OPTS="--no-timeaverage" )
 jid_cat_native=$(chain "$jid_cat_native" "concat_native")
@@ -345,6 +345,7 @@ for kind in "boxcar"; do
               SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" KIND="${KIND}" DS_N_WORKERS="${DS_N_WORKERS}" DS_CPUS="${DS_CPUS}" DS_MEM="${DS_MEM}" \
               DS_WALLTIME="${DS_WALLTIME}" DS_MIN_SNR="${DS_MIN_SNR}" DS_QUEUE="${DS_QUEUE}" DS_PROJECT="${DS_PROJECT}" \
               DS_BATCH_SIZE="${DS_BATCH_SIZE}" DS_RETRIES="${DS_RETRIES}" DS_SLEEP_BETWEEN_BATCHES="${DS_SLEEP_BETWEEN_BATCHES}" \
+              SCRIPT_DIR="${SCRIPT_DIR}" SCRIPT="${EXTRACT_SCRIPT}" \
               DS_BEAM_SCOPE="${DS_BEAM_SCOPE}" DS_MATCH_ARCSEC="${DS_MATCH_ARCSEC}" DS_MS_GLOB_TEMPLATE="${DS_MS_GLOB_TEMPLATE}" \
               DS_DATACOLUMN="${DS_DATACOLUMN}" DS_PRIMARY_BEAM="${DS_PRIMARY_BEAM}" DS_NOFLAG="${DS_NOFLAG}" \
               DS_BASELINE_AVERAGE="${DS_BASELINE_AVERAGE}" DS_MINUVDIST="${DS_MINUVDIST}" DS_VERBOSE="${DS_VERBOSE}" \

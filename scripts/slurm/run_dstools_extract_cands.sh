@@ -66,8 +66,11 @@ else
     PYTHON=${CRYSTALBALL:-python}
 fi
 
+SCRIPT_DIR=${SCRIPT_DIR:-${USER_PATH:-/fred/oz451}/${USER}/scripts/lotrun_processing}
+SCRIPT=${SCRIPT:-${SCRIPT_DIR}/src/dstools/extract_ds_orchestrator.py}
+
 # -------------------- Build orchestrator command --------------------
-cmd=( ${PYTHON} src/dstools/extract_ds_orchestrator.py
+cmd=( ${PYTHON} "${SCRIPT}"
   --sbid "${SBID}"
   --data-root "${DATA_ROOT}"
   --kind "${KIND}"
