@@ -210,7 +210,7 @@ def run_applycal(msname: str, caltables: List[str], delete_previous: bool = Fals
     freq_interp = "linear"
     from casatasks import applycal, split
     print(f"applying caltables {caltables} to ms {msname}")    
-    applycal(vis=msname, gaintable=caltables, interp=[time_interp, freq_interp]*len(caltables))
+    applycal(vis=msname, gaintable=caltables, interp=[time_interp, freq_interp]*len(caltables), applymode="calonly")
     
     output_extension = f".cal{extension}.ms"
     if "cal" in msname:
@@ -250,7 +250,7 @@ def run_quack(msname: str, quackinterval: float = 20.0):
     flagdata(
         vis=msname,
         mode='quack',
-        quackinterval=20.0,
+        quackinterval=10.0,
         quackmode='beg'
     )
 
@@ -258,8 +258,8 @@ def run_quack(msname: str, quackinterval: float = 20.0):
     flagdata(
         vis=msname,
         mode='quack',
-        quackinterval=20.0,
-        quackmode='end'
+        quackinterval=10.0,
+        quackmode='endb' #oh my god this used to be end but that is cursed
     )
 
 # From flagouter
