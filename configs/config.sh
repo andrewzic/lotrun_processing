@@ -56,7 +56,15 @@ RUN_AVERAGE="${SCRIPT_DIR}/scripts/slurm/run_average_beams.sh"
 RUN_CONCAT="${SCRIPT_DIR}/scripts/slurm/run_concat_beams.sh"
 RUN_WSCLEAN="${SCRIPT_DIR}/scripts/slurm/run_wsclean_beams.sh"
 RUN_FLINT_MASK="${SCRIPT_DIR}/scripts/slurm/run_flintmask_beams.sh"
-RUN_CB="${SCRIPT_DIR}/scripts/slurm/run_crystalball_beams.sh"
+# -------------------- Predict Tool Toggle ----------------
+PREDICT_TOOL="wsclean" # 'wsclean' or 'crystalball'
+PREDICT_CHANNELS_OUT="4"
+
+if [[ "${PREDICT_TOOL}" == "wsclean" ]]; then
+    RUN_CB="${SCRIPT_DIR}/scripts/slurm/run_wsclean_predict_beams.sh"
+else
+    RUN_CB="${SCRIPT_DIR}/scripts/slurm/run_crystalball_beams.sh"
+fi
 RUN_SELFCAL="${SCRIPT_DIR}/scripts/slurm/run_selfcal_beams.sh"
 RUN_APPLYCAL="${SCRIPT_DIR}/scripts/slurm/run_applycal_beams.sh"
 RUN_BANDPASS="${SCRIPT_DIR}/scripts/slurm/run_applycal_beams.sh"
@@ -126,7 +134,7 @@ FLAG_TIME="00:30:00"
 AVERAGE_TIME="01:00:00"
 CONCAT_CONT_TIME="02:00:00"
 CONCAT_NATIVE_TIME="03:00:00"
-WSCLEAN_TIME="04:00:00"
+WSCLEAN_TIME="01:00:00"
 FM_TIME="00:30:00"
 SC_TIME="02:00:00"
 UVSUB_TIME="03:00:00"
@@ -175,10 +183,11 @@ WSCLEAN_OPTS[3]="${WSCLEAN_OPTS3:-"-data-column DATA -save-source-list -multisca
 WSCLEAN_OPTS[4]="${WSCLEAN_OPTS4:-"-data-column DATA -save-source-list -multiscale -mgain 0.8 -multiscale-scale-bias 0.8 -niter 100000 -pol xx -weight briggs 0.5 -scale 12asec -size 1536 1536 -auto-threshold 1.0 -auto-mask 3.0 -join-channels -channels-out 4 -fit-spectral-pol 3"}"
 WSCLEAN_OPTS[5]="${WSCLEAN_OPTS5:-"-data-column DATA -save-source-list -multiscale -mgain 0.8 -multiscale-scale-bias 0.8 -niter 100000 -pol xx -weight briggs 0.5 -scale 12asec -size 1536 1536 -auto-threshold 0.5 -auto-mask 5.0 -join-channels -channels-out 4 -fit-spectral-pol 3"}"
 WSCLEAN_OPTS[6]="${WSCLEAN_OPTS6:-"-data-column DATA -save-source-list -multiscale -mgain 0.8 -multiscale-scale-bias 0.8 -niter 100000 -pol xx -weight briggs 0.5 -scale 12asec -size 1536 1536 -auto-threshold 0.5 -auto-mask 5.0 -join-channels -channels-out 4 -fit-spectral-pol 3"}"
+WSCLEAN_NATIVE_OPTS="${WSCLEAN_NATIVE_OPTS:-"-data-column DATA -save-source-list -multiscale -mgain 0.8 -multiscale-scale-bias 0.8 -niter 1 -pol xx -weight briggs 0.5 -scale 12asec -size 1536 1536 -auto-threshold 0.5 -auto-mask 5.0 -join-channels -channels-out 4 -fit-spectral-pol 3"}"
 
 # Crystalball behaviour
 CB_SOURCE_LIST_PATTERN="*beam{beam:02d}*.avg.calB0.ms"
-CB_SUBDIR="native_combined"
+CB_SUBDIR=""
 CB_SRCLIST_SUBDIR="cont_combined"
 CB_OUTPUT_COLUMN="MODEL_DATA"
 CB_NUM_WORKERS="0"
@@ -198,10 +207,10 @@ CB_DASK_LOCAL_WORKER_CPUS="1"    # CPUs per worker
 CB_DASK_LOCAL_WORKER_MEM="7G"    # memory per worker
 
 # --- SLURM-mode settings (used when CB_DASK_MODE="slurm") ---
-CB_DASK_SLURM_NWORKERS="512"       # max worker jobs to submit
+CB_DASK_SLURM_NWORKERS="24"       # max worker jobs to submit
 CB_DASK_SLURM_WORKER_CPUS="1"      # CPUs per worker job
 CB_DASK_SLURM_WORKER_MEM="16G"      # memory per worker job
-CB_DASK_SLURM_WORKER_TIME="00:45:00" # walltime per worker job
+CB_DASK_SLURM_WORKER_TIME="03:00:00" # walltime per worker job
 CB_DASK_SLURM_ACCOUNT=""            # SLURM account (empty = inherit default)
 CB_DASK_SLURM_PARTITION=""          # SLURM partition (empty = default queue)
 CB_DASK_SLURM_TMP="5GB"             # local SSD per worker for spill
@@ -246,7 +255,7 @@ FLAG_AVG_PATTERN="20??*/*beam*.20????????????.avg.calB0.ms"
 
 # Concat inputs (averaged)
 CONCAT_AVG_INPUT_PATTERN="20????????????/*beam{beam:02d}*.20????????????.avg.calB0.ms"
-CONCAT_NATIVE_INPUT_PATTERN="20????????????/*beam{beam:02d}*.20????????????.calB0.ms"
+CONCAT_NATIVE_INPUT_PATTERN="20????????????/*beam{beam:02d}*.20????????????.calG6.uvsub.ms"
 
 # Imaging/selfcal (concatenated)
 WSCLEAN_PATTERN="cont_combined/*beam{beam:02d}.avg.calB0.ms"
@@ -255,17 +264,20 @@ WSCLEAN_PATTERN="cont_combined/*beam{beam:02d}.avg.calB0.ms"
 UVSUB_CONCAT_INPUT_PATTERN="cont_combined/*beam{beam:02d}.avg.calB0.ms"
 
 # Applycal on native res (start from calB0; loop produces calG<i>)
-APPLYCAL_NATIVE_START_PATTERN="native_combined/*beam{beam:02d}*.calB0.ms"
+APPLYCAL_NATIVE_START_PATTERN="20????????????/*beam{beam:02d}*.20????????????.calB0.ms"
 
 # Crystalball inputs on native res
 # note that B0 will get changed to G<whatever> in the run_crystalball_beams.sh script
-CB_NATIVE_INPUT_PATTERN="native_combined/*beam{beam:02d}*.calB0.ms"
+CB_NATIVE_INPUT_PATTERN="20????????????/*beam{beam:02d}*.20????????????.calB0.ms"
 
-# UVSUB on concatenated calibrated native resolution data
-UVSUB_NATIVE_INPUT_PATTERN="native_combined/*beam{beam:02d}*.calB0.ms"
+# UVSUB on un-concatenated calibrated native resolution data
+UVSUB_NATIVE_INPUT_PATTERN="20????????????/*beam{beam:02d}*.20????????????.calB0.ms"
 
-# fastducc on uvsubbed native res
+# fastducc on uvsubbed concatenated native res
 FASTDUCC_INPUT_PATTERN="native_combined/*beam{beam:02d}*.calB0.uvsub.ms"
+
+# Imaging of concatenated native uvsubbed visibilities
+WSCLEAN_NATIVE_PATTERN="native_combined/*beam{beam:02d}*.calG6.uvsub.ms"
 
 # -------------------- dstools extract-ds -----------------
 DS_N_WORKERS="48"
