@@ -14,7 +14,9 @@
 # - Keep strings double-quoted; paths without spaces are fine unquoted.
 # =============================================================================
 
-# -------------------- Basic context --------------------
+# =============================================================================
+# 1. Global Context & Resources
+# =============================================================================
 USER="${USER:-$(whoami)}"
 # SBID="${SBID:-SB77974}"
 USER_PATH="/fred/oz451" #location on machine where user directory is
@@ -30,134 +32,127 @@ CONTAINER_DIR="${USER_PATH}/${USER}/containers"
 LOG_DIR="${USER_PATH}/${USER}/lotrun_processing/logs"
 SCRIPT_DIR="${USER_PATH}/$USER/scripts/lotrun_processing"
 
-
 # -------------------- Dry-run controls --------------------
 # When DRY_RUN=1, no sbatch calls are made; commands are printed and fake JIDs returned.
 DRY_RUN="${DRY_RUN:-0}"
-
-# Start sequence for fake job IDs (array and non-array jobs alike).
-# Change this if you want different ranges per environment.
 DRY_FAKE_START="${DRY_FAKE_START:-490000}"
-
-# If set to 1, print the "DRY sbatch:" command lines (stderr).
 DRY_PRINT_CMDS="${DRY_PRINT_CMDS:-1}"
-
 
 # -------------------- Containers -----------------------
 FLINT_WSCLEAN_SIF="${CONTAINER_DIR}/flint-containers_wsclean.sif"
 FLINT_CASA_SIF="${CONTAINER_DIR}/flint-containers_casa.sif"
 CRYSTALBALL_SIF="${CONTAINER_DIR}/casacore_python.sif"
 
-# -------------------- Wrapper scripts ------------------
-RUN_IMPORT="${SCRIPT_DIR}/scripts/slurm/run_import.sh"
-RUN_QUACK="${SCRIPT_DIR}/scripts/slurm/run_quack_beams.sh"
-RUN_FLAG="${SCRIPT_DIR}/scripts/slurm/run_flag.sh"
-RUN_AVERAGE="${SCRIPT_DIR}/scripts/slurm/run_average_beams.sh"
-RUN_CONCAT="${SCRIPT_DIR}/scripts/slurm/run_concat_beams.sh"
-RUN_WSCLEAN="${SCRIPT_DIR}/scripts/slurm/run_wsclean_beams.sh"
-RUN_FLINT_MASK="${SCRIPT_DIR}/scripts/slurm/run_flintmask_beams.sh"
-# -------------------- Predict Tool Toggle ----------------
-PREDICT_TOOL="wsclean" # 'wsclean' or 'crystalball'
-PREDICT_CHANNELS_OUT="4"
-
-if [[ "${PREDICT_TOOL}" == "wsclean" ]]; then
-    RUN_CB="${SCRIPT_DIR}/scripts/slurm/run_wsclean_predict_beams.sh"
-else
-    RUN_CB="${SCRIPT_DIR}/scripts/slurm/run_crystalball_beams.sh"
-fi
-RUN_SELFCAL="${SCRIPT_DIR}/scripts/slurm/run_selfcal_beams.sh"
-RUN_APPLYCAL="${SCRIPT_DIR}/scripts/slurm/run_applycal_beams.sh"
-RUN_BANDPASS="${SCRIPT_DIR}/scripts/slurm/run_applycal_beams.sh"
-RUN_UVSUB="${SCRIPT_DIR}/scripts/slurm/run_uvsub_beams.sh"
-RUN_COPY_CONTINUUM="${SCRIPT_DIR}/scripts/slurm/run_copy_continuum.sh"
-RUN_FASTDUCC="${SCRIPT_DIR}/scripts/slurm/run_fastducc_beams.sh"
-RUN_FASTDUCC_AGG="${SCRIPT_DIR}/scripts/slurm/run_fastducc_aggregate_chunks.sh"
-# Optional obs-level aggregation (leave unset/comment out to skip)
-# RUN_FASTDUCC_OBSAGG="run_fastducc_aggregate_obs.sh"
-RUN_CLEARCAL="${SCRIPT_DIR}/scripts/slurm/run_clearcal_beams.sh"
-RUN_EXTRACT_DS="${SCRIPT_DIR}/scripts/slurm/run_dstools_extract_cands.sh"
-RUN_FLAGOUTER="${SCRIPT_DIR}/scripts/slurm/run_flagouter_beams.sh"
-
-# -------------------- Tool scripts ---------------------
-IMPORT_SCRIPT="${SCRIPT_DIR}/src/casa/import_array.py"
-QUACK_SCRIPT="${SCRIPT_DIR}/src/casa/quack_ms_beams.py"
-BANDPASS_SCRIPT="${SCRIPT_DIR}/src/casa/applycal_ms_beams.py"
-AVERAGE_SCRIPT="${SCRIPT_DIR}/src/casa/average_ms_beams.py"
-CONCAT_SCRIPT="${SCRIPT_DIR}/src/casa/concat_ms_beams.py"
-FLAGOUTER_SCRIPT="${SCRIPT_DIR}/src/casa/flagouter_beams.py"
-SELFCAL_SCRIPT="${SCRIPT_DIR}/src/casa/selfcal_ms_beams.py"
-APPLYCAL_SCRIPT="${SCRIPT_DIR}/src/casa/applycal_ms_beams.py"
-UVSUB_SCRIPT="${SCRIPT_DIR}/src/casa/uvsub_ms_beams.py"
-
-# -------------------- Python launchers -----------------
-AVERAGE_PYTHON="apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CONTAINER_DIR}/flint-containers_casa.sif python3"
-CONCAT_PYTHON="apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CONTAINER_DIR}/flint-containers_casa.sif python3"
-
-IMPORT_CPUS="2"
-IMPORT_MEM="2G"
-FLAG_CPUS="4"
-FLAG_MEM="12G"
-AVERAGE_CPUS="4"
-AVERAGE_MEM="4G"
-CONCAT_CPUS="4"
-CONCAT_MEM="16G"
-WSCLEAN_CPUS="4"
-WSCLEAN_MEM="16G"
-SC_CPUS="8"
-SC_MEM="4G"
-FM_CPUS="1"
-FM_MEM="1G"
-FD_CPUS="1"
-FD_MEM="8G" #mem request for main fastducc driver
-
-# Crystalball runs in DISTRIBUTED mode.
-# CB_CPUS/CB_MEM set the SLURM allocation for the scheduler/client job.
-# In "slurm" mode, workers run as separate SLURM jobs so this can be small.
-# In "local" mode, all workers share this allocation.
-
-CB_TIME="03:15:00"
-CB_CPUS="4"
-CB_MEM="32G"
-
-AGG_TIME="00:30:00"
-AGG_CPUS="1"
-AGG_MEM="2G"
-FD_TIME="06:00:00"
-APPLYCAL_TIME="04:00:00"
-
-EXTRACT_TIME="01:00:00"
-EXTRACT_CPUS="1"
-EXTRACT_MEM="4G"
-
-IMPORT_TIME="00:10:00"
-FLAG_TIME="00:30:00"
-AVERAGE_TIME="01:00:00"
-CONCAT_CONT_TIME="02:00:00"
-CONCAT_NATIVE_TIME="03:00:00"
-WSCLEAN_TIME="01:00:00"
-FM_TIME="00:30:00"
-SC_TIME="02:00:00"
-UVSUB_TIME="03:00:00"
-BANDPASS_TIME="02:00:00"
-
-COPY_TIME="00:15:00"
-COPY_CPUS="1"
-COPY_MEM="2G"
-
-# -------------------- Stage parameters -----------------
+# -------------------- General Parameters ----------------
 CLOBBER="False"
-TIMEBIN="9.90s"
-UVSUB_OUT_PREFIX="uvsub"
-CHUNK_GLOB="202?*" #was 202?*
-FD_CHUNK_GLOB="native_combined*" #was 202?*
-KIND="boxcar"
-FLAG_COLUMN="DATA"
-
-# -------------------- Resource requests ----------------
 ARRAY_SPEC="0-35"
 BIGARRAY_SPEC="0-500"
 
-# -------------------- Self-cal behaviour ----------------
+# =============================================================================
+# 2. Import
+# =============================================================================
+RUN_IMPORT="${SCRIPT_DIR}/scripts/slurm/run_import.sh"
+IMPORT_SCRIPT="${SCRIPT_DIR}/src/casa/import_array.py"
+IMPORT_CPUS="2"
+IMPORT_MEM="2G"
+IMPORT_TIME="00:10:00"
+UVFITS_PATTERN="20??*/*beam*.uvfits"
+
+# =============================================================================
+# 3. Flagging & Quack
+# =============================================================================
+RUN_QUACK="${SCRIPT_DIR}/scripts/slurm/run_quack_beams.sh"
+QUACK_SCRIPT="${SCRIPT_DIR}/src/casa/quack_ms_beams.py"
+FLAG_QUACK_PATTERN="20??*/*beam{beam:02d}*.20????????????.ms"
+
+RUN_FLAG="${SCRIPT_DIR}/scripts/slurm/run_flag.sh"
+FLAG_COLUMN="DATA"
+FLAG_CPUS="4"
+FLAG_MEM="12G"
+FLAG_TIME="00:30:00"
+FLAG_NATIVE_PATTERN="20??*/*beam*.20????????????.ms"
+FLAG_CALB0_PATTERN="20??*/*beam*.20????????????.calB0.ms"
+FLAG_AVG_PATTERN="20??*/*beam*.20????????????.avg.calB0.ms"
+
+RUN_FLAGOUTER="${SCRIPT_DIR}/scripts/slurm/run_flagouter_beams.sh"
+FLAGOUTER_SCRIPT="${SCRIPT_DIR}/src/casa/flagouter_beams.py"
+
+# =============================================================================
+# 4. Bandpass / Applycal
+# =============================================================================
+RUN_BANDPASS="${SCRIPT_DIR}/scripts/slurm/run_applycal_beams.sh"
+BANDPASS_SCRIPT="${SCRIPT_DIR}/src/casa/applycal_ms_beams.py"
+BANDPASS_TIME="02:00:00"
+BANDPASS_INPUT_PATTERN="20??*/*beam{beam:02d}*.20????????????.ms"
+
+RUN_APPLYCAL="${SCRIPT_DIR}/scripts/slurm/run_applycal_beams.sh"
+APPLYCAL_SCRIPT="${SCRIPT_DIR}/src/casa/applycal_ms_beams.py"
+APPLYCAL_TIME="04:00:00"
+APPLYCAL_NATIVE_START_PATTERN="20????????????/*beam{beam:02d}*.20????????????.calB0.ms"
+
+# =============================================================================
+# 5. Averaging
+# =============================================================================
+RUN_AVERAGE="${SCRIPT_DIR}/scripts/slurm/run_average_beams.sh"
+AVERAGE_SCRIPT="${SCRIPT_DIR}/src/casa/average_ms_beams.py"
+AVERAGE_PYTHON="apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CONTAINER_DIR}/flint-containers_casa.sif python3"
+AVERAGE_CPUS="4"
+AVERAGE_MEM="4G"
+AVERAGE_TIME="01:00:00"
+TIMEBIN="9.90s"
+AVERAGE_INPUT_PATTERN="20??*/*beam*.20????????????.calB0.ms"
+
+# =============================================================================
+# 6. Concatenation
+# =============================================================================
+RUN_CONCAT="${SCRIPT_DIR}/scripts/slurm/run_concat_beams.sh"
+CONCAT_SCRIPT="${SCRIPT_DIR}/src/casa/concat_ms_beams.py"
+CONCAT_PYTHON="apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CONTAINER_DIR}/flint-containers_casa.sif python3"
+CONCAT_CPUS="4"
+CONCAT_MEM="16G"
+CONCAT_CONT_TIME="02:00:00"
+CONCAT_NATIVE_TIME="03:00:00"
+CONCAT_AVG_INPUT_PATTERN="20????????????/*beam{beam:02d}*.20????????????.avg.calB0.ms"
+CONCAT_NATIVE_INPUT_PATTERN="20????????????/*beam{beam:02d}*.20????????????.calG6.uvsub.ms"
+
+# =============================================================================
+# 7. Continuum Imaging & Self-Calibration
+# =============================================================================
+# WSClean
+RUN_WSCLEAN="${SCRIPT_DIR}/scripts/slurm/run_wsclean_beams.sh"
+WSCLEAN_CPUS="4"
+WSCLEAN_MEM="16G"
+WSCLEAN_TIME="01:00:00"
+WSCLEAN_PATTERN="cont_combined/*beam{beam:02d}.avg.calB0.ms"
+
+# WSClean options (per round)
+# WSCLEAN_OPTS0..6 env vars can still be used to override individual rounds from outside.
+WSCLEAN_CHANNELS_OUT=4
+declare -ag WSCLEAN_OPTS
+WSCLEAN_OPTS[0]="${WSCLEAN_OPTS0:-"-data-column DATA -save-source-list -multiscale -mgain 0.8 -multiscale-scale-bias 0.8 -niter 25000 -pol xx -weight briggs 0.5 -scale 12asec -size 1536 1536 -auto-threshold 3 -auto-mask 15.0 -join-channels -channels-out ${WSCLEAN_CHANNELS_OUT} -fit-spectral-pol 3"}"
+WSCLEAN_OPTS[1]="${WSCLEAN_OPTS1:-"-data-column DATA -save-source-list -multiscale -mgain 0.8 -multiscale-scale-bias 0.8 -niter 100000 -pol xx -weight briggs 0.5 -scale 12asec -size 1536 1536 -auto-threshold 2 -auto-mask 15.0 -join-channels -channels-out ${WSCLEAN_CHANNELS_OUT} -fit-spectral-pol 3"}"
+WSCLEAN_OPTS[2]="${WSCLEAN_OPTS2:-"-data-column DATA -save-source-list -multiscale -mgain 0.8 -multiscale-scale-bias 0.8 -niter 100000 -pol xx -weight briggs 0.5 -scale 12asec -size 1536 1536 -auto-threshold 1.0 -auto-mask 8.0 -join-channels -channels-out ${WSCLEAN_CHANNELS_OUT} -fit-spectral-pol 3"}"
+WSCLEAN_OPTS[3]="${WSCLEAN_OPTS3:-"-data-column DATA -save-source-list -multiscale -mgain 0.8 -multiscale-scale-bias 0.8 -niter 100000 -pol xx -weight briggs 0.5 -scale 12asec -size 1536 1536 -auto-threshold 1.0 -auto-mask 5.0 -join-channels -channels-out ${WSCLEAN_CHANNELS_OUT} -fit-spectral-pol 3"}"
+WSCLEAN_OPTS[4]="${WSCLEAN_OPTS4:-"-data-column DATA -save-source-list -multiscale -mgain 0.8 -multiscale-scale-bias 0.8 -niter 100000 -pol xx -weight briggs 0.5 -scale 12asec -size 1536 1536 -auto-threshold 1.0 -auto-mask 3.0 -join-channels -channels-out ${WSCLEAN_CHANNELS_OUT} -fit-spectral-pol 3"}"
+WSCLEAN_OPTS[5]="${WSCLEAN_OPTS5:-"-data-column DATA -save-source-list -multiscale -mgain 0.8 -multiscale-scale-bias 0.8 -niter 100000 -pol xx -weight briggs 0.5 -scale 12asec -size 1536 1536 -auto-threshold 0.5 -auto-mask 5.0 -join-channels -channels-out ${WSCLEAN_CHANNELS_OUT} -fit-spectral-pol 3"}"
+WSCLEAN_OPTS[6]="${WSCLEAN_OPTS6:-"-data-column DATA -save-source-list -multiscale -mgain 0.8 -multiscale-scale-bias 0.8 -niter 100000 -pol xx -weight briggs 0.5 -scale 12asec -size 1536 1536 -auto-threshold 0.5 -auto-mask 3.0 -join-channels -channels-out ${WSCLEAN_CHANNELS_OUT} -fit-spectral-pol 3"}"
+
+# Flint Masking
+RUN_FLINT_MASK="${SCRIPT_DIR}/scripts/slurm/run_flintmask_beams.sh"
+FM_CPUS="1"
+FM_MEM="1G"
+FM_TIME="00:30:00"
+FLOOD_FILL_POSITIVE_SEED_CLIP="1.1"
+FLOOD_FILL_POSITIVE_FLOOD_CLIP="0.7"
+FLOOD_FILL_MAC_BOX_SIZE="350"
+BEAM_SHAPE_ERODE_MIN_RESPONSE="0.75"
+
+# Selfcal
+RUN_SELFCAL="${SCRIPT_DIR}/scripts/slurm/run_selfcal_beams.sh"
+SELFCAL_SCRIPT="${SCRIPT_DIR}/src/casa/selfcal_ms_beams.py"
+SC_CPUS="8"
+SC_MEM="4G"
+SC_TIME="02:00:00"
 SC_FIELD=""
 SC_SPW=""
 SC_REFANT=""
@@ -166,26 +161,28 @@ SC_MINSNR="3.0"
 SC_PARANG=""
 SC_APPLY_CALWT="False"
 
-# Round tags & controls
+# Round tags & selfcal controls
 declare -ag IMG_TAGS=("initial_scratch" "selfcal_1" "selfcal_2" "selfcal_3" "selfcal_4" "selfcal_5" "selfcal_6")
 declare -ag SC_INDEX=(1 2 3 4 5 6)
 declare -ag SC_CALMODE=("p" "p" "p" "p" "ap" "ap")
 declare -ag SC_SOLINT=("480s" "300s" "120s" "30s" "600s" "300s")
 declare -ag SC_PREFIX=("selfcal1_p" "selfcal2_p" "selfcal3_p" "selfcal4_p" "selfcal5_ap" "selfcal6_ap")
 
-# WSClean options (per round)
-# WSCLEAN_OPTS0..6 env vars can still be used to override individual rounds from outside.
-declare -ag WSCLEAN_OPTS
-WSCLEAN_OPTS[0]="${WSCLEAN_OPTS0:-"-data-column DATA -save-source-list -multiscale -mgain 0.8 -multiscale-scale-bias 0.8 -niter 25000 -pol xx -weight briggs 0.5 -scale 12asec -size 1536 1536 -auto-threshold 3 -auto-mask 15.0 -join-channels -channels-out 4 -fit-spectral-pol 3"}"
-WSCLEAN_OPTS[1]="${WSCLEAN_OPTS1:-"-data-column DATA -save-source-list -multiscale -mgain 0.8 -multiscale-scale-bias 0.8 -niter 100000 -pol xx -weight briggs 0.5 -scale 12asec -size 1536 1536 -auto-threshold 2 -auto-mask 15.0 -join-channels -channels-out 4 -fit-spectral-pol 3"}"
-WSCLEAN_OPTS[2]="${WSCLEAN_OPTS2:-"-data-column DATA -save-source-list -multiscale -mgain 0.8 -multiscale-scale-bias 0.8 -niter 100000 -pol xx -weight briggs 0.5 -scale 12asec -size 1536 1536 -auto-threshold 1.0 -auto-mask 8.0 -join-channels -channels-out 4 -fit-spectral-pol 3"}"
-WSCLEAN_OPTS[3]="${WSCLEAN_OPTS3:-"-data-column DATA -save-source-list -multiscale -mgain 0.8 -multiscale-scale-bias 0.8 -niter 100000 -pol xx -weight briggs 0.5 -scale 12asec -size 1536 1536 -auto-threshold 1.0 -auto-mask 5.0 -join-channels -channels-out 4 -fit-spectral-pol 3"}"
-WSCLEAN_OPTS[4]="${WSCLEAN_OPTS4:-"-data-column DATA -save-source-list -multiscale -mgain 0.8 -multiscale-scale-bias 0.8 -niter 100000 -pol xx -weight briggs 0.5 -scale 12asec -size 1536 1536 -auto-threshold 1.0 -auto-mask 3.0 -join-channels -channels-out 4 -fit-spectral-pol 3"}"
-WSCLEAN_OPTS[5]="${WSCLEAN_OPTS5:-"-data-column DATA -save-source-list -multiscale -mgain 0.8 -multiscale-scale-bias 0.8 -niter 100000 -pol xx -weight briggs 0.5 -scale 12asec -size 1536 1536 -auto-threshold 0.5 -auto-mask 5.0 -join-channels -channels-out 4 -fit-spectral-pol 3"}"
-WSCLEAN_OPTS[6]="${WSCLEAN_OPTS6:-"-data-column DATA -save-source-list -multiscale -mgain 0.8 -multiscale-scale-bias 0.8 -niter 100000 -pol xx -weight briggs 0.5 -scale 12asec -size 1536 1536 -auto-threshold 0.5 -auto-mask 3.0 -join-channels -channels-out 4 -fit-spectral-pol 3"}"
-WSCLEAN_NATIVE_OPTS="${WSCLEAN_NATIVE_OPTS:-"-data-column DATA -mgain 0.8 -niter 1 -pol xx -weight briggs 0.5 -scale 12asec -size 1536 1536 -auto-threshold 90 -auto-mask 10000"}"
+# =============================================================================
+# 8. Prediction & UVSub
+# =============================================================================
+PREDICT_TOOL="wsclean" # 'wsclean' or 'crystalball'
 
-# Crystalball behaviour
+if [[ "${PREDICT_TOOL}" == "wsclean" ]]; then
+    RUN_CB="${SCRIPT_DIR}/scripts/slurm/run_wsclean_predict_beams.sh"
+else
+    RUN_CB="${SCRIPT_DIR}/scripts/slurm/run_crystalball_beams.sh"
+fi
+
+# Crystalball specifics
+CB_TIME="03:15:00"
+CB_CPUS="4"
+CB_MEM="32G"
 CB_SOURCE_LIST_PATTERN="*beam{beam:02d}*.avg.calB0.ms"
 CB_SUBDIR=""
 CB_SRCLIST_SUBDIR="cont_combined"
@@ -195,8 +192,10 @@ CB_ROW_CHUNKS="200000"
 CB_MODEL_CHUNKS="125"
 CB_MEMORY_FRACTION="0.3"
 CB_DISTRIBUTED="1"
+CB_NATIVE_INPUT_PATTERN="20????????????/*beam{beam:02d}*.20????????????.calB0.ms"
+# note that B0 will get changed to G<whatever> in the run_crystalball_beams.sh script
 
-# -------------------- Dask cluster mode --------------------
+# Dask cluster mode
 # "local"  = spawn workers on the same node (original behaviour)
 # "slurm"  = submit workers as separate SLURM jobs (queue-allocated)
 CB_DASK_MODE="slurm"
@@ -218,11 +217,38 @@ CB_DASK_SLURM_TMP="5GB"             # local SSD per worker for spill
 # Local directory for Dask worker scratch space (spill to disk)
 CB_DASK_LOCAL_DIR="${SCRIPT_DIR}/dask-worker-space"
 
-# Flint mask thresholds
-FLOOD_FILL_POSITIVE_SEED_CLIP="1.1"
-FLOOD_FILL_POSITIVE_FLOOD_CLIP="0.7"
-FLOOD_FILL_MAC_BOX_SIZE="350"
-BEAM_SHAPE_ERODE_MIN_RESPONSE="0.75"
+# UVSub
+RUN_UVSUB="${SCRIPT_DIR}/scripts/slurm/run_uvsub_beams.sh"
+UVSUB_SCRIPT="${SCRIPT_DIR}/src/casa/uvsub_ms_beams.py"
+UVSUB_TIME="03:00:00"
+UVSUB_OUT_PREFIX="uvsub"
+UVSUB_CONCAT_INPUT_PATTERN="cont_combined/*beam{beam:02d}.avg.calB0.ms"
+UVSUB_NATIVE_INPUT_PATTERN="20????????????/*beam{beam:02d}*.20????????????.calB0.ms"
+
+# =============================================================================
+# 9. Native Resolution Continuum Imaging
+# =============================================================================
+WSCLEAN_NATIVE_PATTERN="native_combined/*beam{beam:02d}*.calG6.uvsub.ms"
+WSCLEAN_NATIVE_OPTS="${WSCLEAN_NATIVE_OPTS:-"-data-column DATA -mgain 0.8 -niter 1 -pol xx -weight briggs 0.5 -scale 12asec -size 1536 1536 -auto-threshold 90 -auto-mask 10000"}"
+
+# =============================================================================
+# 10. FastDUCC Transient search
+# =============================================================================
+RUN_FASTDUCC="${SCRIPT_DIR}/scripts/slurm/run_fastducc_beams.sh"
+RUN_FASTDUCC_AGG="${SCRIPT_DIR}/scripts/slurm/run_fastducc_aggregate_chunks.sh"
+# Optional obs-level aggregation (leave unset/comment out to skip)
+# RUN_FASTDUCC_OBSAGG="run_fastducc_aggregate_obs.sh"
+FD_CPUS="1"
+FD_MEM="8G" #mem request for main fastducc driver
+FD_TIME="06:00:00"
+AGG_TIME="00:30:00"
+AGG_CPUS="1"
+AGG_MEM="2G"
+
+CHUNK_GLOB="202?*" #was 202?*
+FD_CHUNK_GLOB="native_combined*" #was 202?*
+KIND="boxcar"
+FASTDUCC_INPUT_PATTERN="native_combined/*beam{beam:02d}*.calB0.uvsub.ms"
 
 # options for fastducc search/no search/plot_cands/only
 # set to 1 to enable the option; leave empty string to disable
@@ -230,63 +256,21 @@ FD_NO_VAR_SEARCH=""
 FD_NO_BOX_SEARCH=""
 FD_PLOT_CANDS_ONLY=""
 
-# -------------------- Stage-aware patterns ----------------
-# Import
-#all
-UVFITS_PATTERN="20??*/*beam*.uvfits"
+# =============================================================================
+# 11. DStools Extraction
+# =============================================================================
+RUN_EXTRACT_DS="${SCRIPT_DIR}/scripts/slurm/run_dstools_extract_cands.sh"
+EXTRACT_SCRIPT="${SCRIPT_DIR}/src/dstools/extract_ds_orchestrator.py"
+EXTRACT_TIME="01:00:00"
+EXTRACT_CPUS="1"
+EXTRACT_MEM="4G"
 
-# Flag native
-FLAG_NATIVE_PATTERN="20??*/*beam*.20????????????.ms"
-
-# Quack flag pattern
-FLAG_QUACK_PATTERN="20??*/*beam{beam:02d}*.20????????????.ms"
-
-# Bandpass inputs (native)
-BANDPASS_INPUT_PATTERN="20??*/*beam{beam:02d}*.20????????????.ms"
-
-# Flag calB0
-FLAG_CALB0_PATTERN="20??*/*beam*.20????????????.calB0.ms"
-
-# Average inputs (calB0)
-AVERAGE_INPUT_PATTERN="20??*/*beam*.20????????????.calB0.ms"
-
-# Flag averaged
-FLAG_AVG_PATTERN="20??*/*beam*.20????????????.avg.calB0.ms"
-
-# Concat inputs (averaged)
-CONCAT_AVG_INPUT_PATTERN="20????????????/*beam{beam:02d}*.20????????????.avg.calB0.ms"
-CONCAT_NATIVE_INPUT_PATTERN="20????????????/*beam{beam:02d}*.20????????????.calG6.uvsub.ms"
-
-# Imaging/selfcal (concatenated)
-WSCLEAN_PATTERN="cont_combined/*beam{beam:02d}.avg.calB0.ms"
-
-# UVSUB on concatenated self-cal result
-UVSUB_CONCAT_INPUT_PATTERN="cont_combined/*beam{beam:02d}.avg.calB0.ms"
-
-# Applycal on native res (start from calB0; loop produces calG<i>)
-APPLYCAL_NATIVE_START_PATTERN="20????????????/*beam{beam:02d}*.20????????????.calB0.ms"
-
-# Crystalball inputs on native res
-# note that B0 will get changed to G<whatever> in the run_crystalball_beams.sh script
-CB_NATIVE_INPUT_PATTERN="20????????????/*beam{beam:02d}*.20????????????.calB0.ms"
-
-# UVSUB on un-concatenated calibrated native resolution data
-UVSUB_NATIVE_INPUT_PATTERN="20????????????/*beam{beam:02d}*.20????????????.calB0.ms"
-
-# fastducc on uvsubbed concatenated native res
-FASTDUCC_INPUT_PATTERN="native_combined/*beam{beam:02d}*.calB0.uvsub.ms"
-
-# Imaging of concatenated native uvsubbed visibilities
-WSCLEAN_NATIVE_PATTERN="native_combined/*beam{beam:02d}*.calG6.uvsub.ms"
-
-# -------------------- dstools extract-ds -----------------
 DS_N_WORKERS="48"
 DS_CPUS="1"
 DS_MEM="8GB"
 DS_WALLTIME="01:00:00"
 DS_QUEUE=""
 DS_PROJECT=""
-
 DS_MIN_SNR="8.0"
 DS_BATCH_SIZE="200"
 DS_RETRIES="1"
@@ -304,6 +288,16 @@ DS_OVERWRITE="false"
 DS_DRY_RUN="false"
 DS_CATALOGUE=""
 DS_SCAN_SCOPE="all"   # 'all' or 'catalogue'
+
+# =============================================================================
+# 12. Utilities
+# =============================================================================
+RUN_COPY_CONTINUUM="${SCRIPT_DIR}/scripts/slurm/run_copy_continuum.sh"
+COPY_TIME="00:15:00"
+COPY_CPUS="1"
+COPY_MEM="2G"
+
+RUN_CLEARCAL="${SCRIPT_DIR}/scripts/slurm/run_clearcal_beams.sh"
 
 # -------------------- Sanity: required dirs --------------
 mkdir -p "${OUT_ROOT}"
