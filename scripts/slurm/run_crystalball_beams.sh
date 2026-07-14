@@ -19,7 +19,7 @@ SOURCE_LIST_PATTERN=${SOURCE_LIST_PATTERN:-"*beam{beam:02d}*.avg.calB0.ms"}
 BIND_SRC=${BIND_SRC:-${USER_PATH:-/fred/oz451}}
 CRYSTALBALL_ENV=${CRYSTALBALL_ENV:-${USER_PATH:-/fred/oz451}/${USER}/scripts/crystalball_nt/}
 CRYSTALBALL_SIF=${CRYSTALBALL_SIF:-}
-CB_SUBDIR=${CB_SUBDIR:-"cont_combined"}
+CB_SUBDIR="${CB_SUBDIR}"
 CB_SRCLIST_SUBDIR=${CB_SRCLIST_SUBDIR:-"cont_combined"}
 IMG_TAG=${IMG_TAG:-"initial"}
 INDEX=${INDEX:-0}
@@ -233,7 +233,6 @@ printf -v beam2 "%02d" "${beam}"
 root="${DATA_ROOT}/${SBID}/${CB_SUBDIR}"
 root_srclist="${DATA_ROOT}/${SBID}/${CB_SRCLIST_SUBDIR}"
 glob="${PATTERN//\{beam:02d\}/$beam2}"
-glob="${glob##*/}"
 if (( SELFCAL == 1 ))
 then
     if (( INDEX > 0 )); then

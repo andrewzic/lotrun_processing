@@ -36,6 +36,11 @@ def parse_args():
     parser.add_argument("--no-clobber", action="store_false", dest="clobber", help="Do not clobber pre-existing files before concatenation")
     parser.set_defaults(clobber=True)
     parser.add_argument(
+        "--no-timeaverage",
+        action="store_true",
+        help="Disable time averaging/regridding with mstransform after concatenation"
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="List planned operations without running concat"
@@ -83,10 +88,18 @@ def main():
 
         if not args.dry_run:
             any_work = True
-            # Assuming all ms are timebinned the same
-            timebin = get_timebin(msnames[0])
-            timebin = f"{timebin}s"
-            do_concat(msnames, output_msname, timebin=timebin)
+            if args.no_timeaverage:
+                print("Time averaging disabled by --no-timeaverage flag.")
+                do_concat(msnames, output_msname, timebin=None)
+            else:
+                # Assuming all ms are timebinned the same
+                timebin = get_timebin(msnames[0])
+                if timebin < 0.5:
+                    print(f"Detected sub-second timebin ({timebin}s < 0.5s). Disabling time averaging to prevent metadata corruption.")
+                    do_concat(msnames, output_msname, timebin=None)
+                else:
+                    timebin_str = f"{timebin}s"
+                    do_concat(msnames, output_msname, timebin=timebin_str)
 
     if not any_work and not args.dry_run:
         print("No concatenations performed (no inputs found).", file=sys.stderr)

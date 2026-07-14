@@ -97,7 +97,10 @@ do
     echo "apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${FLINT_WSCLEAN_SIF} wsclean -name ${outname} ${NEW_WSCLEAN_OPTS} ${msname}"
     apptainer exec --bind "${BIND_SRC}:${BIND_SRC}" "${FLINT_WSCLEAN_SIF}" wsclean -name "${outname}" ${NEW_WSCLEAN_OPTS} "${msname}"
     if (( DELETE_TEMP_IMGS == 1 )); then
-	rm -rf "${outname}*-00*.fits"
+	rm -rf "${outname}"*-00*-dirty.fits
+	rm -rf "${outname}"*-00*-psf.fits
+	rm -rf "${outname}"*-00*-residual.fits
+	rm -rf "${outname}"*-00*-image.fits
 	rm -rf "${outname}-MFS-dirty.fits"
 	rm -rf "${outname}-MFS-psf.fits"
 	rm -rf "${outname}-MFS-residual.fits"

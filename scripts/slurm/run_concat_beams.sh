@@ -27,6 +27,7 @@ printf -v beam2 "%02d" "${beam}"
 root="${DATA_ROOT}/${SBID}"
 glob="${PATTERN//\{beam:02d\}/$beam2}"
 
+
 mkdir -p logs
 
 echo "Job ${SLURM_JOB_ID}.${SLURM_ARRAY_TASK_ID} on $(hostname)"
@@ -35,5 +36,5 @@ echo "SBID=$SBID DATA_ROOT=$DATA_ROOT OUT_ROOT=$OUT_ROOT BEAM=$SLURM_ARRAY_TASK_
 module load apptainer
 
 # ------------------------- EXECUTION LINE -----------------------------
-$PYTHON "$SCRIPT" --sbid "$SBID" --data-root "$DATA_ROOT" --out-root "$OUT_ROOT" --out-subdir "$OUT_SUBDIR" --pattern "${glob}" --beam "$SLURM_ARRAY_TASK_ID"
+$PYTHON "$SCRIPT" --sbid "$SBID" --data-root "$DATA_ROOT" --out-root "$OUT_ROOT" --out-subdir "$OUT_SUBDIR" --pattern "${glob}" --beam "$SLURM_ARRAY_TASK_ID" ${CONCAT_OPTS:-}
 # ---------------------------------------------------------------------

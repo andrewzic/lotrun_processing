@@ -18,6 +18,7 @@ for arg in "$@"; do
     START_STAGE=*) START_STAGE="${arg#START_STAGE=}" ;;
     VERBOSE=*) VERBOSE="${arg#VERBOSE=}" ;;
     NO_SYMLINK=*) NO_SYMLINK="${arg#NO_SYMLINK=}" ;;
+    DRY_RUN=*) DRY_RUN="${arg#DRY_RUN=}" ;;
     *) echo "Unknown argument: ${arg}" >&2; exit 1 ;;
   esac
 done
@@ -83,10 +84,11 @@ PIPELINE_STAGES+=(
   "copy_continuum"
   "flintmask_${IMG_TAGS[6]}_final"
   "uvsub_concat"
-  "concat_native"
   "applycal_native"
-  "cb_native"
+  "predict_native"
   "uvsub_native"
+  "concat_native"
+  "wsclean_native"
   "fastducc"
   "fastducc_aggregate_chunks"
 )
@@ -264,50 +266,60 @@ jid_uvsub_concat=$(chain "$jid_uvsub_concat" "uvsub_concat")
 # -------------------- Apply selfcal to native res, predict, uvsub --------------------
 jid_prev="$jid_uvsub_concat"
 
-# 8) concat beams (native)
-jid_cat_native=$( sbatch_submit "concat_native" "${CONCAT_NATIVE_TIME}" "${CONCAT_CPUS}" "${CONCAT_MEM}" "${ARRAY_SPEC}" "${RUN_CONCAT}" "${jid_uvsub_concat}" \
-           SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" OUT_ROOT="${NATIVE_OUT_ROOT}" OUT_SUBDIR="${NATIVE_OUT_SUBDIR}" PATTERN="${CONCAT_NATIVE_INPUT_PATTERN}" PYTHON="${CONCAT_PYTHON}" SCRIPT="${CONCAT_SCRIPT}" )
-jid_cat_native=$(chain "$jid_cat_native" "concat_native")
-
 #link caltables to native-res directory for applycal script
 _caltable_link="${CONT_OUT_ROOT}/${SBID}/${CONT_CALTABLE_DIR}"
 _caltable_src="${CONT_OUT_ROOT}/${SBID}/${CONT_OUT_SUBDIR}/${CONT_CALTABLE_DIR}"
-if [[ -d "${_caltable_link}" ]]; then
-  echo "Caltable symlink already exists and is valid: ${_caltable_link}"
-elif [[ -L "${_caltable_link}" ]]; then
-  echo "WARN: Dangling symlink at ${_caltable_link}, replacing"
-  ln -sf "${_caltable_src}" "${CONT_OUT_ROOT}/${SBID}"
+if [[ "${DRY_RUN:-0}" == "1" ]]; then
+  echo "DRY local: ln -sf ${_caltable_src} ${CONT_OUT_ROOT}/${SBID}" >&2
 else
-  ln -s "${_caltable_src}" "${CONT_OUT_ROOT}/${SBID}"
+  if [[ -d "${_caltable_link}" ]]; then
+    echo "Caltable symlink already exists and is valid: ${_caltable_link}"
+  elif [[ -L "${_caltable_link}" ]]; then
+    echo "WARN: Dangling symlink at ${_caltable_link}, replacing"
+    ln -sf "${_caltable_src}" "${CONT_OUT_ROOT}/${SBID}"
+  else
+    ln -s "${_caltable_src}" "${CONT_OUT_ROOT}/${SBID}"
+  fi
 fi
 
 # Applycal loop on native-res: apply all calG<i>
 applycal_pattern="${APPLYCAL_NATIVE_START_PATTERN}"
-jid_applycal=$( sbatch_submit "applycal_native" "${APPLYCAL_TIME}" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_APPLYCAL}" "${jid_cat_native}" \
+jid_applycal=$( sbatch_submit "applycal_native" "${APPLYCAL_TIME}" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_APPLYCAL}" "${jid_uvsub_concat}" \
                  SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${applycal_pattern}" FLINT_CASA_SIF="${FLINT_CASA_SIF}" BIND_SRC="${BIND_SRC}" \
                  SCRIPT_DIR="${SCRIPT_DIR}" SCRIPT="${APPLYCAL_SCRIPT}" CAL_DIR="${CONT_CALTABLE_DIR}" EXTENSION="G*" DELETE_PREVIOUS="" )
 jid_applycal=$(chain "$jid_applycal" "applycal_native")
 
 # Predict from 2h continuum model onto native res (pattern is last produced calG<last_idx>)
 # CB_NATIVE_INPUT_PATTERN="${applycal_pattern}"
-jid_cb_native=$( sbatch_submit "cb_native" "${CB_TIME}" "${CB_CPUS}" "${CB_MEM}" "${ARRAY_SPEC}" "${RUN_CB}" "${jid_applycal}" \
+jid_predict_native=$( sbatch_submit "predict_native" "${CB_TIME}" "${CB_CPUS}" "${CB_MEM}" "${ARRAY_SPEC}" "${RUN_CB}" "${jid_applycal}" \
                  SELFCAL="0" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${CB_NATIVE_INPUT_PATTERN}" IMG_TAG="${IMG_TAGS[6]}" OUTPUT_COLUMN="${CB_OUTPUT_COLUMN}" \
                  CB_SUBDIR="${CB_SUBDIR}" CB_SRCLIST_SUBDIR="${CB_SRCLIST_SUBDIR}" SOURCE_LIST_PATTERN="${CB_SOURCE_LIST_PATTERN}" INDEX="${last_idx}" NUM_WORKERS="${CB_NUM_WORKERS}" ROW_CHUNKS="${CB_ROW_CHUNKS}" MODEL_CHUNKS="${CB_MODEL_CHUNKS}" \
                  MEMORY_FRACTION="${CB_MEMORY_FRACTION}" CB_DISTRIBUTED="${CB_DISTRIBUTED}" CB_DASK_MODE="${CB_DASK_MODE}" \
                  CB_DASK_LOCAL_NWORKERS="${CB_DASK_LOCAL_NWORKERS}" CB_DASK_LOCAL_WORKER_CPUS="${CB_DASK_LOCAL_WORKER_CPUS}" CB_DASK_LOCAL_WORKER_MEM="${CB_DASK_LOCAL_WORKER_MEM}" \
                  CB_DASK_SLURM_NWORKERS="${CB_DASK_SLURM_NWORKERS}" CB_DASK_SLURM_WORKER_CPUS="${CB_DASK_SLURM_WORKER_CPUS}" CB_DASK_SLURM_WORKER_MEM="${CB_DASK_SLURM_WORKER_MEM}" \
                  CB_DASK_SLURM_WORKER_TIME="${CB_DASK_SLURM_WORKER_TIME}" CB_DASK_SLURM_ACCOUNT="${CB_DASK_SLURM_ACCOUNT}" CB_DASK_SLURM_PARTITION="${CB_DASK_SLURM_PARTITION}" CB_DASK_SLURM_TMP="${CB_DASK_SLURM_TMP}" \
-                 SCRIPT_DIR="${SCRIPT_DIR}" )
-jid_cb_native=$(chain "$jid_cb_native" "cb_native")
+                 SCRIPT_DIR="${SCRIPT_DIR}" CHANNELS_OUT="${PREDICT_CHANNELS_OUT}" )
+jid_predict_native=$(chain "$jid_predict_native" "predict_native")
 
 # UVSUB on native res (G6 calibrated)
-jid_uvs_native=$( sbatch_submit "uvsub_native" "${UVSUB_TIME}" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_UVSUB}" "${jid_cb_native}" \
+jid_uvs_native=$( sbatch_submit "uvsub_native" "${UVSUB_TIME}" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_UVSUB}" "${jid_predict_native}" \
                   SELFCAL="0" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${UVSUB_NATIVE_INPUT_PATTERN}" FLINT_CASA_SIF="${FLINT_CASA_SIF}" \
                   BIND_SRC="${BIND_SRC}" SCRIPT_DIR="${SCRIPT_DIR}" SCRIPT="${UVSUB_SCRIPT}" INDEX="${last_idx}" EXTENSION="G6" OUT_PREFIX="${UVSUB_OUT_PREFIX}" )
 jid_uvs_native=$(chain "$jid_uvs_native" "uvsub_native")
 
+# 8) concat beams (native)
+jid_cat_native=$( sbatch_submit "concat_native" "${CONCAT_NATIVE_TIME}" "${CONCAT_CPUS}" "${CONCAT_MEM}" "${ARRAY_SPEC}" "${RUN_CONCAT}" "${jid_uvs_native}" \
+           SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" OUT_ROOT="${NATIVE_OUT_ROOT}" OUT_SUBDIR="${NATIVE_OUT_SUBDIR}" PATTERN="${CONCAT_NATIVE_INPUT_PATTERN}" PYTHON="${CONCAT_PYTHON}" SCRIPT="${CONCAT_SCRIPT}" CONCAT_OPTS="--no-timeaverage" )
+jid_cat_native=$(chain "$jid_cat_native" "concat_native")
+
+# quick image of native concatenated uvsubbed visibilities
+jid_wsclean_native=$( sbatch_submit "wsclean_native" "${WSCLEAN_TIME}" "${WSCLEAN_CPUS}" "${WSCLEAN_MEM}" "${ARRAY_SPEC}" "${RUN_WSCLEAN}" "${jid_cat_native}" \
+                      SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_NATIVE_PATTERN}" FLINT_WSCLEAN_SIF="${FLINT_WSCLEAN_SIF}" \
+                      IMG_TAG="native_uvsub" INDEX="0" BIND_SRC="${BIND_SRC}" WSCLEAN_OPTS="${WSCLEAN_NATIVE_OPTS}" )
+jid_wsclean_native=$(chain "$jid_wsclean_native" "wsclean_native")
+
 # fastducc on uvsubbed native MS
-jid_fastducc=$( sbatch_submit "fastducc" "${FD_TIME}" "${FD_CPUS}" "${FD_MEM}" "${ARRAY_SPEC}" "${RUN_FASTDUCC}" "${jid_uvs_native}" \
+jid_fastducc=$( sbatch_submit "fastducc" "${FD_TIME}" "${FD_CPUS}" "${FD_MEM}" "${ARRAY_SPEC}" "${RUN_FASTDUCC}" "${jid_wsclean_native}" \
                 SELFCAL="0" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${FASTDUCC_INPUT_PATTERN}" BIND_SRC="${BIND_SRC}" INDEX="${last_idx}" \
                 EXTENSION="G6" NO_VAR_SEARCH="${FD_NO_VAR_SEARCH}" NO_BOX_SEARCH="${FD_NO_BOX_SEARCH}" PLOT_CANDS_ONLY="${FD_PLOT_CANDS_ONLY}" )
 jid_fastducc=$(chain "$jid_fastducc" "fastducc")
