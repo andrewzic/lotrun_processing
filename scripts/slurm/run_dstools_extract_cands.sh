@@ -67,7 +67,7 @@ else
 fi
 
 # -------------------- Build orchestrator command --------------------
-cmd=( ${PYTHON} src/extract/extract_ds_orchestrator.py
+cmd=( ${PYTHON} src/dstools/extract_ds_orchestrator.py
   --sbid "${SBID}"
   --data-root "${DATA_ROOT}"
   --kind "${KIND}"
