@@ -71,3 +71,6 @@ pipelines/pipeline_10s.SB82418.sh
 pipelines/pipeline.SB82418.contimg.sh
 pipelines/pipeline.SB82418.sh
 src/casa/__pycache__/ms_tools.cpython-310.pyc
+scratch/
+scratch/*
+old_configs/
