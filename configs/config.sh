@@ -54,7 +54,7 @@ BIGARRAY_SPEC="0-500"
 RUN_IMPORT="${SCRIPT_DIR}/scripts/slurm/run_import.sh"
 IMPORT_SCRIPT="${SCRIPT_DIR}/src/casa/import_array.py"
 IMPORT_CPUS="2"
-IMPORT_MEM="2G"
+IMPORT_MEM="1G"
 IMPORT_TIME="00:10:00"
 UVFITS_PATTERN="20??*/*beam*.uvfits"
 
@@ -63,13 +63,15 @@ UVFITS_PATTERN="20??*/*beam*.uvfits"
 # =============================================================================
 RUN_QUACK="${SCRIPT_DIR}/scripts/slurm/run_quack_beams.sh"
 QUACK_SCRIPT="${SCRIPT_DIR}/src/casa/quack_ms_beams.py"
+QUACK_MEM="2G"
+QUACK_TIME="00:15:00"
 FLAG_QUACK_PATTERN="20??*/*beam{beam:02d}*.20????????????.ms"
 
 RUN_FLAG="${SCRIPT_DIR}/scripts/slurm/run_flag.sh"
 FLAG_COLUMN="DATA"
 FLAG_CPUS="4"
 FLAG_MEM="12G"
-FLAG_TIME="00:30:00"
+FLAG_TIME="00:15:00"
 FLAG_NATIVE_PATTERN="20??*/*beam*.20????????????.ms"
 FLAG_CALB0_PATTERN="20??*/*beam*.20????????????.calB0.ms"
 FLAG_AVG_PATTERN="20??*/*beam*.20????????????.avg.calB0.ms"
@@ -82,7 +84,7 @@ FLAGOUTER_SCRIPT="${SCRIPT_DIR}/src/casa/flagouter_beams.py"
 # =============================================================================
 RUN_BANDPASS="${SCRIPT_DIR}/scripts/slurm/run_applycal_beams.sh"
 BANDPASS_SCRIPT="${SCRIPT_DIR}/src/casa/applycal_ms_beams.py"
-BANDPASS_TIME="02:00:00"
+BANDPASS_TIME="01:00:00"
 BANDPASS_INPUT_PATTERN="20??*/*beam{beam:02d}*.20????????????.ms"
 
 RUN_APPLYCAL="${SCRIPT_DIR}/scripts/slurm/run_applycal_beams.sh"
@@ -97,8 +99,8 @@ RUN_AVERAGE="${SCRIPT_DIR}/scripts/slurm/run_average_beams.sh"
 AVERAGE_SCRIPT="${SCRIPT_DIR}/src/casa/average_ms_beams.py"
 AVERAGE_PYTHON="apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CONTAINER_DIR}/flint-containers_casa.sif python3"
 AVERAGE_CPUS="4"
-AVERAGE_MEM="4G"
-AVERAGE_TIME="01:00:00"
+AVERAGE_MEM="2G"
+AVERAGE_TIME="00:15:00"
 TIMEBIN="9.90s"
 AVERAGE_INPUT_PATTERN="20??*/*beam*.20????????????.calB0.ms"
 
@@ -109,9 +111,9 @@ RUN_CONCAT="${SCRIPT_DIR}/scripts/slurm/run_concat_beams.sh"
 CONCAT_SCRIPT="${SCRIPT_DIR}/src/casa/concat_ms_beams.py"
 CONCAT_PYTHON="apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CONTAINER_DIR}/flint-containers_casa.sif python3"
 CONCAT_CPUS="4"
-CONCAT_MEM="16G"
-CONCAT_CONT_TIME="02:00:00"
-CONCAT_NATIVE_TIME="03:00:00"
+CONCAT_MEM="4G"
+CONCAT_CONT_TIME="00:30:00"
+CONCAT_NATIVE_TIME="00:30:00"
 CONCAT_AVG_INPUT_PATTERN="20????????????/*beam{beam:02d}*.20????????????.avg.calB0.ms"
 CONCAT_NATIVE_INPUT_PATTERN="20????????????/*beam{beam:02d}*.20????????????.calG6.uvsub.ms"
 
@@ -121,8 +123,8 @@ CONCAT_NATIVE_INPUT_PATTERN="20????????????/*beam{beam:02d}*.20????????????.calG
 # WSClean
 RUN_WSCLEAN="${SCRIPT_DIR}/scripts/slurm/run_wsclean_beams.sh"
 WSCLEAN_CPUS="4"
-WSCLEAN_MEM="16G"
-WSCLEAN_TIME="01:00:00"
+WSCLEAN_MEM="8G"
+WSCLEAN_TIME="00:30:00"
 WSCLEAN_PATTERN="cont_combined/*beam{beam:02d}.avg.calB0.ms"
 
 # WSClean options (per round)
@@ -229,6 +231,8 @@ UVSUB_NATIVE_INPUT_PATTERN="20????????????/*beam{beam:02d}*.20????????????.calB0
 # 9. Native Resolution Continuum Imaging
 # =============================================================================
 WSCLEAN_NATIVE_PATTERN="native_combined/*beam{beam:02d}*.calG6.uvsub.ms"
+WSCLEAN_NATIVE_MEM="20G"
+WSCLEAN_NATIVE_TIME="02:00:00"
 WSCLEAN_NATIVE_OPTS="${WSCLEAN_NATIVE_OPTS:-"-data-column DATA -mgain 0.8 -niter 1 -pol xx -weight briggs 0.5 -scale 12asec -size 1536 1536 -auto-threshold 90 -auto-mask 10000"}"
 
 # =============================================================================
@@ -239,11 +243,11 @@ RUN_FASTDUCC_AGG="${SCRIPT_DIR}/scripts/slurm/run_fastducc_aggregate_chunks.sh"
 # Optional obs-level aggregation (leave unset/comment out to skip)
 # RUN_FASTDUCC_OBSAGG="run_fastducc_aggregate_obs.sh"
 FD_CPUS="1"
-FD_MEM="8G" #mem request for main fastducc driver
-FD_TIME="06:00:00"
-AGG_TIME="00:30:00"
+FD_MEM="4G" #mem request for main fastducc driver
+FD_TIME="02:00:00"
+AGG_TIME="00:15:00"
 AGG_CPUS="1"
-AGG_MEM="2G"
+AGG_MEM="1G"
 
 CHUNK_GLOB="202?*" #was 202?*
 FD_CHUNK_GLOB="native_combined*" #was 202?*

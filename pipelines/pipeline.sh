@@ -129,7 +129,7 @@ jid_imp=$( sbatch_submit "importuvfits" "${IMPORT_TIME}" "${IMPORT_CPUS}" "${IMP
            SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" UVFITS_PATTERN="${UVFITS_PATTERN}" IMPORT_SCRIPT="${IMPORT_SCRIPT}" FLINT_CASA_SIF="${FLINT_CASA_SIF}" BIND_SRC="${BIND_SRC}" CLOBBER="${CLOBBER}" )
 jid_imp=$(chain "$jid_imp" "importuvfits")
 
-jid_quack=$( sbatch_submit "quack_native" "${FLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM}" "${ARRAY_SPEC}" "${RUN_QUACK}" "$jid_imp" \
+jid_quack=$( sbatch_submit "quack_native" "${QUACK_TIME}" "${FLAG_CPUS}" "${QUACK_MEM}" "${ARRAY_SPEC}" "${RUN_QUACK}" "$jid_imp" \
 SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${FLAG_QUACK_PATTERN}" SCRIPT_DIR="${SCRIPT_DIR}" CASA_SIF="${FLINT_CASA_SIF}" BIND_SRC="${BIND_SRC}" )
 jid_quack=$( chain "$jid_quack" "quack_native" )
 
@@ -139,7 +139,7 @@ jid_fl1=$( sbatch_submit "flag_native" "${FLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM
 jid_fl1=$(chain "$jid_fl1" "flag_native")
 
 # 4) apply bandpass (B0) to native res
-jid_ac1=$( sbatch_submit "bandpass_B0" "${APPLYCAL_TIME}" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_BANDPASS}" "${jid_fl1}" \
+jid_ac1=$( sbatch_submit "bandpass_B0" "${BANDPASS_TIME}" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_BANDPASS}" "${jid_fl1}" \
            SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${BANDPASS_INPUT_PATTERN}" FLINT_CASA_SIF="${FLINT_CASA_SIF}" BIND_SRC="${BIND_SRC}" \
            SCRIPT="${BANDPASS_SCRIPT}" CAL_DIR="cal" EXTENSION="B0" DELETE_PREVIOUS="--delete-previous" )
 jid_ac1=$(chain "$jid_ac1" "bandpass_B0")
@@ -313,13 +313,13 @@ jid_cat_native=$( sbatch_submit "concat_native" "${CONCAT_NATIVE_TIME}" "${CONCA
 jid_cat_native=$(chain "$jid_cat_native" "concat_native")
 
 # quick image of native concatenated uvsubbed visibilities
-jid_wsclean_native=$( sbatch_submit "wsclean_native" "${WSCLEAN_TIME}" "${WSCLEAN_CPUS}" "${WSCLEAN_MEM}" "${ARRAY_SPEC}" "${RUN_WSCLEAN}" "${jid_cat_native}" \
+jid_wsclean_native=$( sbatch_submit "wsclean_native" "${WSCLEAN_NATIVE_TIME}" "${WSCLEAN_CPUS}" "${WSCLEAN_NATIVE_MEM}" "${ARRAY_SPEC}" "${RUN_WSCLEAN}" "${jid_cat_native}" \
                       SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_NATIVE_PATTERN}" FLINT_WSCLEAN_SIF="${FLINT_WSCLEAN_SIF}" \
                       IMG_TAG="native_uvsub" INDEX="0" BIND_SRC="${BIND_SRC}" WSCLEAN_OPTS="${WSCLEAN_NATIVE_OPTS}" )
 jid_wsclean_native=$(chain "$jid_wsclean_native" "wsclean_native")
 
 # fastducc on uvsubbed native MS
-jid_fastducc=$( sbatch_submit "fastducc" "${FD_TIME}" "${FD_CPUS}" "${FD_MEM}" "${ARRAY_SPEC}" "${RUN_FASTDUCC}" "${jid_wsclean_native}" \
+jid_fastducc=$( sbatch_submit "fastducc" "${FD_TIME}" "${FD_CPUS}" "${FD_MEM}" "${ARRAY_SPEC}" "${RUN_FASTDUCC}" "${jid_cat_native}" \
                 SELFCAL="0" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${FASTDUCC_INPUT_PATTERN}" BIND_SRC="${BIND_SRC}" INDEX="${last_idx}" \
                 EXTENSION="G6" NO_VAR_SEARCH="${FD_NO_VAR_SEARCH}" NO_BOX_SEARCH="${FD_NO_BOX_SEARCH}" PLOT_CANDS_ONLY="${FD_PLOT_CANDS_ONLY}" )
 jid_fastducc=$(chain "$jid_fastducc" "fastducc")

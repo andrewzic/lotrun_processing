@@ -60,6 +60,8 @@ FIXDIR_SCRIPT="${SCRIPT_DIR}/scripts/utils/fix_dir.py"
 
 RUN_QUACK="${SCRIPT_DIR}/scripts/slurm/run_quack_beams.sh"
 QUACK_SCRIPT="${SCRIPT_DIR}/src/casa/quack_ms_beams.py"
+QUACK_MEM="2G"
+QUACK_TIME="00:15:00"
 
 RUN_UNFLAG="${SCRIPT_DIR}/scripts/slurm/run_unflag_beams.sh"
 UNFLAG_TIME="00:30:00"
@@ -68,7 +70,7 @@ RUN_FLAG="${SCRIPT_DIR}/scripts/slurm/run_flag.sh"
 FLAG_COLUMN="DATA"
 FLAG_CPUS="4"
 FLAG_MEM="12G"
-FLAG_TIME="00:30:00"
+FLAG_TIME="00:15:00"
 
 RUN_FLAGOUTER="${SCRIPT_DIR}/scripts/slurm/run_flagouter_beams.sh"
 FLAGOUTER_SCRIPT="${SCRIPT_DIR}/src/casa/flagouter_beams.py"
@@ -79,7 +81,7 @@ FLAG_OUTER="False" # Whether to flag outer antennas to match the inner antennas 
 # =============================================================================
 RUN_BANDPASS="${SCRIPT_DIR}/scripts/slurm/run_applycal_beams.sh"
 BANDPASS_SCRIPT="${SCRIPT_DIR}/src/casa/applycal_ms_beams.py"
-BANDPASS_TIME="02:00:00"
+BANDPASS_TIME="01:00:00"
 
 RUN_APPLYCAL="${SCRIPT_DIR}/scripts/slurm/run_applycal_beams.sh"
 APPLYCAL_SCRIPT="${SCRIPT_DIR}/src/casa/applycal_ms_beams.py"
@@ -92,8 +94,8 @@ RUN_AVERAGE="${SCRIPT_DIR}/scripts/slurm/run_average_beams.sh"
 AVERAGE_SCRIPT="${SCRIPT_DIR}/src/casa/average_ms_beams.py"
 AVERAGE_PYTHON="apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CONTAINER_DIR}/flint-containers_casa.sif python3"
 AVERAGE_CPUS="4"
-AVERAGE_MEM="4G"
-AVERAGE_TIME="01:00:00"
+AVERAGE_MEM="2G"
+AVERAGE_TIME="00:15:00"
 TIMEBIN="9.90s"
 
 # =============================================================================
@@ -103,8 +105,8 @@ RUN_CONCAT="${SCRIPT_DIR}/scripts/slurm/run_concat_beams.sh"
 CONCAT_SCRIPT="${SCRIPT_DIR}/src/casa/concat_ms_beams.py"
 CONCAT_PYTHON="apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CONTAINER_DIR}/flint-containers_casa.sif python3"
 CONCAT_CPUS="4"
-CONCAT_MEM="16G"
-CONCAT_TIME="01:00:00"
+CONCAT_MEM="4G"
+CONCAT_TIME="00:30:00"
 
 # =============================================================================
 # 7. Continuum Imaging & Self-Calibration
@@ -112,8 +114,8 @@ CONCAT_TIME="01:00:00"
 # WSClean
 RUN_WSCLEAN="${SCRIPT_DIR}/scripts/slurm/run_wsclean_beams.sh"
 WSCLEAN_CPUS="4"
-WSCLEAN_MEM="32G"
-WSCLEAN_TIME="04:00:00"
+WSCLEAN_MEM="8G"
+WSCLEAN_TIME="00:30:00"
 WSCLEAN_PATTERN="${NATIVE10S_PATTERN}"
 
 # WSCLEAN_OPTS0..6 env vars can still be used to override individual rounds from outside.
@@ -198,11 +200,11 @@ UVSUB_OUT_PREFIX="uvsub"
 RUN_FASTDUCC="${SCRIPT_DIR}/scripts/slurm/run_fastducc_beams.sh"
 RUN_FASTDUCC_AGG="${SCRIPT_DIR}/scripts/slurm/run_fastducc_aggregate_chunks.sh"
 FD_CPUS="1"
-FD_MEM="8G"
-FD_TIME="06:00:00"
-AGG_TIME="00:30:00"
+FD_MEM="4G"
+FD_TIME="02:00:00"
+AGG_TIME="00:15:00"
 AGG_CPUS="1"
-AGG_MEM="2G"
+AGG_MEM="1G"
 
 CHUNK_GLOB="202?*"
 KIND="boxcar"
