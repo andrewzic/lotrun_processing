@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import os
+import shutil
 from datetime import datetime
 try:
     from casaconfig import config
@@ -13,7 +14,7 @@ except Exception:
     except Exception:
         pass
 
-from ms_tools import has_model_column, solve_gain_phase, apply_gain
+from ms_tools import has_model_column, solve_gain_phase, apply_gain, split_to_nspws, apply_gain_and_combine
 
 def parse_args():
     p = argparse.ArgumentParser(description="Phase-only self-calibration loop in CASA.")
@@ -30,6 +31,7 @@ def parse_args():
     p.add_argument("--caltable-prefix", default="selfcal_p", help="Prefix for output cal tables.")
     p.add_argument("--plot-dir", default="plots", help="Directory to store diagnostic plots.")
     p.add_argument("--apply-calwt", type=str, default="False", help="applycal calwt flag (True/False).")
+    p.add_argument("--nspws", type=int, default=16, help="Number of spectral windows to split into for calibration.")
     return p.parse_args()
 
 def main():
@@ -38,7 +40,7 @@ def main():
     index = args.index
     
     solint = args.solint
-    print(f"[{datetime.now().isoformat()}] RUNNING SELF CALIBRATION: ms={ms}; INDEX={index}; solint={solint}")
+    print(f"[{datetime.now().isoformat()}] RUNNING SELF CALIBRATION: ms={ms}; INDEX={index}; solint={solint}; nspws={args.nspws}")
     if args.index == 1:
         old_ms = args.ms
     elif args.index > 1:
@@ -73,21 +75,25 @@ def main():
     elif "scienceData" in args.ms:
         # continuum data is already bp calibrated and ends with _averaged_cal.leakage.ms
         caltable = os.path.join(os.path.dirname(ms), "caltables", f"{os.path.basename(ms).replace('_averaged_cal.leakage.ms', '')}_{args.caltable_prefix}.sol{index}_{solint}.G{index}")
-    # CASA table names must be directory-like; ensure no forbidden chars:
-    #caltable = caltable.replace(":", "").replace("/", "_")
-    solve_gain_phase(old_ms, caltable, solint, args)
-    #os.makedirs(os.path.join(os.path.dirname(ms), 'caltables'))
-    
-    figfile = os.path.join(real_plotdir, os.path.basename(caltable) + ".selfcal.png")
-    #plot_solutions(caltable, figfile)
-    #produced_tables.append(caltable)
 
-    caltables = [caltable]
-    apply_gain(old_ms, new_ms, caltables, args)
+    if args.nspws > 1:
+        # Multi-SPW workflow
+        old_ms_multispw = split_to_nspws(old_ms, args.nspws)
+
+        # Solve for gains on the split multi-SPW MS
+        solve_gain_phase(old_ms_multispw, caltable, solint, args)
+
+        # Apply calibration to the split multi-SPW MS and combine back
+        apply_gain_and_combine(old_ms_multispw, old_ms, new_ms, caltable, args)
+
+    else:
+        # Standard single-SPW workflow
+        solve_gain_phase(old_ms, caltable, solint, args)
+        caltables = [caltable]
+        apply_gain(old_ms, new_ms, caltables, args)
+
     print("Self-cal complete. Solutions applied to CORRECTED_DATA. You can image that column.")
     print(f"Produced caltables: {caltable}")
-    #for t in produced_tables:
-    #print(f"  - {t}")
 
 if __name__ == "__main__":
     main()

@@ -158,6 +158,7 @@ declare -ag SC_INDEX=(1 2 3 4 5 6)
 declare -ag SC_CALMODE=("p" "p" "p" "p" "ap" "ap")
 declare -ag SC_SOLINT=("480s" "300s" "120s" "30s" "600s" "300s")
 declare -ag SC_PREFIX=("selfcal1_p" "selfcal2_p" "selfcal3_p" "selfcal4_p" "selfcal5_ap" "selfcal6_ap")
+declare -ag SC_NSPWS=(16 16 16 16 16 16)
 
 # =============================================================================
 # 8. Predict & UVSub

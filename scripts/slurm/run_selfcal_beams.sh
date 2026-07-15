@@ -31,6 +31,7 @@ PARANG=${PARANG:-""}               # set to non-empty (e.g., "1") to enable
 CALTABLE_PREFIX=${CALTABLE_PREFIX:-"selfcal_p"}
 PLOT_DIR=${PLOT_DIR:-"plots"}
 APPLY_CALWT=${APPLY_CALWT:-"True"}
+NSPWS=${NSPWS:-16}
 # ---------------------------------------------------------------------------
 
 module load apptainer
@@ -68,5 +69,6 @@ for ms in "${msnames[@]}"; do
       --caltable-prefix "${CALTABLE_PREFIX}" \
       --plot-dir "${PLOT_DIR}" \
       $( [[ -n "${PARANG}" ]] && echo "--parang" ) \
-      --apply-calwt "${APPLY_CALWT}"
+      --apply-calwt "${APPLY_CALWT}" \
+      --nspws "${NSPWS}"
 done

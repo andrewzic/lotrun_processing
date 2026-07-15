@@ -455,3 +455,84 @@ def run_uvsub(msname: str, out_prefix: str = "uvsub") -> None:
     print(f"Running uvsub: {msname} -> {outputvis}")
     uvsub(vis=msname)
     split(vis=msname, outputvis=outputvis, datacolumn="corrected")
+
+def split_to_nspws(old_ms: str, nspws: int) -> str:
+    """Split old_ms into nspws spectral windows."""
+    from casatasks import mstransform
+    old_ms_multispw = old_ms.replace(".ms", f".{nspws}spw.ms")
+    if os.path.isdir(old_ms_multispw):
+        print(f"[{datetime.now().isoformat()}] Removing existing temporary multi-SPW MS: {old_ms_multispw}")
+        shutil.rmtree(old_ms_multispw)
+
+    print(f"[{datetime.now().isoformat()}] Splitting {old_ms} to {nspws} SPWs: {old_ms_multispw}")
+    mstransform(
+        vis=old_ms,
+        outputvis=old_ms_multispw,
+        regridms=True,
+        nspw=nspws,
+        mode="channel_b",
+        datacolumn="all",
+        combinespws=False,
+        nchan=-1,
+        start=0,
+        width=1,
+        chanbin=1,
+        createmms=False,
+    )
+    return old_ms_multispw
+
+def apply_gain_and_combine(old_ms_multispw: str, old_ms: str, new_ms: str, caltable: str, args) -> None:
+    """Apply caltable, combine back to 1 SPW, restore FEED/SOURCE sub-tables, split to new_ms, and clean up."""
+    from casatasks import applycal, cvel, split
+    from casatools import table
+
+    # Apply calibration to the split multi-SPW MS
+    print(f"[{datetime.now().isoformat()}] applycal (multi-spw): vis={old_ms_multispw}, gaintable={caltable}")
+    applycal(
+        vis=old_ms_multispw,
+        field=args.field,
+        spw=args.spw,
+        gaintable=[caltable],
+        gainfield=[""],
+        interp=["linear,nearest"],
+        calwt=[args.apply_calwt.lower() == "true"],
+        parang=args.parang,
+        flagbackup=True
+    )
+
+    old_ms_corrected_1spw = old_ms_multispw.replace(f".{args.nspws}spw.ms", ".1spw.ms")
+    if os.path.isdir(old_ms_corrected_1spw):
+        print(f"[{datetime.now().isoformat()}] Removing existing temporary 1-SPW MS: {old_ms_corrected_1spw}")
+        shutil.rmtree(old_ms_corrected_1spw)
+
+    print(f"[{datetime.now().isoformat()}] Combining multi-SPW MS back to 1 SPW: {old_ms_corrected_1spw}")
+    cvel(
+        vis=old_ms_multispw,
+        outputvis=old_ms_corrected_1spw,
+        mode="channel_b",
+        nchan=-1,
+        start=0,
+        width=1,
+    )
+
+    print(f"[{datetime.now().isoformat()}] Overwriting FEED and SOURCE tables from {old_ms} to {old_ms_corrected_1spw} to prevent corruption")
+    for ms_table in ("FEED", "SOURCE"):
+        dest_table = os.path.join(old_ms_corrected_1spw, ms_table)
+        if os.path.isdir(dest_table):
+            shutil.rmtree(dest_table)
+        tb_orig = table()
+        tb_orig.open(os.path.join(old_ms, ms_table))
+        tb_orig.copy(newtablename=dest_table)
+        tb_orig.close()
+
+    # Split corrected data to new_ms
+    if os.path.isdir(new_ms):
+        print(f"[{datetime.now().isoformat()}] Removing existing output MS: {new_ms}")
+        shutil.rmtree(new_ms)
+
+    print(f"[{datetime.now().isoformat()}] split (corrected 1spw to new_ms): vis={old_ms_corrected_1spw}, outputvis={new_ms}")
+    split(vis=old_ms_corrected_1spw, outputvis=new_ms, datacolumn="corrected")
+
+    # Clean up temporary MSes
+    shutil.rmtree(old_ms_multispw, ignore_errors=True)
+    shutil.rmtree(old_ms_corrected_1spw, ignore_errors=True)

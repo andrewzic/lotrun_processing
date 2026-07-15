@@ -74,3 +74,6 @@ src/casa/__pycache__/ms_tools.cpython-310.pyc
 scratch/
 scratch/*
 old_configs/
+dstools/*
+dstools/
+selfcal.py
