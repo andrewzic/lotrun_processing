@@ -135,7 +135,22 @@ for r in "${!SC_INDEX[@]}"; do
     SCRIPT_DIR="${SCRIPT_DIR}" SCRIPT="${SELFCAL_SCRIPT}" INDEX="${idx}" CALMODE="${SC_CALMODE[$r]}" SOLINT="${SC_SOLINT[$r]}" \
     FIELD="${SC_FIELD}" SPW="${SC_SPW}" REFANT="${SC_REFANT}" COMBINE="${SC_COMBINE}" MINSNR="${SC_MINSNR}" PARANG="${SC_PARANG}" \
     CALTABLE_PREFIX="${SC_PREFIX[$r]}" PLOT_DIR="plots" APPLY_CALWT="${SC_APPLY_CALWT}" NSPWS="${nspws_val}" )
-  jid_prev=$(chain "$jid_sc" "selfcal_${img_tag}")
+
+  do_flag=0
+  if [[ "${SC_CALMODE[$r]}" == "ap" ]]; then
+    do_flag=1
+  elif [[ "${SC_CALMODE[$((r+1))]:-}" == "ap" ]]; then
+    do_flag=1
+  fi
+
+  if (( do_flag == 1 )); then
+    flag_pattern="${FLAG_SELFCAL_PATTERN//\{index\}/${idx}}"
+    jid_sc_flag=$( sbatch_submit "flag_selfcal_${img_tag}" "${FLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM}" "${ARRAY_SPEC}" "${RUN_FLAG}" "${jid_sc}" \
+                  SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${flag_pattern}" SCRIPT_DIR="${SCRIPT_DIR}" COLUMN="${FLAG_COLUMN}" )
+    jid_prev=$(chain "$jid_sc_flag" "flag_selfcal_${img_tag}")
+  else
+    jid_prev=$(chain "$jid_sc" "selfcal_${img_tag}")
+  fi
 done
 
 # Final image/mask/predict at last index

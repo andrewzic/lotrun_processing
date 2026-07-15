@@ -10,9 +10,11 @@ set -euo pipefail
 #   Priority: CLI arg > environment variable > default value
 #   VERBOSE=1  — after each stage, echo the submitted command name and Slurm job ID to stderr
 
+SHOW_HELP=0
 # Parse KEY=VALUE command-line arguments
 for arg in "$@"; do
   case "${arg}" in
+    -h|--help|help) SHOW_HELP=1 ;;
     SBID=*)    SBID="${arg#SBID=}" ;;
     CONFIG=*)  CONFIG="${arg#CONFIG=}" ;;
     START_STAGE=*) START_STAGE="${arg#START_STAGE=}" ;;
@@ -39,7 +41,7 @@ CONTAINER_DIR="${CONTAINER_DIR:-${USER_PATH:-/fred/oz451}/${USER}/containers}"
 LOG_DIR="${LOG_DIR:-${USER_PATH:-/fred/oz451}/${USER}/lotrun_processing/logs}"
 SCRIPT_DIR="${SCRIPT_DIR:-${USER_PATH:-/fred/oz451}/$USER/scripts/lotrun_processing}"
 
-if [[ "${NO_SYMLINK:-0}" == "0" ]]; then
+if [[ "${NO_SYMLINK:-0}" == "0" ]] && [[ "${SHOW_HELP}" == "0" ]]; then
   echo "doing symlink"
   # 1) symlink uvfits
   if [[ "${DRY_RUN:-0}" == "1" ]]; then
@@ -56,9 +58,17 @@ if [[ -f "${CONFIG}" ]]; then
     source "${CONFIG}"
     echo "sourced config"
 else
-  echo "Config file not found: ${CONFIG}"
-  echo "Create one (e.g., pipeline.config.sh) or pass CONFIG=/path/to/file"
-  exit 1
+  if [[ "${SHOW_HELP}" == "1" ]]; then
+    echo "Warning: Config file not found (${CONFIG}). START_STAGE list will be incomplete." >&2
+    SC_INDEX=(0)
+    IMG_TAGS=("dummy" "dummy")
+    CONCAT_NATIVE_INPUT_PATTERN="dummy"
+    WSCLEAN_NATIVE_PATTERN="dummy"
+  else
+    echo "Config file not found: ${CONFIG}"
+    echo "Create one (e.g., pipeline.config.sh) or pass CONFIG=/path/to/file"
+    exit 1
+  fi
 fi
 __DRY_JID_SEQ="${DRY_FAKE_START:-490000}"
 
@@ -83,6 +93,16 @@ declare -ag PIPELINE_STAGES=(
 for r in "${!SC_INDEX[@]}"; do
   img_tag="${IMG_TAGS[$((r+1))]}"
   PIPELINE_STAGES+=( "wsclean_${img_tag}" "flintmask_${img_tag}" "selfcal_${img_tag}" )
+
+  do_flag=0
+  if [[ "${SC_CALMODE[$r]}" == "ap" ]]; then
+    do_flag=1
+  elif [[ "${SC_CALMODE[$((r+1))]:-}" == "ap" ]]; then
+    do_flag=1
+  fi
+  if (( do_flag == 1 )); then
+    PIPELINE_STAGES+=( "flag_selfcal_${img_tag}" )
+  fi
 done
 PIPELINE_STAGES+=(
   "wsclean_${IMG_TAGS[${last_idx}]}_final"
@@ -103,6 +123,28 @@ fi
 for kind in "boxcar"; do
   PIPELINE_STAGES+=( "dstools_extract_${kind}" )
 done
+
+if [[ "${SHOW_HELP}" == "1" ]]; then
+  echo "============================================================================="
+  echo " ASKAP high-time-res pipeline"
+  echo "============================================================================="
+  echo "Usage: ./pipeline.sh [SBID=SBXXXXXX] [CONFIG=/path/to/config.sh] [START_STAGE=stage_name] ..."
+  echo ""
+  echo "Arguments (KEY=VALUE format):"
+  echo "  SBID          Scheduling Block ID (default: ${DEFAULT_SBID:-SB77974})"
+  echo "  CONFIG        Path to configuration file (default: config.sh)"
+  echo "  START_STAGE   Stage to start the pipeline from (see list below)"
+  echo "  VERBOSE       Set to 1 to echo submitted command name and job ID to stderr (default: 0)"
+  echo "  NO_SYMLINK    Set to 1 to disable uvfits symlinking (default: 0)"
+  echo "  DRY_RUN       Set to 1 to simulate submission without actually submitting (default: 0)"
+  echo ""
+  echo "Available START_STAGE selections (based on ${CONFIG}):"
+  for stage in "${PIPELINE_STAGES[@]}"; do
+    echo "  - ${stage}"
+  done
+  echo "============================================================================="
+  exit 0
+fi
 
 source "$(dirname "$0")/slurm_helpers.sh"
 
@@ -229,7 +271,22 @@ for r in "${!SC_INDEX[@]}"; do
             SCRIPT_DIR="${SCRIPT_DIR}" SCRIPT="${SELFCAL_SCRIPT}" INDEX="${idx}" CALMODE="${SC_CALMODE[$r]}" SOLINT="${SC_SOLINT[$r]}" \
             FIELD="${SC_FIELD}" SPW="${SC_SPW}" REFANT="${SC_REFANT}" COMBINE="${SC_COMBINE}" MINSNR="${SC_MINSNR}" PARANG="${SC_PARANG}" \
             CALTABLE_PREFIX="${SC_PREFIX[$r]}" PLOT_DIR="plots" APPLY_CALWT="${SC_APPLY_CALWT}" NSPWS="${nspws_val}" )
-  jid_fm_prev=$(chain "$jid_sc" "selfcal_${img_tag}")
+
+  do_flag=0
+  if [[ "${SC_CALMODE[$r]}" == "ap" ]]; then
+    do_flag=1
+  elif [[ "${SC_CALMODE[$((r+1))]:-}" == "ap" ]]; then
+    do_flag=1
+  fi
+
+  if (( do_flag == 1 )); then
+    flag_pattern="${FLAG_SELFCAL_PATTERN//\{index\}/${idx}}"
+    jid_sc_flag=$( sbatch_submit "flag_selfcal_${img_tag}" "${FLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM}" "${ARRAY_SPEC}" "${RUN_FLAG}" "${jid_sc}" \
+                  SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${flag_pattern}" SCRIPT_DIR="${SCRIPT_DIR}" COLUMN="${FLAG_COLUMN}" )
+    jid_fm_prev=$(chain "$jid_sc_flag" "flag_selfcal_${img_tag}")
+  else
+    jid_fm_prev=$(chain "$jid_sc" "selfcal_${img_tag}")
+  fi
 done
 
 # Final image/mask after last A+P round
@@ -237,7 +294,8 @@ last_idx="${SC_INDEX[$((${#SC_INDEX[@]}-1))]}"
 
 jid_img_final=$( sbatch_submit "wsclean_${IMG_TAGS[${last_idx}]}_final" "${WSCLEAN_TIME}" "${WSCLEAN_CPUS}" "${WSCLEAN_MEM}" "${ARRAY_SPEC}" "${RUN_WSCLEAN}" "${jid_fm_prev}" \
                  SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" FLINT_WSCLEAN_SIF="${FLINT_WSCLEAN_SIF}" \
-                 IMG_TAG="${IMG_TAGS[${last_idx}]}" INDEX="${last_idx}" BIND_SRC="${BIND_SRC}" WSCLEAN_OPTS="${WSCLEAN_OPTS[${last_idx}]}" FITS_MASK_TAG="${IMG_TAGS[${last_idx}]}" )
+                 IMG_TAG="${IMG_TAGS[${last_idx}]}" INDEX="${last_idx}" BIND_SRC="${BIND_SRC}" WSCLEAN_OPTS="${WSCLEAN_OPTS[${last_idx}]}" FITS_MASK_TAG="${IMG_TAGS[${last_idx}]}" \
+                 KEEP_RESIDUALS=1 )
 jid_img_final=$(chain "$jid_img_final" "wsclean_${IMG_TAGS[${last_idx}]}_final")
 
 jid_cp_final=$(
