@@ -71,6 +71,7 @@ FLAG_COLUMN="DATA"
 FLAG_CPUS="4"
 FLAG_MEM="12G"
 FLAG_TIME="00:15:00"
+FLAG_SELFCAL_PATTERN="*beam{beam:02d}.selfcal_{index}.ms"
 
 RUN_FLAGOUTER="${SCRIPT_DIR}/scripts/slurm/run_flagouter_beams.sh"
 FLAGOUTER_SCRIPT="${SCRIPT_DIR}/src/casa/flagouter_beams.py"
