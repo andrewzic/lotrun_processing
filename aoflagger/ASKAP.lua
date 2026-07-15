@@ -19,16 +19,16 @@ that is packaged in aoflagger. The main differences are:
    -- { 'I', 'Q' } to flag only on Stokes I and Q
    local flag_polarizations = input:get_polarizations()
 
-   local base_threshold = 1.4  -- lower means more sensitive detection
+   local base_threshold = 1.1  -- lower means more sensitive detection
    -- How to flag complex values, options are: phase, amplitude, real, imaginary, complex
    -- May have multiple values to perform detection multiple times
    local flag_representations = { "amplitude" }
-   local iteration_count = 3  -- how many iterations to perform?
+   local iteration_count = 4  -- how many iterations to perform?
    local threshold_factor_step = 2.0 -- How much to increase the sensitivity each iteration?
    -- If the following variable is true, the strategy will consider existing flags
    -- as bad data. It will exclude flagged data from detection, and make sure that any existing
    -- flags on input will be flagged on output. If set to false, existing flags are ignored.
-   local exclude_original_flags = false
+   local exclude_original_flags = true
    local frequency_resize_factor = 2.0 -- Amount of "extra" smoothing in frequency direction
    local transient_threshold_factor = 1.0 -- decreasing this value makes detection of transient RFI more aggressive
 
