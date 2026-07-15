@@ -85,7 +85,7 @@ BANDPASS_TIME="01:00:00"
 
 RUN_APPLYCAL="${SCRIPT_DIR}/scripts/slurm/run_applycal_beams.sh"
 APPLYCAL_SCRIPT="${SCRIPT_DIR}/src/casa/applycal_ms_beams.py"
-APPLYCAL_TIME="04:00:00"
+APPLYCAL_TIME="01:30:00"
 
 # =============================================================================
 # 5. Averaging
@@ -133,7 +133,7 @@ WSCLEAN_OPTS[6]="${WSCLEAN_OPTS6:-"-data-column DATA -save-source-list -mgain 0.
 RUN_FLINT_MASK="${SCRIPT_DIR}/scripts/slurm/run_flintmask_beams.sh"
 FM_CPUS="1"
 FM_MEM="1G"
-FM_TIME="00:30:00"
+FM_TIME="00:15:00"
 FLOOD_FILL_POSITIVE_SEED_CLIP="1.1"
 FLOOD_FILL_POSITIVE_FLOOD_CLIP="0.7"
 FLOOD_FILL_MAC_BOX_SIZE="350"
@@ -144,7 +144,7 @@ RUN_SELFCAL="${SCRIPT_DIR}/scripts/slurm/run_selfcal_beams.sh"
 SELFCAL_SCRIPT="${SCRIPT_DIR}/src/casa/selfcal_ms_beams.py"
 SC_CPUS="8"
 SC_MEM="4G"
-SC_TIME="02:00:00"
+SC_TIME="00:15:00"
 SC_FIELD=""
 SC_SPW=""
 SC_REFANT=""
@@ -191,7 +191,7 @@ CB_DASK_WORKER_MEM="4G"
 # UVSub
 RUN_UVSUB="${SCRIPT_DIR}/scripts/slurm/run_uvsub_beams.sh"
 UVSUB_SCRIPT="${SCRIPT_DIR}/src/casa/uvsub_ms_beams.py"
-UVSUB_TIME="02:00:00"
+UVSUB_TIME="01:00:00"
 UVSUB_OUT_PREFIX="uvsub"
 
 

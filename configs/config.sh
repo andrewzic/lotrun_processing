@@ -89,7 +89,7 @@ BANDPASS_INPUT_PATTERN="20??*/*beam{beam:02d}*.20????????????.ms"
 
 RUN_APPLYCAL="${SCRIPT_DIR}/scripts/slurm/run_applycal_beams.sh"
 APPLYCAL_SCRIPT="${SCRIPT_DIR}/src/casa/applycal_ms_beams.py"
-APPLYCAL_TIME="04:00:00"
+APPLYCAL_TIME="01:30:00"
 APPLYCAL_NATIVE_START_PATTERN="20????????????/*beam{beam:02d}*.20????????????.calB0.ms"
 
 # =============================================================================
@@ -145,7 +145,7 @@ WSCLEAN_OPTS[7]="${WSCLEAN_OPTS7:-"-data-column DATA -save-source-list -multisca
 RUN_FLINT_MASK="${SCRIPT_DIR}/scripts/slurm/run_flintmask_beams.sh"
 FM_CPUS="1"
 FM_MEM="1G"
-FM_TIME="00:30:00"
+FM_TIME="00:15:00"
 FLOOD_FILL_POSITIVE_SEED_CLIP="1.1"
 FLOOD_FILL_POSITIVE_FLOOD_CLIP="0.7"
 FLOOD_FILL_MAC_BOX_SIZE="350"
@@ -156,7 +156,7 @@ RUN_SELFCAL="${SCRIPT_DIR}/scripts/slurm/run_selfcal_beams.sh"
 SELFCAL_SCRIPT="${SCRIPT_DIR}/src/casa/selfcal_ms_beams.py"
 SC_CPUS="8"
 SC_MEM="4G"
-SC_TIME="02:00:00"
+SC_TIME="00:15:00"
 SC_FIELD=""
 SC_SPW=""
 SC_REFANT=""
@@ -180,14 +180,17 @@ PREDICT_TOOL="wsclean" # 'wsclean' or 'crystalball'
 
 if [[ "${PREDICT_TOOL}" == "wsclean" ]]; then
     RUN_CB="${SCRIPT_DIR}/scripts/slurm/run_wsclean_predict_beams.sh"
+    CB_TIME="01:00:00"
+    CB_CPUS="4"
+    CB_MEM="8G"
 else
     RUN_CB="${SCRIPT_DIR}/scripts/slurm/run_crystalball_beams.sh"
+    CB_TIME="03:15:00"
+    CB_CPUS="4"
+    CB_MEM="32G"
 fi
 
 # Crystalball specifics
-CB_TIME="03:15:00"
-CB_CPUS="4"
-CB_MEM="32G"
 CB_SOURCE_LIST_PATTERN="*beam{beam:02d}*.avg.calB0.ms"
 CB_SUBDIR=""
 CB_SRCLIST_SUBDIR="cont_combined"
@@ -225,7 +228,7 @@ CB_DASK_LOCAL_DIR="${SCRIPT_DIR}/dask-worker-space"
 # UVSub
 RUN_UVSUB="${SCRIPT_DIR}/scripts/slurm/run_uvsub_beams.sh"
 UVSUB_SCRIPT="${SCRIPT_DIR}/src/casa/uvsub_ms_beams.py"
-UVSUB_TIME="03:00:00"
+UVSUB_TIME="01:00:00"
 UVSUB_OUT_PREFIX="uvsub"
 UVSUB_CONCAT_INPUT_PATTERN="cont_combined/*beam{beam:02d}.avg.calB0.ms"
 UVSUB_NATIVE_INPUT_PATTERN="20????????????/*beam{beam:02d}*.20????????????.calB0.ms"
