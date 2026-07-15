@@ -55,7 +55,8 @@ def main():
     if os.path.exists(msfile):
         if args.clobber:
             print(f"INFO: clobber is set to {args.clobber} and {msfile} exists. Overwriting {msfile}")
-            shutil.rmtree(msfile)
+            from ms_tools import remove_ms_safely
+            remove_ms_safely(msfile)
             importuvfits(fitsfile=uvfile, vis=msfile)
         else:
             print(f"INFO: clobber is set to {args.clobber} and {msfile} exists. Skipping {msfile}")

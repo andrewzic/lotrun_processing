@@ -16,6 +16,28 @@ except Exception:
     except Exception:
         pass
 
+def remove_ms_safely(msname: str, ignore_errors: bool = False) -> None:
+    """
+    Remove a measurement set directory and its associated .flagversions directory if they exist.
+    """
+    for path in (msname, f"{msname}.flagversions"):
+        if os.path.exists(path):
+            if os.path.isdir(path):
+                if ignore_errors:
+                    shutil.rmtree(path, ignore_errors=True)
+                else:
+                    print(f"Removing directory: {path}")
+                    shutil.rmtree(path)
+            else:
+                if ignore_errors:
+                    try:
+                        os.remove(path)
+                    except Exception:
+                        pass
+                else:
+                    print(f"Removing file: {path}")
+                    os.remove(path)
+
 # Common CASA ensure functions
 def ensure_casa_applycal() -> bool:
     try:
@@ -139,8 +161,7 @@ def validate_and_clean_ms(msname: str, outputvis: str, delete_previous: bool=Tru
     # Delete previous generation MS only after successful validation
     if delete_previous:
         try:
-            print(f"Removing previous MS: {msname}")
-            shutil.rmtree(msname)
+            remove_ms_safely(msname)
         except Exception as e:
             # fail the whole task if deletion has filesystem hiccups
             raise RuntimeError(f"ERROR: Failed to remove {msname}: {e}")
@@ -210,7 +231,7 @@ def run_applycal(msname: str, caltables: List[str], delete_previous: bool = Fals
     freq_interp = "linear"
     from casatasks import applycal, split
     print(f"applying caltables {caltables} to ms {msname}")    
-    applycal(vis=msname, gaintable=caltables, interp=[time_interp, freq_interp]*len(caltables), applymode="calonly")
+    applycal(vis=msname, gaintable=caltables, interp=[time_interp, freq_interp]*len(caltables), applymode="calflag")
     
     output_extension = f".cal{extension}.ms"
     if "cal" in msname:
@@ -220,9 +241,7 @@ def run_applycal(msname: str, caltables: List[str], delete_previous: bool = Fals
     if outputvis == msname:
         raise ValueError(f"Output measurement set name {outputvis} matches input {msname} ya nong.")
 
-    if os.path.isdir(outputvis):
-        print(f"found existing copy of {outputvis}. removing prior to split")
-        shutil.rmtree(outputvis)
+    remove_ms_safely(outputvis)
     print(f"splitting corrected data from ms {msname} to {outputvis}")
     split(vis=msname, outputvis=outputvis, datacolumn="corrected")    
     success = validate_and_clean_ms(msname, outputvis, delete_previous=delete_previous)
@@ -358,6 +377,7 @@ def do_concat(msnames: list, output_path: str, timebin: str | None = None):
 def do_average(msname: str, outputvis: str, timebin: str='9.90s'):
     from casatasks import mstransform
     print(f"averaging {msname} -> {outputvis}")
+    remove_ms_safely(outputvis)
     mstransform(vis=msname, outputvis=outputvis, timeaverage=True, timebin=timebin, datacolumn='all')
 
 # From selfcal
@@ -446,6 +466,7 @@ def apply_gain(old_ms, new_ms, gaintables, args):
         parang=args.parang,
         flagbackup=True
     )
+    remove_ms_safely(new_ms)
     print(f"[{datetime.now().isoformat()}] split: vis={old_ms}, outputvis={new_ms}, datcolumn='corrected'")
     split(vis=old_ms, outputvis=new_ms, datacolumn="corrected")
 
@@ -454,15 +475,16 @@ def run_uvsub(msname: str, out_prefix: str = "uvsub") -> None:
     outputvis = msname.replace(".ms", f".{out_prefix}.ms")
     print(f"Running uvsub: {msname} -> {outputvis}")
     uvsub(vis=msname)
+    remove_ms_safely(outputvis)
     split(vis=msname, outputvis=outputvis, datacolumn="corrected")
 
 def split_to_nspws(old_ms: str, nspws: int) -> str:
     """Split old_ms into nspws spectral windows."""
     from casatasks import mstransform
     old_ms_multispw = old_ms.replace(".ms", f".{nspws}spw.ms")
-    if os.path.isdir(old_ms_multispw):
+    if os.path.exists(old_ms_multispw):
         print(f"[{datetime.now().isoformat()}] Removing existing temporary multi-SPW MS: {old_ms_multispw}")
-        shutil.rmtree(old_ms_multispw)
+        remove_ms_safely(old_ms_multispw)
 
     print(f"[{datetime.now().isoformat()}] Splitting {old_ms} to {nspws} SPWs: {old_ms_multispw}")
     mstransform(
@@ -501,9 +523,9 @@ def apply_gain_and_combine(old_ms_multispw: str, old_ms: str, new_ms: str, calta
     )
 
     old_ms_corrected_1spw = old_ms_multispw.replace(f".{args.nspws}spw.ms", ".1spw.ms")
-    if os.path.isdir(old_ms_corrected_1spw):
+    if os.path.exists(old_ms_corrected_1spw):
         print(f"[{datetime.now().isoformat()}] Removing existing temporary 1-SPW MS: {old_ms_corrected_1spw}")
-        shutil.rmtree(old_ms_corrected_1spw)
+        remove_ms_safely(old_ms_corrected_1spw)
 
     print(f"[{datetime.now().isoformat()}] Combining multi-SPW MS back to 1 SPW: {old_ms_corrected_1spw}")
     cvel(
@@ -526,13 +548,111 @@ def apply_gain_and_combine(old_ms_multispw: str, old_ms: str, new_ms: str, calta
         tb_orig.close()
 
     # Split corrected data to new_ms
-    if os.path.isdir(new_ms):
+    if os.path.exists(new_ms):
         print(f"[{datetime.now().isoformat()}] Removing existing output MS: {new_ms}")
-        shutil.rmtree(new_ms)
+        remove_ms_safely(new_ms)
 
     print(f"[{datetime.now().isoformat()}] split (corrected 1spw to new_ms): vis={old_ms_corrected_1spw}, outputvis={new_ms}")
     split(vis=old_ms_corrected_1spw, outputvis=new_ms, datacolumn="corrected")
 
     # Clean up temporary MSes
-    shutil.rmtree(old_ms_multispw, ignore_errors=True)
-    shutil.rmtree(old_ms_corrected_1spw, ignore_errors=True)
+    remove_ms_safely(old_ms_multispw, ignore_errors=True)
+    remove_ms_safely(old_ms_corrected_1spw, ignore_errors=True)
+
+def check_caltable_quality(
+    caltable: str, 
+    report_path: str, 
+    max_flagged_antenna_fraction: float = 0.5, 
+    max_bad_timestep_fraction: float = 0.5
+) -> bool:
+    """
+    Check if a calibration table has too many flagged solutions.
+    Returns True if quality is OK (passed), False if quality is poor (failed).
+    Also writes a detailed QC log report to report_path.
+    """
+    import numpy as np
+    from casatools import table
+    
+    print(f"[{datetime.now().isoformat()}] Running selfcal quality check on {caltable}")
+    
+    tb = table()
+    try:
+        tb.open(caltable)
+        flags = tb.getcol("FLAG")  # Shape: (num_pols, num_chans, num_rows)
+        times = tb.getcol("TIME")
+        antennas = tb.getcol("ANTENNA1")
+        spws = tb.getcol("SPECTRAL_WINDOW_ID")
+    except Exception as e:
+        print(f"Error opening or reading caltable {caltable}: {e}")
+        # If we cannot read it, assume failure
+        return False
+    finally:
+        tb.close()
+        
+    # Collapse flag across pols and chans (if any are flagged, row is considered flagged)
+    row_flagged = np.any(flags, axis=(0, 1))  # Shape: (num_rows,)
+    
+    unique_spws = np.unique(spws)
+    failed_spws = []
+    report_lines = []
+    report_lines.append(f"Quality Control Report for Caltable: {caltable}")
+    report_lines.append(f"Timestamp: {datetime.now().isoformat()}")
+    report_lines.append("-" * 60)
+    
+    overall_failed = False
+    for spw in unique_spws:
+        spw_mask = (spws == spw)
+        spw_times = times[spw_mask]
+        spw_antennas = antennas[spw_mask]
+        spw_flags = row_flagged[spw_mask]
+        
+        unique_times = np.unique(spw_times)
+        num_timesteps = len(unique_times)
+        if num_timesteps == 0:
+            report_lines.append(f"SPW {spw}: No timesteps found.")
+            continue
+            
+        bad_timesteps_count = 0
+        for t in unique_times:
+            t_mask = (spw_times == t)
+            t_flags = spw_flags[t_mask]
+            total_ant = len(t_flags)
+            if total_ant == 0:
+                continue
+            flagged_ant = np.sum(t_flags)
+            flagged_fraction = flagged_ant / total_ant
+            if flagged_fraction > max_flagged_antenna_fraction:
+                bad_timesteps_count += 1
+                
+        bad_timestep_fraction = bad_timesteps_count / num_timesteps
+        is_spw_bad = (bad_timestep_fraction > max_bad_timestep_fraction)
+        
+        report_lines.append(f"SPW {spw}:")
+        report_lines.append(f"  Total timesteps: {num_timesteps}")
+        report_lines.append(f"  Timesteps with >{max_flagged_antenna_fraction*100:.0f}% flagged antennas: {bad_timesteps_count} ({bad_timestep_fraction*100:.2f}%)")
+        report_lines.append(f"  Status: {'FAILED' if is_spw_bad else 'PASSED'}")
+        
+        if is_spw_bad:
+            overall_failed = True
+            failed_spws.append(int(spw))
+            
+    report_lines.append("-" * 60)
+    report_lines.append(f"Overall Selfcal Quality Status: {'FAILED' if overall_failed else 'PASSED'}")
+    if overall_failed:
+        report_lines.append(f"Failed SPWs: {failed_spws}")
+        
+    report_content = "\n".join(report_lines)
+    
+    # Write report to disk
+    try:
+        os.makedirs(os.path.dirname(os.path.abspath(report_path)), exist_ok=True)
+        with open(report_path, "w") as f:
+            f.write(report_content)
+        print(f"[{datetime.now().isoformat()}] QC Report written to {report_path}")
+    except Exception as e:
+        print(f"Warning: Failed to write QC report to {report_path}: {e}")
+        
+    # Also print to stdout
+    print(report_content)
+    
+    return not overall_failed

@@ -83,6 +83,12 @@ if [[ ${#msnames[@]} -eq 0 ]]; then
 fi
 
 for ms in "${msnames[@]}"; do
+    flag_file="logs/beam${beam2}_selfcal_failed.flag"
+    if [[ -f "${flag_file}" ]]; then
+        echo "Bypassing flintmask for beam ${beam2} (Selfcal failure detected)"
+        continue
+    fi
+
     # Derive the WSClean MFS image from earlier
     fits_image="${ms%.ms}.${IMG_TAG}_img-MFS-image.fits"
     if [[ ! -f "${fits_image}" ]]; then

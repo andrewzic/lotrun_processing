@@ -13,7 +13,7 @@ import argparse
 import os
 import shutil
 import sys
-from ms_tools import find_ms_files, ensure_casa_concat, strip_scanid_from_path, do_concat, get_timebin
+from ms_tools import find_ms_files, ensure_casa_concat, strip_scanid_from_path, do_concat, get_timebin, remove_ms_safely
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Concatenate MS per beam for a given SBID.")
@@ -80,7 +80,7 @@ def main():
             continue
         elif os.path.exists(output_msname) and args.clobber:
             print(f"INFO: Output MS {output_msname} exists and --clobber is set. Removing before concatenation.")
-            shutil.rmtree(output_msname)
+            remove_ms_safely(output_msname)
         print(f"Beam {beam:02d}: {len(msnames)} inputs")
         for m in msnames:
             print(f"  - {m}")

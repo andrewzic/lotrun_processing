@@ -22,6 +22,9 @@ FITS_MASK_TAG=${FITS_MASK_TAG:-}
 IMG_TAG=${IMG_TAG:-"initial"}
 INDEX=${INDEX:-0}
 DELETE_TEMP_IMGS=${DELETE_TEMP_IMGS:-1}
+KEEP_RESIDUALS=${KEEP_RESIDUALS:-0}
+KEEP_DIRTY=${KEEP_DIRTY:-0}
+KEEP_PSF=${KEEP_PSF:-0}
 
 # -----------------------------------------------------------------------
 
@@ -79,6 +82,49 @@ for i in "${!msnames[@]}"
 do
     msname=${msnames[$i]}
     echo "found msname=$msname"
+
+    flag_file="logs/beam${beam2}_selfcal_failed.flag"
+    if [[ -f "${flag_file}" ]]; then
+        echo "=========================================================="
+        echo "Bypassing WSClean for beam ${beam2} (Selfcal failure detected)"
+        echo "=========================================================="
+        
+        # Read the last successful iteration variables from the flag file
+        LAST_SUCCESSFUL_INDEX=$(grep 'LAST_SUCCESSFUL_INDEX=' "${flag_file}" | cut -d= -f2)
+        LAST_SUCCESSFUL_TAG=$(grep 'LAST_SUCCESSFUL_TAG=' "${flag_file}" | cut -d= -f2)
+        
+        outname="${msname%.ms}.${IMG_TAG}_img"
+        
+        # Construct the last successful MS / image prefix
+        if (( LAST_SUCCESSFUL_INDEX > 0 )); then
+            last_msname="${msname/selfcal_${INDEX}/selfcal_${LAST_SUCCESSFUL_INDEX}}"
+        else
+            last_msname="${msname/selfcal_${INDEX}/calB0}"
+            last_msname="${last_msname/selfcal_${INDEX}/_averaged_cal.leakage}"
+        fi
+        last_outname="${last_msname%.ms}.${LAST_SUCCESSFUL_TAG}_img"
+        
+        echo "Last successful image prefix: ${last_outname}"
+        echo "Target image prefix: ${outname}"
+        
+        # Link all FITS files from the last successful stage to the current stage
+        shopt -s nullglob
+        last_fits=( "${last_outname}"*.fits )
+        shopt -u nullglob
+        
+        if (( ${#last_fits[@]} == 0 )); then
+            echo "WARN: No successful FITS files found to link!"
+        else
+            echo "Linking ${#last_fits[@]} FITS files..."
+            for f in "${last_fits[@]}"; do
+                suffix="${f#${last_outname}}"
+                target_fits="${outname}${suffix}"
+                echo "ln -sf ${f} ${target_fits}"
+                ln -sf "${f}" "${target_fits}"
+            done
+        fi
+        continue
+    fi
     if [[ -n "${FITS_MASK_TAG}" ]]; then    
 	mask_msname=${mask_msnames[$i]}
 	FITS_MASK="${mask_msname%.ms}.${FITS_MASK_TAG}_img-MFS-image.mask.fits"
@@ -97,13 +143,19 @@ do
     echo "apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${FLINT_WSCLEAN_SIF} wsclean -name ${outname} ${NEW_WSCLEAN_OPTS} ${msname}"
     apptainer exec --bind "${BIND_SRC}:${BIND_SRC}" "${FLINT_WSCLEAN_SIF}" wsclean -name "${outname}" ${NEW_WSCLEAN_OPTS} "${msname}"
     if (( DELETE_TEMP_IMGS == 1 )); then
-	rm -rf "${outname}"*-00*-dirty.fits
-	rm -rf "${outname}"*-00*-psf.fits
-	rm -rf "${outname}"*-00*-residual.fits
-	rm -rf "${outname}"*-00*-image.fits
-	rm -rf "${outname}-MFS-dirty.fits"
-	rm -rf "${outname}-MFS-psf.fits"
-	rm -rf "${outname}-MFS-residual.fits"
+        if (( KEEP_DIRTY == 0 )); then
+            rm -rf "${outname}"*-00*-dirty.fits
+            rm -rf "${outname}-MFS-dirty.fits"
+        fi
+        if (( KEEP_PSF == 0 )); then
+            rm -rf "${outname}"*-00*-psf.fits
+            rm -rf "${outname}-MFS-psf.fits"
+        fi
+	    rm -rf "${outname}"*-00*-image.fits
+        if (( KEEP_RESIDUALS == 0 )); then
+	    	rm -rf "${outname}"*-00*-residual.fits
+	    	rm -rf "${outname}-MFS-residual.fits"
+        fi
     fi
     #rm -rf "${outname}-MFS-model.fits"
 done
