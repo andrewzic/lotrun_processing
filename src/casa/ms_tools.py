@@ -212,7 +212,7 @@ def get_timebin(msname: str) -> float:
 
     return timebin
 
-def run_applycal(msname: str, caltables: List[str], delete_previous: bool = False) -> str:
+def run_applycal(msname: str, caltables: List[str], delete_previous: bool = False, output_extension: str = None) -> str:
     """
     Apply a calibration table to 'msname' and split the corrected data to a new MS
     labeled with '.cal{extension}.ms' where extension is determined from the highest
@@ -225,13 +225,16 @@ def run_applycal(msname: str, caltables: List[str], delete_previous: bool = Fals
     print(f"Applying cal: {caltables} -> {msname}")
     
     # determine extension based on highest numbered gaintable applied, e.g. .calG6 if G6 is highest, or .calB0 if only B0 applied
-    extension = determine_highest_extension(caltables)
+    if output_extension is not None:
+        extension = output_extension
+    else:
+        extension = determine_highest_extension(caltables)
     
     time_interp = "nearest" if extension == "B0" else "linear"
     freq_interp = "linear"
     from casatasks import applycal, split
     print(f"applying caltables {caltables} to ms {msname}")    
-    applycal(vis=msname, gaintable=caltables, interp=[time_interp, freq_interp]*len(caltables), applymode="calflag")
+    applycal(vis=msname, gaintable=caltables, interp=[time_interp, freq_interp]*len(caltables), applymode="calonly")
     
     output_extension = f".cal{extension}.ms"
     if "cal" in msname:
