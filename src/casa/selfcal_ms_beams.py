@@ -49,7 +49,7 @@ def main():
         beam_match = re.search(r'\d+', info.get("beam", ""))
         beam_id = beam_match.group(0) if beam_match else "0"
     
-    flag_file = f"logs/beam{int(beam_id):02d}_selfcal_failed.flag"
+    flag_file = os.path.join(os.path.dirname(ms), f"beam{int(beam_id):02d}_selfcal_failed.flag")
     
     print(f"[{datetime.now().isoformat()}] RUNNING SELF CALIBRATION: ms={ms}; INDEX={index}; solint={solint}; nspws={args.nspws}")
     if args.index == 1:
@@ -74,6 +74,17 @@ def main():
     # Check if a selfcal round has already failed
     if os.path.exists(flag_file):
         print(f"[{datetime.now().isoformat()}] Flag file {flag_file} detected. Bypassing calibration and copying data.")
+        
+        # Mirror copy to logs directory if missing
+        local_flag_file = f"logs/beam{int(beam_id):02d}_selfcal_failed.flag"
+        if not os.path.exists(local_flag_file):
+            try:
+                os.makedirs(os.path.dirname(os.path.abspath(local_flag_file)), exist_ok=True)
+                shutil.copy2(flag_file, local_flag_file)
+                print(f"[{datetime.now().isoformat()}] Restored flag file to logs directory: {local_flag_file}")
+            except Exception as e:
+                print(f"Warning: Failed to copy flag file to {local_flag_file}: {e}")
+
         remove_ms_safely(new_ms)
         shutil.copytree(old_ms, new_ms)
         print(f"[{datetime.now().isoformat()}] Bypass complete. Copied {old_ms} -> {new_ms}")
@@ -136,6 +147,20 @@ def main():
     if not qc_passed:
         print(f"[{datetime.now().isoformat()}] selfcal failed quality control check! Writing flag file {flag_file} and copying MS.")
         
+        # Move the bad caltable to a 'bad' subdirectory
+        if os.path.exists(caltable):
+            bad_dir = os.path.join(os.path.dirname(caltable), "bad")
+            try:
+                os.makedirs(bad_dir, exist_ok=True)
+                dest = os.path.join(bad_dir, os.path.basename(caltable))
+                if os.path.exists(dest):
+                    remove_ms_safely(dest, ignore_errors=True)
+                shutil.move(caltable, dest)
+                print(f"[{datetime.now().isoformat()}] Moved bad caltable {caltable} -> {dest}")
+            except Exception as e:
+                print(f"Warning: Failed to move bad caltable to bad/ directory: {e}. Nuking the bad caltable instead.")
+                remove_ms_safely(caltable, ignore_errors=True)
+                
         last_tag = f"selfcal_{index-1}" if index > 1 else "initial_scratch"
         try:
             os.makedirs(os.path.dirname(os.path.abspath(flag_file)), exist_ok=True)
@@ -148,9 +173,18 @@ def main():
                         f.write(rf.read())
                 else:
                     f.write("Failed to generate QC report log.\n")
-            print(f"[{datetime.now().isoformat()}] Flag file written successfully.")
+            print(f"[{datetime.now().isoformat()}] Flag file written successfully to {flag_file}.")
         except Exception as e:
             print(f"Error writing flag file {flag_file}: {e}")
+
+        # Also write a copy to the logs directory in the workspace root for quick inspection
+        local_flag_file = f"logs/beam{int(beam_id):02d}_selfcal_failed.flag"
+        try:
+            os.makedirs(os.path.dirname(os.path.abspath(local_flag_file)), exist_ok=True)
+            shutil.copy2(flag_file, local_flag_file)
+            print(f"[{datetime.now().isoformat()}] Copied flag file to logs directory: {local_flag_file}")
+        except Exception as e:
+            print(f"Warning: Failed to copy flag file to {local_flag_file}: {e}")
 
         remove_ms_safely(new_ms)
         shutil.copytree(old_ms, new_ms)
