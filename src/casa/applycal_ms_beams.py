@@ -39,19 +39,66 @@ def main():
     if not args.dry_run and not ensure_casa_applycal():
         sys.exit(1)
 
+    import os
+    import shutil
+    import re
+    from ms_tools import remove_ms_safely
+
+    last_index = os.environ.get("LAST_INDEX")
+    if last_index and args.extension == "G*":
+        target_ext = f"G{last_index}"
+    else:
+        target_ext = None
+
     exit_code = 0
     for beam in beams:
-        # try:
         ms_list = find_ms_files(args.data_root, args.sbid, args.pattern, beam)
         if not ms_list:
             print(f"WARN: No MS found under '{args.data_root}/{args.sbid}' for beam {beam:02d} with pattern '{args.pattern}'")
             continue
-        caltables = find_caltables(args.data_root, args.sbid, args.cal_dir, beam, extension=args.extension)
-        print(f"Beam {beam:02d}: {len(ms_list)} MS found; using caltables: {caltables}")
-        for msname in ms_list:
-            print(f"running applycal on  MS: {msname}")
-            if not args.dry_run:
-                run_applycal(msname, caltables, delete_previous=args.delete_previous)
+            
+        # Dynamically infer the target extension from existing selfcal MS files in the directory
+        beam_target_ext = target_ext
+        if not beam_target_ext and args.extension == "G*":
+            import glob
+            beam_dir = os.path.dirname(ms_list[0])
+            sfiles = glob.glob(os.path.join(beam_dir, f"*beam{beam:02d}*.selfcal_*.ms"))
+            max_idx = 0
+            for sf in sfiles:
+                match = re.search(r'selfcal_(\d+)\.ms', sf)
+                if match:
+                    idx = int(match.group(1))
+                    if idx > max_idx:
+                        max_idx = idx
+            if max_idx > 0:
+                beam_target_ext = f"G{max_idx}"
+                print(f"Auto-detected target extension: {beam_target_ext}")
+
+        try:
+            caltables = find_caltables(args.data_root, args.sbid, args.cal_dir, beam, extension=args.extension)
+            print(f"Beam {beam:02d}: {len(ms_list)} MS found; using caltables: {caltables}")
+            for msname in ms_list:
+                print(f"running applycal on  MS: {msname}")
+                if not args.dry_run:
+                    run_applycal(msname, caltables, delete_previous=args.delete_previous, output_extension=beam_target_ext)
+        except FileNotFoundError as e:
+            # If no caltables are found (e.g. selfcal failed at stage 1 or all G* tables deleted/moved)
+            print(f"WARN: No calibration tables found for beam {beam:02d}: {e}")
+            print(f"Bypassing applycal and copying MS files forward to expected output name.")
+            for msname in ms_list:
+                ext = beam_target_ext if beam_target_ext else "G1"
+                output_extension_str = f".cal{ext}.ms"
+                if "cal" in msname:
+                    outputvis = re.sub(r'\.cal(?:B0|G\d+)\.ms', output_extension_str, msname)
+                else:
+                    outputvis = msname.replace(".ms", output_extension_str)
+                
+                print(f"Copying {msname} -> {outputvis}")
+                if not args.dry_run:
+                    remove_ms_safely(outputvis)
+                    shutil.copytree(msname, outputvis)
+                    if args.delete_previous:
+                        remove_ms_safely(msname)
         # except Exception as e:
         #     print(f"ERROR: Beam {beam:02d} failed: {e}", file=sys.stderr)
         #     exit_code = 2
