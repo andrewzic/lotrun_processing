@@ -397,6 +397,7 @@ jid_agg=$(chain "$jid_agg" "fastducc_aggregate_chunks")
 if [[ -n "${RUN_FASTDUCC_OBSAGG:-}" ]]; then
   jid_obs=$( sbatch_submit "fastducc_obsagg" "${AGG_TIME}" "${AGG_CPUS}" "${AGG_MEM}" "" "${RUN_FASTDUCC_OBSAGG}" "${jid_agg}" \
              SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" )
+  jid_obs=$(chain "$jid_obs" "fastducc_obsagg")
   jid_prev="$jid_obs"
 else
   jid_prev="$jid_agg"

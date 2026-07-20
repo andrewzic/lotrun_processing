@@ -249,7 +249,7 @@ WSCLEAN_NATIVE_OPTS="${WSCLEAN_NATIVE_OPTS:-"-data-column DATA -mgain 0.8 -niter
 RUN_FASTDUCC="${SCRIPT_DIR}/scripts/slurm/run_fastducc_beams.sh"
 RUN_FASTDUCC_AGG="${SCRIPT_DIR}/scripts/slurm/run_fastducc_aggregate_chunks.sh"
 # Optional obs-level aggregation (leave unset/comment out to skip)
-RUN_FASTDUCC_OBSAGG="run_fastducc_aggregate_obs.sh"
+RUN_FASTDUCC_OBSAGG="${SCRIPT_DIR}/scripts/slurm/run_fastducc_aggregate_obs.sh"
 FD_CPUS="1"
 FD_MEM="4G" #mem request for main fastducc driver
 FD_TIME="06:00:00"
