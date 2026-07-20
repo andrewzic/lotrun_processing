@@ -114,6 +114,6 @@ for ms in "${msnames[@]}"; do
 
   # Execute wsclean predict inside container
   echo "running:"
-  echo "apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${FLINT_WSCLEAN_SIF} wsclean -predict -channels-out -pol xx ${CHANNELS_OUT} ${WSCLEAN_PREDICT_OPTS} -name ${outname} ${ms}"
+  echo "apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${FLINT_WSCLEAN_SIF} wsclean -predict -pol xx  -channels-out ${CHANNELS_OUT} ${WSCLEAN_PREDICT_OPTS} -name ${outname} ${ms}"
   apptainer exec --bind "${BIND_SRC}:${BIND_SRC}" "${FLINT_WSCLEAN_SIF}" wsclean -predict -pol xx -channels-out "${CHANNELS_OUT}" ${WSCLEAN_PREDICT_OPTS} -name "${outname}" "${ms}"
 done

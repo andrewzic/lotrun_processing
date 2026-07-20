@@ -15,8 +15,9 @@ SBID=${SBID:-SB77974}
 DATA_ROOT=${DATA_ROOT:-${USER_PATH:-/fred/oz451}/${USER}/data}
 PATTERN=${PATTERN:-"*beam{beam:02d}*.avg.calB0.ms"}    # relative under data-root/SBID
 #BIND_SRC=${BIND_SRC:-${USER_PATH:-/fred/oz451}}
+USE_CONTAINER=${USE_CONTAINER:-False}
 CRYSTALBALL_ENV=${CRYSTALBALL_ENV:-${USER_PATH:-/fred/oz451}/${USER}/scripts/crystalball_nt/}
-CRYSTALBALL_SIF=${CRYSTALBALL_SIF:-}
+CRYSTALBALL_SIF=${CRYSTALBALL_SIF:-${USER_PATH:-/fred/oz451}/${USER}/containers/casacore.sif}
 IMG_TAG=${IMG_TAG:-"initial"}
 INDEX=${INDEX:-0}
 SELFCAL=${SELFCAL:-1}
@@ -32,7 +33,7 @@ FLINT_MASK_OPTIONS="--flood-fill --flood-fill-positive-seed-clip ${FLOOD_FILL_PO
 
 # ---------------------------------------------------------------------------
 
-if [ -n "${CRYSTALBALL_SIF}" ]; then
+if [[ "${USE_CONTAINER}" == "True" && -n "${CRYSTALBALL_SIF}" ]]; then
     # container mode
     FLINT_MASKING=${CRYSTALBALL:-apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CRYSTALBALL_SIF} flint_masking}
 else
@@ -83,8 +84,8 @@ if [[ ${#msnames[@]} -eq 0 ]]; then
 fi
 
 for ms in "${msnames[@]}"; do
-    flag_file="logs/beam${beam2}_selfcal_failed.flag"
-    if [[ -f "${flag_file}" ]]; then
+    flag_file="$(dirname "${ms}")/beam${beam2}_selfcal_failed.flag"
+    if [[ -f "${flag_file}" && "${IGNORE_QC_FAIL:-0}" != "1" ]]; then
         echo "Bypassing flintmask for beam ${beam2} (Selfcal failure detected)"
         continue
     fi

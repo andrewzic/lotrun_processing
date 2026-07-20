@@ -8,9 +8,9 @@
 
 set -euo pipefail
 
-# -------------------- Inputs from sbatch --export (or env defaults) --------------------
+USE_CONTAINER=${USE_CONTAINER:-False}
 CRYSTALBALL_ENV=${CRYSTALBALL_ENV:-${USER_PATH:-/fred/oz451}/${USER}/scripts/crystalball_nt/}
-CRYSTALBALL_SIF=${CRYSTALBALL_SIF:-}
+CRYSTALBALL_SIF=${CRYSTALBALL_SIF:-${USER_PATH:-/fred/oz451}/${USER}/containers/casacore.sif}
 
 SBID=${SBID:-SB77974}
 DATA_ROOT=${DATA_ROOT:-${USER_PATH:-/fred/oz451}/${USER}/data}
@@ -21,7 +21,7 @@ SKY_TOL_ARCSEC=${SKY_TOL_ARCSEC:-35.0}
 OUTDIR_DEFAULT="${DATA_ROOT}/${SBID}/candidates"
 
 # -------------------- Runtime environment ----------
-if [ -n "${CRYSTALBALL_SIF}" ]; then
+if [[ "${USE_CONTAINER}" == "True" && -n "${CRYSTALBALL_SIF}" ]]; then
     # container mode
     FASTDUCC=${CRYSTALBALL:-apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CRYSTALBALL_SIF} fastducc}
 else

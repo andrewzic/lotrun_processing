@@ -10,14 +10,16 @@
 set -euo pipefail
 
 # environment variables
+USE_CONTAINER=${USE_CONTAINER:-False}
 CRYSTALBALL_ENV=${CRYSTALBALL_ENV:-${USER_PATH:-/fred/oz451}/${USER}/scripts/crystalball_nt/}
-CRYSTALBALL_SIF=${CRYSTALBALL_SIF:-}
+CRYSTALBALL_SIF=${CRYSTALBALL_SIF:-${USER_PATH:-/fred/oz451}/${USER}/containers/casacore.sif}
 
 SBID=${SBID:-SB77974}
 DATA_ROOT=${DATA_ROOT:-${USER_PATH:-/fred/oz451}/${USER}/data}
 EXTENSION=${EXTENSION:-"B0"}
 # pattern relative to data-root/SBID; {beam:02d} will be replaced with the beam index
 PATTERN=${PATTERN:-"*beam{beam:02d}*.cal${EXTENSION}.ms"}
+FD_WORKER_TIME="${FD_WORKER_TIME:-02:00:00}"
 
 OUT_PREFIX=${OUT_PREFIX:-"uvsub"}  # not used by fastducc; kept for compatibility/logging
 INDEX=${INDEX:-1}
@@ -66,7 +68,7 @@ for ms in "${msnames[@]}"; do
   echo "  - ${ms}"
 done
 
-if [ -n "${CRYSTALBALL_SIF}" ]; then
+if [[ "${USE_CONTAINER}" == "True" && -n "${CRYSTALBALL_SIF}" ]]; then
     # container mode
     FASTDUCC=${CRYSTALBALL:-apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CRYSTALBALL_SIF} fastducc}
 else
@@ -96,7 +98,7 @@ for ms in "${msnames[@]}"; do
     --dask-workers 16
     --slurm-cores-per-worker 1
     --slurm-mem 32GB
-    --slurm-walltime 00:45:00
+    --slurm-walltime ${FD_WORKER_TIME}
     --continuum-dir "${root}/continuum_images/"
   )
 

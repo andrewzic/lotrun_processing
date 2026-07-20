@@ -20,8 +20,12 @@ DASK_SCHEDULER_ADDRESS="${DASK_SCHEDULER_ADDRESS:?ERROR: DASK_SCHEDULER_ADDRESS 
 CB_DASK_SLURM_WORKER_CPUS="${CB_DASK_SLURM_WORKER_CPUS:-1}"
 CB_DASK_SLURM_WORKER_MEM="${CB_DASK_SLURM_WORKER_MEM:-4G}"
 
+USE_CONTAINER=${USE_CONTAINER:-False}
+CRYSTALBALL_ENV=${CRYSTALBALL_ENV:-${USER_PATH:-/fred/oz451}/${USER}/scripts/crystalball_nt/}
+CRYSTALBALL_SIF=${CRYSTALBALL_SIF:-${USER_PATH:-/fred/oz451}/${USER}/containers/casacore.sif}
+
 # ---------------------- Activate environment ----------------------
-if [ -n "${CRYSTALBALL_SIF:-}" ]; then
+if [[ "${USE_CONTAINER}" == "True" && -n "${CRYSTALBALL_SIF:-}" ]]; then
     echo "[dask-worker] Container mode (SIF=${CRYSTALBALL_SIF})"
     DASK_WORKER_CMD="apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CRYSTALBALL_SIF} dask-worker"
 else

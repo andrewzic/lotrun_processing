@@ -13,8 +13,9 @@ SBID=${SBID:-SB77974}
 DATA_ROOT=${DATA_ROOT:-${USER_PATH:-/fred/oz451}/${USER}/data}
 CHUNK_GLOB=${CHUNK_GLOB:-202?*}
 
+USE_CONTAINER=${USE_CONTAINER:-False}
 CRYSTALBALL_ENV=${CRYSTALBALL_ENV:-${USER_PATH:-/fred/oz451}/${USER}/scripts/crystalball_nt/}
-CRYSTALBALL_SIF=${CRYSTALBALL_SIF:-}
+CRYSTALBALL_SIF=${CRYSTALBALL_SIF:-${USER_PATH:-/fred/oz451}/${USER}/containers/casacore.sif}
 
 root="${DATA_ROOT}/${SBID}"
 
@@ -41,7 +42,7 @@ echo "Aggregating candidates for chunkdir: ${chunkdir}"
 mkdir -p "${chunkdir}/candidates"
 
 # Runtime environment
-if [ -n "${CRYSTALBALL_SIF}" ]; then
+if [[ "${USE_CONTAINER}" == "True" && -n "${CRYSTALBALL_SIF}" ]]; then
     # container mode
     FASTDUCC=${CRYSTALBALL:-apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CRYSTALBALL_SIF} fastducc}
 else

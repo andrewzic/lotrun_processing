@@ -17,8 +17,9 @@ DATA_ROOT=${DATA_ROOT:-${USER_PATH:-/fred/oz451}/${USER}/data}
 PATTERN=${PATTERN:-"*beam{beam:02d}*.avg.calB0.ms"}    # relative under data-root/SBID
 SOURCE_LIST_PATTERN=${SOURCE_LIST_PATTERN:-"*beam{beam:02d}*.avg.calB0.ms"}
 BIND_SRC=${BIND_SRC:-${USER_PATH:-/fred/oz451}}
+USE_CONTAINER=${USE_CONTAINER:-False}
 CRYSTALBALL_ENV=${CRYSTALBALL_ENV:-${USER_PATH:-/fred/oz451}/${USER}/scripts/crystalball_nt/}
-CRYSTALBALL_SIF=${CRYSTALBALL_SIF:-}
+CRYSTALBALL_SIF=${CRYSTALBALL_SIF:-${USER_PATH:-/fred/oz451}/${USER}/containers/casacore.sif}
 CB_SUBDIR="${CB_SUBDIR}"
 CB_SRCLIST_SUBDIR=${CB_SRCLIST_SUBDIR:-"cont_combined"}
 IMG_TAG=${IMG_TAG:-"initial"}
@@ -76,7 +77,7 @@ RUN_DASK_WORKER="${SCRIPT_DIR}/scripts/slurm/run_dask_worker.sh"
 # ---------------- Start per-beam Dask cluster ----------------
 
 
-if [ -n "${CRYSTALBALL_SIF}" ]; then
+if [[ "${USE_CONTAINER}" == "True" && -n "${CRYSTALBALL_SIF}" ]]; then
     # container mode
     CRYSTALBALL=${CRYSTALBALL:-apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CRYSTALBALL_SIF} crystalball}
 else
@@ -193,6 +194,7 @@ if [[ "${CB_DISTRIBUTED}" == "1" ]]; then
         worker_export+=",BIND_SRC=${BIND_SRC}"
         worker_export+=",CB_DASK_SLURM_WORKER_CPUS=${CB_DASK_SLURM_WORKER_CPUS}"
         worker_export+=",CB_DASK_SLURM_WORKER_MEM=${CB_DASK_SLURM_WORKER_MEM}"
+        worker_export+=",USE_CONTAINER=${USE_CONTAINER}"
 
         # Submit worker jobs
         for ((i=0; i<CB_DASK_SLURM_NWORKERS; i++)); do

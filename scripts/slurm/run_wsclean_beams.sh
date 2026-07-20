@@ -83,8 +83,8 @@ do
     msname=${msnames[$i]}
     echo "found msname=$msname"
 
-    flag_file="logs/beam${beam2}_selfcal_failed.flag"
-    if [[ -f "${flag_file}" ]]; then
+    flag_file="$(dirname "${msname}")/beam${beam2}_selfcal_failed.flag"
+    if [[ -f "${flag_file}" && "${IGNORE_QC_FAIL:-0}" != "1" ]]; then
         echo "=========================================================="
         echo "Bypassing WSClean for beam ${beam2} (Selfcal failure detected)"
         echo "=========================================================="
@@ -128,6 +128,30 @@ do
     if [[ -n "${FITS_MASK_TAG}" ]]; then    
 	mask_msname=${mask_msnames[$i]}
 	FITS_MASK="${mask_msname%.ms}.${FITS_MASK_TAG}_img-MFS-image.mask.fits"
+	
+	# If we are ignoring selfcal failure, the expected mask from the previous bypassed round is missing.
+	# Symlink the last successful mask to the expected path.
+	if [[ ! -f "${FITS_MASK}" && -f "${flag_file}" ]]; then
+	    echo "Selfcal failed previously, so expected mask ${FITS_MASK} is missing."
+	    LAST_SUCCESSFUL_INDEX=$(grep 'LAST_SUCCESSFUL_INDEX=' "${flag_file}" | cut -d= -f2)
+	    LAST_SUCCESSFUL_TAG=$(grep 'LAST_SUCCESSFUL_TAG=' "${flag_file}" | cut -d= -f2)
+	    
+	    if (( LAST_SUCCESSFUL_INDEX > 0 )); then
+	        last_mask_msname="${mask_msname/selfcal_$((INDEX-1))/selfcal_${LAST_SUCCESSFUL_INDEX}}"
+	    else
+	        last_mask_msname="${mask_msname/selfcal_$((INDEX-1))/calB0}"
+	        last_mask_msname="${last_mask_msname/selfcal_$((INDEX-1))/_averaged_cal.leakage}"
+	    fi
+	    
+	    LAST_FITS_MASK="${last_mask_msname%.ms}.${LAST_SUCCESSFUL_TAG}_img-MFS-image.mask.fits"
+	    if [[ -f "${LAST_FITS_MASK}" ]]; then
+	        echo "Symlinking last successful mask ${LAST_FITS_MASK} -> ${FITS_MASK}"
+	        ln -sf "${LAST_FITS_MASK}" "${FITS_MASK}"
+	    else
+	        echo "WARN: Last successful mask ${LAST_FITS_MASK} also does not exist!"
+	    fi
+	fi
+
 	echo "using $FITS_MASK as fits mask"
 	if [ ! -f ${FITS_MASK} ]; then
 	    echo "fits mask ${FITS_MASK} does not exist. exiting."
