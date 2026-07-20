@@ -39,9 +39,10 @@ DRY_FAKE_START="${DRY_FAKE_START:-490000}"
 DRY_PRINT_CMDS="${DRY_PRINT_CMDS:-1}"
 
 # -------------------- Containers -----------------------
+USE_CONTAINER="False" # Set to "True" to run via the casacore SIF container, or "False" to run via local venv
 FLINT_WSCLEAN_SIF="${CONTAINER_DIR}/flint-containers_wsclean.sif"
 FLINT_CASA_SIF="${CONTAINER_DIR}/flint-containers_casa.sif"
-CRYSTALBALL_SIF="${CONTAINER_DIR}/casacore_python.sif"
+CRYSTALBALL_SIF="${CONTAINER_DIR}/casacore.sif"
 
 # -------------------- General Parameters ----------------
 CLOBBER="False"
@@ -114,7 +115,7 @@ CONCAT_PYTHON="apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CONTAINER_DIR}/fl
 CONCAT_CPUS="4"
 CONCAT_MEM="4G"
 CONCAT_CONT_TIME="00:30:00"
-CONCAT_NATIVE_TIME="00:30:00"
+CONCAT_NATIVE_TIME="02:00:00"
 CONCAT_AVG_INPUT_PATTERN="20????????????/*beam{beam:02d}*.20????????????.avg.calB0.ms"
 CONCAT_NATIVE_INPUT_PATTERN="20????????????/*beam{beam:02d}*.20????????????.calG6.uvsub.ms"
 
@@ -181,9 +182,9 @@ PREDICT_TOOL="wsclean" # 'wsclean' or 'crystalball'
 
 if [[ "${PREDICT_TOOL}" == "wsclean" ]]; then
     RUN_CB="${SCRIPT_DIR}/scripts/slurm/run_wsclean_predict_beams.sh"
-    CB_TIME="01:00:00"
-    CB_CPUS="4"
-    CB_MEM="8G"
+    CB_TIME="00:45:00"
+    CB_CPUS="2"
+    CB_MEM="4G"
 else
     RUN_CB="${SCRIPT_DIR}/scripts/slurm/run_crystalball_beams.sh"
     CB_TIME="03:15:00"
@@ -248,10 +249,11 @@ WSCLEAN_NATIVE_OPTS="${WSCLEAN_NATIVE_OPTS:-"-data-column DATA -mgain 0.8 -niter
 RUN_FASTDUCC="${SCRIPT_DIR}/scripts/slurm/run_fastducc_beams.sh"
 RUN_FASTDUCC_AGG="${SCRIPT_DIR}/scripts/slurm/run_fastducc_aggregate_chunks.sh"
 # Optional obs-level aggregation (leave unset/comment out to skip)
-# RUN_FASTDUCC_OBSAGG="run_fastducc_aggregate_obs.sh"
+RUN_FASTDUCC_OBSAGG="run_fastducc_aggregate_obs.sh"
 FD_CPUS="1"
 FD_MEM="4G" #mem request for main fastducc driver
-FD_TIME="02:00:00"
+FD_TIME="06:00:00"
+FD_WORKER_TIME="02:00:00"
 AGG_TIME="00:15:00"
 AGG_CPUS="1"
 AGG_MEM="1G"
@@ -272,16 +274,17 @@ FD_PLOT_CANDS_ONLY=""
 # =============================================================================
 RUN_EXTRACT_DS="${SCRIPT_DIR}/scripts/slurm/run_dstools_extract_cands.sh"
 EXTRACT_SCRIPT="${SCRIPT_DIR}/src/dstools/extract_ds_orchestrator.py"
-EXTRACT_TIME="01:00:00"
+EXTRACT_TIME="00:30:00"
 EXTRACT_CPUS="1"
-EXTRACT_MEM="4G"
+EXTRACT_MEM="2G"
 
 DS_N_WORKERS="48"
 DS_CPUS="1"
-DS_MEM="8GB"
-DS_WALLTIME="01:00:00"
+DS_MEM="4GB"
+DS_WALLTIME="00:20:00"
 DS_QUEUE=""
 DS_PROJECT=""
+DS_JOB_EXTRA="--tmp=150GB"
 DS_MIN_SNR="8.0"
 DS_BATCH_SIZE="200"
 DS_RETRIES="1"

@@ -34,9 +34,10 @@ DRY_FAKE_START="${DRY_FAKE_START:-490000}"
 DRY_PRINT_CMDS="${DRY_PRINT_CMDS:-1}"
 
 # -------------------- Containers -----------------------
+USE_CONTAINER="False" # Set to "True" to run via the casacore SIF container, or "False" to run via local venv
 FLINT_WSCLEAN_SIF="${CONTAINER_DIR}/flint-containers_wsclean.sif"
 FLINT_CASA_SIF="${CONTAINER_DIR}/flint-containers_casa.sif"
-CRYSTALBALL_SIF="${CONTAINER_DIR}/casacore_python.sif"
+CRYSTALBALL_SIF="${CONTAINER_DIR}/casacore.sif"
 
 # -------------------- General Parameters ----------------
 ARRAY_SPEC="0-35"
