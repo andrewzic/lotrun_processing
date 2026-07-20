@@ -10,8 +10,9 @@ set -euo pipefail
 
 # -------------------- User-tunable env (with defaults) --------------------
 # environment variables
+USE_CONTAINER=${USE_CONTAINER:-False}
 CRYSTALBALL_ENV=${CRYSTALBALL_ENV:-${USER_PATH:-/fred/oz451}/${USER}/scripts/crystalball_nt/}
-CRYSTALBALL_SIF=${CRYSTALBALL_SIF:-}
+CRYSTALBALL_SIF=${CRYSTALBALL_SIF:-${USER_PATH:-/fred/oz451}/${USER}/containers/casacore.sif}
 
 # Observation selection
 export SBID="${SBID:-SB77974}"
@@ -45,6 +46,7 @@ export DS_OVERWRITE="${DS_OVERWRITE:-false}"
 export DS_DRY_RUN="${DS_DRY_RUN:-false}"
 export DS_CATALOGUE="${DS_CATALOGUE:-}"         # blank => auto-discover summary catalogue from data root
 export DS_SCAN_SCOPE="${DS_SCAN_SCOPE:-all}"
+export DS_JOB_EXTRA="${DS_JOB_EXTRA:-}"
 
 # If prefer to pin an explicit catalogue instead of auto-discovery, set:
 # export CATALOGUE="/path/to/<field>.<SBID>_obs_${KIND}_super_summary.vot"
@@ -55,7 +57,7 @@ mkdir -p "${root}/candidates" "logs" "dask-worker-space"
 
 # -------------------- Runtime environment for the launcher --------------------
 # This should mirror the orchestrator's default --job-prologue for workers.
-if [ -n "${CRYSTALBALL_SIF}" ]; then
+if [[ "${USE_CONTAINER}" == "True" && -n "${CRYSTALBALL_SIF}" ]]; then
     # container mode
     PYTHON=${CRYSTALBALL:-apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CRYSTALBALL_SIF} python}
 else
@@ -116,11 +118,16 @@ if [[ -n "${DS_PROJECT}" ]]; then
   cmd+=( --project "${DS_PROJECT}" )
 fi
 
+if [[ -n "${DS_JOB_EXTRA:-}" ]]; then
+  cmd+=( --job-extra "${DS_JOB_EXTRA}" )
+fi
+
 # Pass the *same* module/venv steps to the Dask workers via job prologue
-if [ -n "${CRYSTALBALL_SIF}" ]; then
+if [[ "${USE_CONTAINER}" == "True" && -n "${CRYSTALBALL_SIF}" ]]; then
   cmd+=( --job-prologue "" )
+  cmd+=( --python "apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CRYSTALBALL_SIF} python" )
 else
-  cmd+=( --job-prologue "module load python-scientific/3.11.5-foss-2023b ; unset PYTHONPATH; source ${USER_PATH:-/fred/oz451}/${USER}/scripts/crystalball_nt/bin/activate" )
+  cmd+=( --job-prologue "module load python-scientific/3.11.5-foss-2023b ; unset PYTHONPATH; source ${CRYSTALBALL_ENV}/bin/activate" )
 fi
 
 # -------------------- Run --------------------

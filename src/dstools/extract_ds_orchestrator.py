@@ -93,6 +93,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p.add_argument('--data-root', required=True, help='Root directory holding SBIDs')
     p.add_argument('--catalogue', default='', help='Obs-level super-summary VOTable; if empty, auto-discover by KIND')
     p.add_argument('--kind', choices=['boxcar','variance'], default='boxcar', help='Used only for auto-discovery if --catalogue not provided')
+    p.add_argument('--sbid-subdir', default=None, help='subdir under root directory containing candidates. Might be useful if have done fastducc on concatenated scan under <sbid>/native_combined/')
 
     # Dataset Mode
     p.add_argument('--mode', choices=['combined', 'per-scan'], default='combined',
@@ -140,6 +141,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p.add_argument('--project', default='', help='SLURM account/project (slurm only)')
     p.add_argument('--job-extra', default='', help='Extra #SBATCH lines (semicolon-separated)')
     p.add_argument('--job-prologue', default='module load python-scientific/3.11.5-foss-2023b ; unset PYTHONPATH; source /fred/oz451/azic/scripts/crystalball_nt/bin/activate', help='Commands to run in SLURM job before worker starts (semicolon-separated)')
+    p.add_argument('--python', default='', help='Python executable wrapper (slurm only, e.g. apptainer exec ... python)')
 
     # Execution tuning
     p.add_argument('--batch-size', type=int, default=200, help='Submit tasks in batches to limit scheduler pressure')
@@ -179,7 +181,7 @@ def load_obs_catalogue(vot_path: Path, min_snr: Optional[float] = None, only_sou
     col_ra = get_col('ra_deg')
     col_dec = get_col('dec_deg')
     col_snr = get_col('max_snr')
-    col_scans = get_col('scan_ids', 'scan_ids_all')
+    col_scans = get_col('scan_ids', 'scan_ids_all', 'scans_all')
     col_beams = get_col('beams_all')
     col_max_beam = get_col('max_snr_beam')
     col_max_time = get_col('max_snr_time_center')
@@ -213,7 +215,7 @@ def load_obs_catalogue(vot_path: Path, min_snr: Optional[float] = None, only_sou
                 except Exception:
                     max_time = None
             if not scan_ids:
-                continue
+                scan_ids = ['combined']
             rows.append({
                 'source_id': sid,
                 'srcname': name,
@@ -229,10 +231,15 @@ def load_obs_catalogue(vot_path: Path, min_snr: Optional[float] = None, only_sou
     return rows
 
 
-def discover_catalogue(sbid_dir: Path, sbid: str, kind: str) -> Path:
-    cand_dir = sbid_dir / 'candidates'
+def discover_catalogue(sbid_dir: Path, sbid: str, kind: str, sbid_subdir: str | None = None) -> Path:
+    if sbid_subdir is None:
+        cand_dir = sbid_dir / 'candidates'
+    else:
+        cand_dir = sbid_dir / f'{sbid_subdir}/candidates'
     for ext in ['vot', 'xml']:
         if pats := list(cand_dir.glob(f"*.{sbid}_obs_{kind}_super_summary.{ext}")):
+            return pats[0]
+        elif pats := list(cand_dir.glob(f"*.{sbid}_field_{kind}_super_summary.{ext}")):
             return pats[0]
     raise FileNotFoundError(f"No VOTable found under {cand_dir} for kind={kind}")
 
@@ -247,7 +254,15 @@ def discover_all_scans(sbid_dir: Path) -> list[str]:
 
 
 def find_ms_for_scan_beam(scan_dir: Path, beam_id: str, ms_glob_template: str) -> List[Path]:
-    return list(scan_dir.glob(ms_glob_template % beam_id))
+    pat = ms_glob_template % beam_id
+    results = list(scan_dir.glob(pat))
+    if not results:
+        # Fallback: strip leading directory wildcards (like */ or **/) if we are in combined mode
+        # or MS is directly in scan_dir.
+        stripped = re.sub(r'^[*/]+', '', pat)
+        if stripped != pat:
+            results = list(scan_dir.glob(stripped))
+    return results
 
 
 def per_scan_beams_strict(sbid_dir: Path, scan_id: str, ra_deg: float, dec_deg: float,
@@ -321,8 +336,9 @@ def extract_single_ms(ms_path: Path, out_file: Path, *,
     if not ms.column_exists(datacolumn_name):
         raise RuntimeError(f"{ms} does not contain {datacolumn_name} column")
 
-    # Combine SPWs (mirrors CLI)
-    ms = combine_spws(ms)
+    # Combine SPWs only if more than 1 spectral window exists
+    if ms.nspws > 1:
+        ms = combine_spws(ms)
 
     # Optionally rotate phasecentre
     pos = None
@@ -463,9 +479,33 @@ def run_task(task: ExtractTask, *, overwrite: bool, dry_run: bool,
     if dry_run:
         cmd = f"dstools-extract-ds -d {datacolumn} -p {task.ra_deg:.9f} {task.dec_deg:.9f} {task.ms_path} {task.out_file}"
         return (str(task.out_file), 'dry-run: ' + cmd, 0)
+    import os, tempfile, shutil
+    # Create a unique temporary directory to host a symlink of the Measurement Set
+    # This prevents race conditions/collisions when running combine_spws or rotate_phasecentre
+    # concurrently on the same Measurement Set for different sources.
+    # We prioritize node-local SSD directory ($JOBFS on OzSTAR), then fall back to TMPDIR / /tmp.
+    jobfs = os.environ.get("JOBFS")
+    temp_dir_root = Path(jobfs) if jobfs else Path(tempfile.gettempdir())
+    unique_temp_dir = temp_dir_root / f"_dstools_temp_ms_{task.source_id}_{task.beam_id}"
+    unique_temp_dir.mkdir(parents=True, exist_ok=True)
+    symlink_path = unique_temp_dir / task.ms_path.name
+    
+    # Try to remove symlink if it exists (from previous aborted runs)
+    if symlink_path.exists() or symlink_path.is_symlink():
+        try:
+            symlink_path.unlink()
+        except Exception:
+            pass
+            
+    try:
+        symlink_path.symlink_to(task.ms_path)
+    except Exception as e:
+        shutil.rmtree(unique_temp_dir, ignore_errors=True)
+        return (str(task.out_file), f'failed to create symlink: {e}', 1)
+        
     try:
         extract_single_ms(
-            task.ms_path, task.out_file,
+            symlink_path, task.out_file,
             datacolumn=datacolumn,
             phasecentre=(task.ra_deg, task.dec_deg),
             primary_beam=primary_beam or None,
@@ -477,6 +517,9 @@ def run_task(task: ExtractTask, *, overwrite: bool, dry_run: bool,
         return (str(task.out_file), 'ok', 0)
     except Exception as e:
         return (str(task.out_file), f'exception: {e}', 1)
+    finally:
+        # Clean up the unique temp directory and all its contents
+        shutil.rmtree(unique_temp_dir, ignore_errors=True)
 
 
 def make_client(args: argparse.Namespace) -> Client:
@@ -506,14 +549,17 @@ def make_client(args: argparse.Namespace) -> Client:
         prologue = []
         if args.job_prologue.strip():
             prologue = [line.strip() for line in args.job_prologue.split(';') if line.strip()]
-        cluster = SLURMCluster(
-            cores=args.cores,
-            memory=args.mem,
-            walltime=args.walltime,
-            job_extra=jb_extra,
-            job_script_prologue=prologue,
-            local_directory=str(Path.cwd() / 'dask-worker-space'),
-        )
+        cluster_kwargs = {
+            "cores": args.cores,
+            "memory": args.mem,
+            "walltime": args.walltime,
+            "job_extra": jb_extra,
+            "job_script_prologue": prologue,
+            "local_directory": str(Path.cwd() / 'dask-worker-space'),
+        }
+        if args.python:
+            cluster_kwargs["python"] = args.python
+        cluster = SLURMCluster(**cluster_kwargs)
         cluster.scale(args.n_workers)
         return Client(cluster)
     else:
@@ -526,7 +572,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     sbid_dir = Path(args.data_root) / args.sbid
 
     # Catalogue
-    cat_path = Path(args.catalogue) if args.catalogue else discover_catalogue(sbid_dir, args.sbid, args.kind)
+    cat_path = Path(args.catalogue) if args.catalogue else discover_catalogue(sbid_dir, args.sbid, args.kind, sbid_subdir=args.sbid_subdir)
     print(f"[INFO] Catalogue: {cat_path}")
 
     rows = load_obs_catalogue(cat_path, min_snr=args.min_snr, only_source_id=args.source_id)
