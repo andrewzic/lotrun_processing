@@ -151,7 +151,7 @@ source "$(dirname "$0")/slurm_helpers.sh"
 # -------------------- PIPELINE EXECUTION --------------------
 mkdir -p logs plots
 
-n_chunks=$( ls -d ${DATA_ROOT}/${SBID}/${CHUNK_GLOB} | wc -l )
+n_chunks=$( ls -d ${DATA_ROOT}/${SBID}/${FD_CHUNK_GLOB} | wc -l )
 if (( n_chunks > 0 ))
 then
   CHUNK_ARRAY_SPEC="0-$((n_chunks-1))"
@@ -295,7 +295,7 @@ last_idx="${SC_INDEX[$((${#SC_INDEX[@]}-1))]}"
 jid_img_final=$( sbatch_submit "wsclean_${IMG_TAGS[${last_idx}]}_final" "${WSCLEAN_TIME}" "${WSCLEAN_CPUS}" "${WSCLEAN_MEM}" "${ARRAY_SPEC}" "${RUN_WSCLEAN}" "${jid_fm_prev}" \
                  SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" FLINT_WSCLEAN_SIF="${FLINT_WSCLEAN_SIF}" \
                  IMG_TAG="${IMG_TAGS[${last_idx}]}" INDEX="${last_idx}" BIND_SRC="${BIND_SRC}" WSCLEAN_OPTS="${WSCLEAN_OPTS[${last_idx}]}" FITS_MASK_TAG="${IMG_TAGS[${last_idx}]}" \
-                 KEEP_RESIDUALS=1 )
+                 KEEP_RESIDUALS=1 IGNORE_QC_FAIL="1" )
 jid_img_final=$(chain "$jid_img_final" "wsclean_${IMG_TAGS[${last_idx}]}_final")
 
 jid_cp_final=$(
@@ -309,7 +309,7 @@ jid_cp_final=$(chain "$jid_cp_final" "copy_continuum")
 jid_fm_final=$( sbatch_submit "flintmask_${IMG_TAGS[${last_idx}]}_final" "${FM_TIME}" "${FM_CPUS}" "${FM_MEM}" "${ARRAY_SPEC}" "${RUN_FLINT_MASK}" "${jid_img_final}" \
                 SELFCAL="1" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" IMG_TAG="${IMG_TAGS[${last_idx}]}" INDEX="${last_idx}" \
                 FLOOD_FILL_POSITIVE_SEED_CLIP="${FLOOD_FILL_POSITIVE_SEED_CLIP}" FLOOD_FILL_POSITIVE_FLOOD_CLIP="${FLOOD_FILL_POSITIVE_FLOOD_CLIP}" \
-                FLOOD_FILL_MAC_BOX_SIZE="${FLOOD_FILL_MAC_BOX_SIZE}" BEAM_SHAPE_ERODE_MIN_RESPONSE="${BEAM_SHAPE_ERODE_MIN_RESPONSE}" )
+                FLOOD_FILL_MAC_BOX_SIZE="${FLOOD_FILL_MAC_BOX_SIZE}" BEAM_SHAPE_ERODE_MIN_RESPONSE="${BEAM_SHAPE_ERODE_MIN_RESPONSE}" IGNORE_QC_FAIL="1" )
 jid_fm_final=$(chain "$jid_fm_final" "flintmask_${IMG_TAGS[${last_idx}]}_final")
 
 # # Final predict from latest source list (concatenated)
@@ -350,7 +350,7 @@ fi
 applycal_pattern="${APPLYCAL_NATIVE_START_PATTERN}"
 jid_applycal=$( sbatch_submit "applycal_native" "${APPLYCAL_TIME}" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_APPLYCAL}" "${jid_uvsub_concat}" \
                  SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${applycal_pattern}" FLINT_CASA_SIF="${FLINT_CASA_SIF}" BIND_SRC="${BIND_SRC}" \
-                 SCRIPT_DIR="${SCRIPT_DIR}" SCRIPT="${APPLYCAL_SCRIPT}" CAL_DIR="${CONT_CALTABLE_DIR}" EXTENSION="G*" DELETE_PREVIOUS="" )
+                 SCRIPT_DIR="${SCRIPT_DIR}" SCRIPT="${APPLYCAL_SCRIPT}" CAL_DIR="${CONT_CALTABLE_DIR}" EXTENSION="G*" DELETE_PREVIOUS="" LAST_INDEX="${last_idx}" )
 jid_applycal=$(chain "$jid_applycal" "applycal_native")
 
 # Predict from 2h continuum model onto native res (pattern is last produced calG<last_idx>)
@@ -385,7 +385,7 @@ jid_wsclean_native=$(chain "$jid_wsclean_native" "wsclean_native")
 # fastducc on uvsubbed native MS
 jid_fastducc=$( sbatch_submit "fastducc" "${FD_TIME}" "${FD_CPUS}" "${FD_MEM}" "${ARRAY_SPEC}" "${RUN_FASTDUCC}" "${jid_cat_native}" \
                 SELFCAL="0" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${FASTDUCC_INPUT_PATTERN}" BIND_SRC="${BIND_SRC}" INDEX="${last_idx}" \
-                EXTENSION="G${last_idx}" NO_VAR_SEARCH="${FD_NO_VAR_SEARCH}" NO_BOX_SEARCH="${FD_NO_BOX_SEARCH}" PLOT_CANDS_ONLY="${FD_PLOT_CANDS_ONLY}" )
+                FD_WORKER_TIME="${FD_WORKER_TIME}" EXTENSION="G${last_idx}" NO_VAR_SEARCH="${FD_NO_VAR_SEARCH}" NO_BOX_SEARCH="${FD_NO_BOX_SEARCH}" PLOT_CANDS_ONLY="${FD_PLOT_CANDS_ONLY}" )
 jid_fastducc=$(chain "$jid_fastducc" "fastducc")
 
 # aggregate per chunk
