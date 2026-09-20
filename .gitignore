@@ -81,3 +81,5 @@ logs/*.txt
 logs/*tmp
 logs/*
 pipelines/sq.tmp
+test_img/*
+test_img/
