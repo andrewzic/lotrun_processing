@@ -45,7 +45,7 @@ FLINT_CASA_SIF="${CONTAINER_DIR}/flint-containers_casa.sif"
 CRYSTALBALL_SIF="${CONTAINER_DIR}/casacore.sif"
 
 # -------------------- General Parameters ----------------
-CLOBBER="False"
+CLOBBER="True" #clobber uvfits before importing | set to "True" or 1 to enable
 ARRAY_SPEC="0-35"
 BIGARRAY_SPEC="0-500"
 
@@ -55,8 +55,8 @@ BIGARRAY_SPEC="0-500"
 RUN_IMPORT="${SCRIPT_DIR}/scripts/slurm/run_import.sh"
 IMPORT_SCRIPT="${SCRIPT_DIR}/src/casa/import_array.py"
 IMPORT_CPUS="2"
-IMPORT_MEM="1G"
-IMPORT_TIME="00:10:00"
+IMPORT_MEM="4G"
+IMPORT_TIME="00:25:00"
 UVFITS_PATTERN="20??*/*beam*.uvfits"
 
 # =============================================================================
@@ -113,7 +113,7 @@ RUN_CONCAT="${SCRIPT_DIR}/scripts/slurm/run_concat_beams.sh"
 CONCAT_SCRIPT="${SCRIPT_DIR}/src/casa/concat_ms_beams.py"
 CONCAT_PYTHON="apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CONTAINER_DIR}/flint-containers_casa.sif python3"
 CONCAT_CPUS="4"
-CONCAT_MEM="4G"
+CONCAT_MEM="8G"
 CONCAT_CONT_TIME="00:30:00"
 CONCAT_NATIVE_TIME="02:00:00"
 CONCAT_AVG_INPUT_PATTERN="20????????????/*beam{beam:02d}*.20????????????.avg.calB0.ms"
@@ -166,6 +166,7 @@ SC_COMBINE="scan"
 SC_MINSNR="3.0"
 SC_PARANG=""
 SC_APPLY_CALWT="False"
+SC_UVRANGE=">200m"
 
 # Round tags & selfcal controls
 declare -ag IMG_TAGS=("initial_scratch" "selfcal_1" "selfcal_2" "selfcal_3" "selfcal_4" "selfcal_5" "selfcal_6" "selfcal_7")
@@ -173,7 +174,7 @@ declare -ag SC_INDEX=(1 2 3 4 5 6 7)
 declare -ag SC_CALMODE=("p" "p" "p" "p" "ap" "ap" "ap")
 declare -ag SC_SOLINT=("480s" "300s" "120s" "30s" "600s" "300s" "120s")
 declare -ag SC_PREFIX=("selfcal1_p" "selfcal2_p" "selfcal3_p" "selfcal4_p" "selfcal5_ap" "selfcal6_ap" "selfcal7_ap")
-declare -ag SC_NSPWS=(8 8 8 8 4 4 4)
+declare -ag SC_NSPWS=(8 8 8 8 8 8 8)
 
 # =============================================================================
 # 8. Prediction & UVSub
@@ -268,6 +269,27 @@ FASTDUCC_INPUT_PATTERN="native_combined/*beam{beam:02d}*.calB0.uvsub.ms"
 FD_NO_VAR_SEARCH=""
 FD_NO_BOX_SEARCH=""
 FD_PLOT_CANDS_ONLY=""
+FD_ENABLE_VAR_CHUNK="1" # 1 to enable per-chunk variance search; 0 to disable
+FD_ENABLE_VAR_SCAN="1"  # 1 to enable per-scan variance search; 0 to disable
+FD_ENABLE_VAR_OBS="1"   # 1 to enable whole per-obs variance search; 0 to disable
+
+# FastDUCC algorithm and worker settings
+FD_CHUNK_SIZE="1024"
+FD_CORR_MODE="single"
+FD_BASIS="linear"
+FD_SINGLE_POL="XX"
+FD_NPIX_X="384"
+FD_NPIX_Y="384"
+FD_PIXSIZE_ARCSEC="22.0"
+FD_THRESHOLD_SIGMA="8.0"
+FD_BOXCAR_WIDTHS="1 2 4 8 12 16 24 32 48 64 96 128"
+FD_VAR_THRESHOLD_SIGMA="8.0"
+FD_ENABLE_LOCAL_STATS="1"
+FD_LOCAL_BOX_SIZE="64"
+FD_PARALLEL_MODE="dask-slurm"
+FD_DASK_WORKERS="16"
+FD_SLURM_CORES_PER_WORKER="1"
+FD_SLURM_MEM="32GB"
 
 # =============================================================================
 # 11. DStools Extraction

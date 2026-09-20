@@ -4,11 +4,10 @@
 #SBATCH --error=logs/importuvfits_%A_%a.err
 #SBATCH --time=00:10:00
 #SBATCH --cpus-per-task=2
-#SBATCH --mem=1G
+#SBATCH --mem=4G
 #SBATCH --array=0-500
 # Optional: set your partition/queue
 # #SBATCH --partition=standard
-# Optional: limit concurrency to avoid filesystem contention
 # #SBATCH --array=0-500%10
 
 set -euo pipefail
@@ -59,6 +58,7 @@ echo "Pattern:       ${UVFITS_PATTERN}"
 echo "Files found:   ${#uvfits[@]}"
 echo "Import script: ${IMPORT_SCRIPT}"
 echo "Array index:   ${SLURM_ARRAY_TASK_ID}"
+echo "Clobber:       ${CLOBBER}"
 
 if (( SLURM_ARRAY_TASK_ID >= ${#uvfits[@]} )); then
     echo "Index ${SLURM_ARRAY_TASK_ID} out of range for ${#uvfits[@]} files - skipping."
@@ -67,6 +67,11 @@ fi
 
 module load apptainer
 
-$PYTHON "${IMPORT_SCRIPT}" -i "${SLURM_ARRAY_TASK_ID}" -f "${uvfits[@]}"
+clobber_args=()
+if [[ "${CLOBBER}" == "True" || "${CLOBBER}" == "1" ]]; then
+    clobber_args+=( "--clobber" )
+fi
+
+$PYTHON "${IMPORT_SCRIPT}" -i "${SLURM_ARRAY_TASK_ID}" -f "${uvfits[@]}" "${clobber_args[@]}"
 
 echo "Job ${SLURM_JOB_ID}.${SLURM_ARRAY_TASK_ID} completed."

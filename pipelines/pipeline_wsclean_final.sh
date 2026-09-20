@@ -16,6 +16,8 @@ for arg in "$@"; do
     SBID=*)    SBID="${arg#SBID=}" ;;
     CONFIG=*)  CONFIG="${arg#CONFIG=}" ;;
     START_STAGE=*) START_STAGE="${arg#START_STAGE=}" ;;
+    END_STAGE=*) END_STAGE="${arg#END_STAGE=}" ;;
+    BEAMS=*) BEAMS="${arg#BEAMS=}" ;;
     VERBOSE=*) VERBOSE="${arg#VERBOSE=}" ;;
     NO_SYMLINK=*) NO_SYMLINK="${arg#NO_SYMLINK=}" ;;
     DRY_RUN=*) DRY_RUN="${arg#DRY_RUN=}" ;;
@@ -24,6 +26,8 @@ for arg in "$@"; do
 done
 VERBOSE="${VERBOSE:-0}"
 START_STAGE="${START_STAGE:-}"
+END_STAGE="${END_STAGE:-}"
+BEAMS="${BEAMS:-}"
 
 # Default SBID if not provided via CLI or environment
 DEFAULT_SBID="${DEFAULT_SBID:-SB77974}"
@@ -55,6 +59,10 @@ if [[ -f "${CONFIG}" ]]; then
     echo "sourcing config $CONFIG"
     source "${CONFIG}"
     echo "sourced config"
+    
+    if [[ -n "${BEAMS:-}" ]]; then
+      ARRAY_SPEC="${BEAMS}"
+    fi
 else
   echo "Config file not found: ${CONFIG}"
   echo "Create one (e.g., pipeline.config.sh) or pass CONFIG=/path/to/file"
@@ -68,6 +76,7 @@ declare -ag PIPELINE_STAGES=(
 )
 
 source "$(dirname "$0")/slurm_helpers.sh"
+validate_stages
 
 # -------------------- PIPELINE EXECUTION --------------------
 mkdir -p logs plots

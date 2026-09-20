@@ -38,10 +38,12 @@ outdir="${OUTDIR_DEFAULT}"
 
 mkdir -p "${outdir}"
 
+ORGANIZE_EXTRA_FLAGS=${ORGANIZE_EXTRA_FLAGS:-""}
+
 for kind in ${KIND_LIST}; do
   echo "[ObsAgg] SBID=${SBID} kind=${kind} sky_tol=${SKY_TOL_ARCSEC} outdir=${outdir}"
   # use fastducc_run.py’s CLI entrypoint to dispatch into candidates.aggregate_observation_from_super_summaries
-  ${FASTDUCC} aggregate_obs --obs-root "${obs_root}" --kind "${kind}" --sky-tol-arcsec "${SKY_TOL_ARCSEC}" --outdir "${outdir}"
+  ${FASTDUCC} aggregate_obs --obs-root "${obs_root}" --kind "${kind}" --sky-tol-arcsec "${SKY_TOL_ARCSEC}" --outdir "${outdir}" ${ORGANIZE_EXTRA_FLAGS}
 done
 
 echo "[ObsAgg] Done: outputs in ${outdir}"

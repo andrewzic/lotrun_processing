@@ -50,7 +50,7 @@ NATIVE10S_PATTERN="*beam{beam:02d}_averaged_cal.leakage.ms"
 RUN_IMPORT="${SCRIPT_DIR}/scripts/slurm/run_import.sh"
 IMPORT_SCRIPT="${SCRIPT_DIR}/src/casa/import_array.py"
 IMPORT_CPUS="2"
-IMPORT_MEM="1G"
+IMPORT_MEM="4G"
 IMPORT_TIME="00:10:00"
 
 # =============================================================================
@@ -154,28 +154,37 @@ SC_COMBINE="scan"
 SC_MINSNR="3.0"
 SC_PARANG=""
 SC_APPLY_CALWT="False"
+SC_UVRANGE=">200m"
+
 
 declare -ag IMG_TAGS=("initial_scratch" "selfcal_1" "selfcal_2" "selfcal_3" "selfcal_4" "selfcal_5" "selfcal_6")
 declare -ag SC_INDEX=(1 2 3 4 5 6)
 declare -ag SC_CALMODE=("p" "p" "p" "p" "ap" "ap")
 declare -ag SC_SOLINT=("480s" "300s" "120s" "30s" "600s" "300s")
 declare -ag SC_PREFIX=("selfcal1_p" "selfcal2_p" "selfcal3_p" "selfcal4_p" "selfcal5_ap" "selfcal6_ap")
-declare -ag SC_NSPWS=(16 16 16 16 16 16)
+declare -ag SC_NSPWS=(8 8 8 8 8 8)
 
 # =============================================================================
 # 8. Predict & UVSub
 # =============================================================================
-# Crystalball specifics
-RUN_CB="${SCRIPT_DIR}/scripts/slurm/run_crystalball_beams.sh"
+PREDICT_TOOL="wsclean" # 'wsclean' or 'crystalball'
 
-# NOTE:
-# Crystalball runs in DISTRIBUTED mode.
-# CB_CPUS/CB_MEM apply ONLY to the client job.
-# Real compute happens in bounded per-beam Dask workers.
-CB_TIME="03:15:00"
-CB_CPUS="2"
-CB_MEM="4G"
+if [[ "${PREDICT_TOOL}" == "wsclean" ]]; then
+    RUN_CB="${SCRIPT_DIR}/scripts/slurm/run_wsclean_predict_beams.sh"
+    CB_TIME="00:45:00"
+    CB_CPUS="2"
+    CB_MEM="4G"
+else
+    RUN_CB="${SCRIPT_DIR}/scripts/slurm/run_crystalball_beams.sh"
+    CB_TIME="03:15:00"
+    CB_CPUS="4"
+    CB_MEM="32G"
+fi
+
+# Crystalball specifics
 CB_SOURCE_LIST_PATTERN="*beam{beam:02d}_averaged_cal.leakage.ms"
+CB_SUBDIR=""
+CB_SRCLIST_SUBDIR=""
 CB_OUTPUT_COLUMN="MODEL_DATA"
 CB_NUM_WORKERS="0"
 CB_ROW_CHUNKS="0"
@@ -183,12 +192,27 @@ CB_MODEL_CHUNKS="0"
 CB_MEMORY_FRACTION="0.8"
 CB_DISTRIBUTED="1"
 
-# Max number of Dask workers per beam
-CB_DASK_NWORKERS="4"
-# CPUs per Dask worker
-CB_DASK_WORKER_CPUS="1"
-# Memory per Dask worker  (4 workers × 4G = 16G, within 32G SLURM alloc)
-CB_DASK_WORKER_MEM="4G"
+# Dask cluster mode
+# "local"  = spawn workers on the same node (original behaviour)
+# "slurm"  = submit workers as separate SLURM jobs (queue-allocated)
+CB_DASK_MODE="local"
+
+# --- Local-mode settings (used when CB_DASK_MODE="local") ---
+CB_DASK_LOCAL_NWORKERS="4"       # max workers on this node
+CB_DASK_LOCAL_WORKER_CPUS="1"    # CPUs per worker
+CB_DASK_LOCAL_WORKER_MEM="4G"    # memory per worker
+
+# --- SLURM-mode settings (used when CB_DASK_MODE="slurm") ---
+CB_DASK_SLURM_NWORKERS="24"       # max worker jobs to submit
+CB_DASK_SLURM_WORKER_CPUS="1"      # CPUs per worker job
+CB_DASK_SLURM_WORKER_MEM="16G"      # memory per worker job
+CB_DASK_SLURM_WORKER_TIME="03:00:00" # walltime per worker job
+CB_DASK_SLURM_ACCOUNT=""            # SLURM account (empty = inherit default)
+CB_DASK_SLURM_PARTITION=""          # SLURM partition (empty = default queue)
+CB_DASK_SLURM_TMP="5GB"             # local SSD per worker for spill
+
+# Local directory for Dask worker scratch space (spill to disk)
+CB_DASK_LOCAL_DIR="${SCRIPT_DIR}/dask-worker-space"
 
 # UVSub
 RUN_UVSUB="${SCRIPT_DIR}/scripts/slurm/run_uvsub_beams.sh"
@@ -218,6 +242,27 @@ FASTDUCC_INPUT_PATTERN="*beam{beam:02d}*.uvsub.ms"
 FD_NO_VAR_SEARCH=""
 FD_NO_BOX_SEARCH=""
 FD_PLOT_CANDS_ONLY=""
+FD_ENABLE_VAR_CHUNK="1" # 1 to enable per-chunk variance search; 0 to disable
+FD_ENABLE_VAR_SCAN="1"  # 1 to enable per-scan variance search; 0 to disable
+FD_ENABLE_VAR_OBS="1"   # 1 to enable whole per-obs variance search; 0 to disable
+
+# FastDUCC algorithm and worker settings
+FD_CHUNK_SIZE="512"
+FD_CORR_MODE="single"
+FD_BASIS="linear"
+FD_SINGLE_POL="XX"
+FD_NPIX_X="384"
+FD_NPIX_Y="384"
+FD_PIXSIZE_ARCSEC="22.0"
+FD_THRESHOLD_SIGMA="8.0"
+FD_BOXCAR_WIDTHS="1 2 4 8 12 16 24 32 48 64 96 128"
+FD_VAR_THRESHOLD_SIGMA="8.0"
+FD_ENABLE_LOCAL_STATS="1"
+FD_LOCAL_BOX_SIZE="64"
+FD_PARALLEL_MODE="dask-slurm"
+FD_DASK_WORKERS="16"
+FD_SLURM_CORES_PER_WORKER="1"
+FD_SLURM_MEM="32GB"
 
 # =============================================================================
 # 10. Dstools Extraction

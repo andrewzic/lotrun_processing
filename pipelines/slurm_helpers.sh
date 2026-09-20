@@ -5,22 +5,60 @@
 # -------------------- GENERIC SUBMISSION + HELPERS --------------------
 log(){ printf '[%s] %s\n' "$(date +'%F %T')" "$*" >&2; }
 
+validate_stages() {
+  local start_stage="${START_STAGE:-}"
+  local end_stage="${END_STAGE:-}"
+  
+  if [[ -n "$start_stage" ]]; then
+    local found=0
+    for stage in "${PIPELINE_STAGES[@]}"; do
+      if [[ "$stage" == "$start_stage" ]]; then
+        found=1
+        break
+      fi
+    done
+    if [[ $found -eq 0 ]]; then
+      echo "Error: START_STAGE '${start_stage}' is not a valid stage." >&2
+      exit 1
+    fi
+  fi
+  
+  if [[ -n "$end_stage" ]]; then
+    local found=0
+    for stage in "${PIPELINE_STAGES[@]}"; do
+      if [[ "$stage" == "$end_stage" ]]; then
+        found=1
+        break
+      fi
+    done
+    if [[ $found -eq 0 ]]; then
+      echo "Error: END_STAGE '${end_stage}' is not a valid stage." >&2
+      exit 1
+    fi
+  fi
+}
+
 should_skip() {
   local target_stage="$1"
   local start_stage="${START_STAGE:-}"
+  local end_stage="${END_STAGE:-}"
   
-  # If START_STAGE is not set or empty, never skip
-  if [[ -z "$start_stage" ]]; then
+  # If START_STAGE and END_STAGE are not set or empty, never skip
+  if [[ -z "$start_stage" ]] && [[ -z "$end_stage" ]]; then
     return 1 # false (do not skip)
   fi
 
   # Find indices
   local start_idx=-1
+  local end_idx=-1
   local target_idx=-1
   local i
   for i in "${!PIPELINE_STAGES[@]}"; do
-    if [[ "${PIPELINE_STAGES[$i]}" == "$start_stage" ]]; then
+    if [[ -n "$start_stage" ]] && [[ "${PIPELINE_STAGES[$i]}" == "$start_stage" ]]; then
       start_idx=$i
+    fi
+    if [[ -n "$end_stage" ]] && [[ "${PIPELINE_STAGES[$i]}" == "$end_stage" ]]; then
+      end_idx=$i
     fi
     if [[ "${PIPELINE_STAGES[$i]}" == "$target_stage" ]]; then
       target_idx=$i
@@ -33,11 +71,16 @@ should_skip() {
   fi
   
   # If the target is BEFORE the start stage, skip it
-  if [[ $target_idx -lt $start_idx ]]; then
+  if [[ -n "$start_stage" ]] && [[ $start_idx -ne -1 ]] && [[ $target_idx -lt $start_idx ]]; then
     return 0 # true (skip)
-  else
-    return 1 # false (do not skip)
   fi
+  
+  # If the target is AFTER the end stage, skip it
+  if [[ -n "$end_stage" ]] && [[ $end_idx -ne -1 ]] && [[ $target_idx -gt $end_idx ]]; then
+    return 0 # true (skip)
+  fi
+
+  return 1 # false (do not skip)
 }
 
 # sbatch_submit <name> <time> <cpus> <mem> <array_spec_or_empty> <wrapper> <dep_jid_or_empty> [KEY=VAL ...]
