@@ -410,7 +410,8 @@ def solve_gain_phase(ms, caltable, solint, args):
         minsnr=args.minsnr,
         gaintype="G",
         calmode=args.calmode,
-        parang=args.parang
+        parang=args.parang,
+        uvrange=args.uvrange
     )
 
 
@@ -592,8 +593,15 @@ def check_caltable_quality(
     finally:
         tb.close()
         
-    # Collapse flag across pols and chans (if any are flagged, row is considered flagged)
-    row_flagged = np.any(flags, axis=(0, 1))  # Shape: (num_rows,)
+    # Collapse flag across valid pols and chans (if any are flagged, row is considered flagged)
+    # Ignore polarizations that are 100% flagged across the entire table (e.g. uncalibrated pols)
+    num_pols, num_chans, num_rows = flags.shape
+    pol_fully_flagged = np.all(flags, axis=(1, 2))  # Shape: (num_pols,)
+    valid_pols = np.where(~pol_fully_flagged)[0]
+    if len(valid_pols) == 0:
+        row_flagged = np.ones(num_rows, dtype=bool)
+    else:
+        row_flagged = np.any(flags[valid_pols, :, :], axis=(0, 1))
     
     unique_spws = np.unique(spws)
     failed_spws = []

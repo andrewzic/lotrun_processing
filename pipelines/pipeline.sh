@@ -18,6 +18,8 @@ for arg in "$@"; do
     SBID=*)    SBID="${arg#SBID=}" ;;
     CONFIG=*)  CONFIG="${arg#CONFIG=}" ;;
     START_STAGE=*) START_STAGE="${arg#START_STAGE=}" ;;
+    END_STAGE=*) END_STAGE="${arg#END_STAGE=}" ;;
+    BEAMS=*) BEAMS="${arg#BEAMS=}" ;;
     VERBOSE=*) VERBOSE="${arg#VERBOSE=}" ;;
     NO_SYMLINK=*) NO_SYMLINK="${arg#NO_SYMLINK=}" ;;
     DRY_RUN=*) DRY_RUN="${arg#DRY_RUN=}" ;;
@@ -26,6 +28,8 @@ for arg in "$@"; do
 done
 VERBOSE="${VERBOSE:-0}"
 START_STAGE="${START_STAGE:-}"
+END_STAGE="${END_STAGE:-}"
+BEAMS="${BEAMS:-}"
 
 # Default SBID if not provided via CLI or environment
 DEFAULT_SBID="${DEFAULT_SBID:-SB77974}"
@@ -57,6 +61,10 @@ if [[ -f "${CONFIG}" ]]; then
     echo "sourcing config $CONFIG"
     source "${CONFIG}"
     echo "sourced config"
+    
+    if [[ -n "${BEAMS:-}" ]]; then
+      ARRAY_SPEC="${BEAMS}"
+    fi
 else
   if [[ "${SHOW_HELP}" == "1" ]]; then
     echo "Warning: Config file not found (${CONFIG}). START_STAGE list will be incomplete." >&2
@@ -147,11 +155,23 @@ if [[ "${SHOW_HELP}" == "1" ]]; then
 fi
 
 source "$(dirname "$0")/slurm_helpers.sh"
+validate_stages
 
 # -------------------- PIPELINE EXECUTION --------------------
 mkdir -p logs plots
 
-n_chunks=$( ls -d ${DATA_ROOT}/${SBID}/${FD_CHUNK_GLOB} | wc -l )
+# Safely determine the number of chunks at launch time
+n_chunks=0
+if [[ -n "${FD_CHUNK_GLOB:-}" ]]; then
+  if [[ "${FD_CHUNK_GLOB}" == *"combined"* ]]; then
+    # Combined mode will produce exactly one combined directory at runtime
+    n_chunks=1
+  else
+    # Scan/chunk mode: count existing chunk directories
+    n_chunks=$( ls -d "${DATA_ROOT}/${SBID}"/${FD_CHUNK_GLOB} 2>/dev/null | wc -l )
+  fi
+fi
+
 if (( n_chunks > 0 ))
 then
   CHUNK_ARRAY_SPEC="0-$((n_chunks-1))"
@@ -270,7 +290,7 @@ for r in "${!SC_INDEX[@]}"; do
             SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" FLINT_CASA_SIF="${FLINT_CASA_SIF}" BIND_SRC="${BIND_SRC}" \
             SCRIPT_DIR="${SCRIPT_DIR}" SCRIPT="${SELFCAL_SCRIPT}" INDEX="${idx}" CALMODE="${SC_CALMODE[$r]}" SOLINT="${SC_SOLINT[$r]}" \
             FIELD="${SC_FIELD}" SPW="${SC_SPW}" REFANT="${SC_REFANT}" COMBINE="${SC_COMBINE}" MINSNR="${SC_MINSNR}" PARANG="${SC_PARANG}" \
-            CALTABLE_PREFIX="${SC_PREFIX[$r]}" PLOT_DIR="plots" APPLY_CALWT="${SC_APPLY_CALWT}" NSPWS="${nspws_val}" )
+            CALTABLE_PREFIX="${SC_PREFIX[$r]}" PLOT_DIR="plots" APPLY_CALWT="${SC_APPLY_CALWT}" NSPWS="${nspws_val}" SC_UVRANGE="${SC_UVRANGE}" )
 
   do_flag=0
   if [[ "${SC_CALMODE[$r]}" == "ap" ]]; then
@@ -376,6 +396,8 @@ jid_cat_native=$( sbatch_submit "concat_native" "${CONCAT_NATIVE_TIME}" "${CONCA
            SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" OUT_ROOT="${NATIVE_OUT_ROOT}" OUT_SUBDIR="${NATIVE_OUT_SUBDIR}" PATTERN="${CONCAT_NATIVE_INPUT_PATTERN}" PYTHON="${CONCAT_PYTHON}" SCRIPT="${CONCAT_SCRIPT}" CONCAT_OPTS="--no-timeaverage" )
 jid_cat_native=$(chain "$jid_cat_native" "concat_native")
 
+
+
 # quick image of native concatenated uvsubbed visibilities
 jid_wsclean_native=$( sbatch_submit "wsclean_native" "${WSCLEAN_NATIVE_TIME}" "${WSCLEAN_CPUS}" "${WSCLEAN_NATIVE_MEM}" "${ARRAY_SPEC}" "${RUN_WSCLEAN}" "${jid_cat_native}" \
                       SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_NATIVE_PATTERN}" FLINT_WSCLEAN_SIF="${FLINT_WSCLEAN_SIF}" \
@@ -385,7 +407,9 @@ jid_wsclean_native=$(chain "$jid_wsclean_native" "wsclean_native")
 # fastducc on uvsubbed native MS
 jid_fastducc=$( sbatch_submit "fastducc" "${FD_TIME}" "${FD_CPUS}" "${FD_MEM}" "${ARRAY_SPEC}" "${RUN_FASTDUCC}" "${jid_cat_native}" \
                 SELFCAL="0" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${FASTDUCC_INPUT_PATTERN}" BIND_SRC="${BIND_SRC}" INDEX="${last_idx}" \
-                FD_WORKER_TIME="${FD_WORKER_TIME}" EXTENSION="G${last_idx}" NO_VAR_SEARCH="${FD_NO_VAR_SEARCH}" NO_BOX_SEARCH="${FD_NO_BOX_SEARCH}" PLOT_CANDS_ONLY="${FD_PLOT_CANDS_ONLY}" )
+                FD_WORKER_TIME="${FD_WORKER_TIME}" EXTENSION="G${last_idx}" NO_VAR_SEARCH="${FD_NO_VAR_SEARCH}" NO_BOX_SEARCH="${FD_NO_BOX_SEARCH}" PLOT_CANDS_ONLY="${FD_PLOT_CANDS_ONLY}" \
+                FD_ENABLE_LOCAL_STATS="${FD_ENABLE_LOCAL_STATS}" FD_LOCAL_BOX_SIZE="${FD_LOCAL_BOX_SIZE}" \
+                FD_ENABLE_VAR_CHUNK="${FD_ENABLE_VAR_CHUNK:-1}" FD_ENABLE_VAR_SCAN="${FD_ENABLE_VAR_SCAN:-1}" FD_ENABLE_VAR_OBS="${FD_ENABLE_VAR_OBS:-1}" )
 jid_fastducc=$(chain "$jid_fastducc" "fastducc")
 
 # aggregate per chunk

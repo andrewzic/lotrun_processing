@@ -32,6 +32,7 @@ CALTABLE_PREFIX=${CALTABLE_PREFIX:-"selfcal_p"}
 PLOT_DIR=${PLOT_DIR:-"plots"}
 APPLY_CALWT=${APPLY_CALWT:-"True"}
 NSPWS=${NSPWS:-16}
+SC_UVRANGE=${SC_UVRANGE:-">200m"}
 # ---------------------------------------------------------------------------
 
 module load apptainer
@@ -70,5 +71,6 @@ for ms in "${msnames[@]}"; do
       --plot-dir "${PLOT_DIR}" \
       $( [[ -n "${PARANG}" ]] && echo "--parang" ) \
       --apply-calwt "${APPLY_CALWT}" \
-      --nspws "${NSPWS}"
+      --nspws "${NSPWS}" \
+      --uvrange "${SC_UVRANGE}"
 done

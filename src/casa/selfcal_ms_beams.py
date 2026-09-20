@@ -33,6 +33,7 @@ def parse_args():
     p.add_argument("--plot-dir", default="plots", help="Directory to store diagnostic plots.")
     p.add_argument("--apply-calwt", type=str, default="False", help="applycal calwt flag (True/False).")
     p.add_argument("--nspws", type=int, default=16, help="Number of spectral windows to split into for calibration.")
+    p.add_argument("--uvrange", type=str, default=">200m", help="CASA uvrange arg for gaincal (e.g. '' for blank, '>200m'")
     return p.parse_args()
 
 def main():
