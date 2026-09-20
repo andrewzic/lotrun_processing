@@ -18,9 +18,11 @@ for arg in "$@"; do
   case "${arg}" in
     SBID=*)   SBID="${arg#SBID=}" ;;
     CONFIG=*) CONFIG="${arg#CONFIG=}" ;;
+    BEAMS=*)  BEAMS="${arg#BEAMS=}" ;;
     *) echo "Unknown argument: ${arg}" >&2; exit 1 ;;
   esac
 done
+BEAMS="${BEAMS:-}"
 
 # Default SBID if not provided via CLI or environment
 DEFAULT_SBID="${DEFAULT_SBID:-SB77974}"
@@ -39,6 +41,10 @@ CONFIG="${CONFIG:-config.10s.sh}"
 if [[ -f "${CONFIG}" ]]; then
   # shellcheck source=/dev/null
   source "${CONFIG}"
+  
+  if [[ -n "${BEAMS:-}" ]]; then
+    ARRAY_SPEC="${BEAMS}"
+  fi
 else
   echo "Config file not found: ${CONFIG}"
   echo "Create one (e.g., pipeline_10s.config.sh) or pass CONFIG=/path/to/file"
@@ -61,17 +67,17 @@ jid_fixdir=$( sbatch_submit "fixdir_ms" "${UNFLAG_TIME}" "${FLAG_CPUS}" "${FLAG_
 jid_fixdir=$(chain "$jid_fixdir" "fixdir_native")
 
 #unflag then AOflagger on native 10s MS
-# jid_unflag=$( sbatch_submit "unflag_ms" "${UNFLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM}" "${ARRAY_SPEC}" "${RUN_UNFLAG}" "${jid_fixdir}" \
-#   SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${NATIVE10S_PATTERN}" CASA_SIF="${FLINT_CASA_SIF}" BIND_SRC="${BIND_SRC}" SCRIPT_DIR="${SCRIPT_DIR}" )
-# jid_unflag=$(chain "$jid_unflag" "unflag_native")
+jid_unflag=$( sbatch_submit "unflag_ms" "${UNFLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM}" "${ARRAY_SPEC}" "${RUN_UNFLAG}" "${jid_fixdir}" \
+  SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${NATIVE10S_PATTERN}" CASA_SIF="${FLINT_CASA_SIF}" BIND_SRC="${BIND_SRC}" SCRIPT_DIR="${SCRIPT_DIR}" )
+jid_unflag=$(chain "$jid_unflag" "unflag_native")
 
 if [ "$FLAG_OUTER" == "1" ]; then 
-  jid_flagouter=$( sbatch_submit "flagouter" "${FLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM}" "${ARRAY_SPEC}" "${RUN_FLAGOUTER}" "${jid_fixdir}" \
+  jid_flagouter=$( sbatch_submit "flagouter" "${FLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM}" "${ARRAY_SPEC}" "${RUN_FLAGOUTER}" "${jid_unflag}" \
     SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${NATIVE10S_PATTERN}" SCRIPT_DIR="${SCRIPT_DIR}" SCRIPT=${FLAGOUTER_SCRIPT} COLUMN="${FLAG_COLUMN}" )
   jid_flagouter=$(chain "$jid_flagouter" "flagouter_native")
   jid_before_flag="$jid_flagouter"
 else
-  jid_before_flag="$jid_fixdir"
+  jid_before_flag="$jid_unflag"
 fi
 
 jid_quack=$( sbatch_submit "quack_ms" "${FLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM}" "${ARRAY_SPEC}" "${RUN_QUACK}" "$jid_before_flag" \
@@ -174,6 +180,7 @@ jid_fm_final=$( sbatch_submit "flint_mask" "${FM_TIME}" "${FM_CPUS}" "${FM_MEM}"
   FLOOD_FILL_MAC_BOX_SIZE="${FLOOD_FILL_MAC_BOX_SIZE:-350}" BEAM_SHAPE_ERODE_MIN_RESPONSE="${BEAM_SHAPE_ERODE_MIN_RESPONSE:-0.75}" IGNORE_QC_FAIL="1" )
 jid_fm_final=$(chain "$jid_fm_final" "flintmask_${IMG_TAGS[6]}")
 
+# no need for cb since it's done by wsclean 
 # jid_cb_final=$( sbatch_submit "cb_predict" "${CB_TIME}" "${CB_CPUS}" "${CB_MEM}" "${ARRAY_SPEC}" "${RUN_CB}" "$jid_fm_final" \
 #   SELFCAL="1" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" IMG_TAG="${IMG_TAGS[6]}" OUTPUT_COLUMN="${CB_OUTPUT_COLUMN}" \
 #   INDEX="${last_idx}" SOURCE_LIST_PATTERN="${CB_SOURCE_LIST_PATTERN}" NUM_WORKERS="${CB_NUM_WORKERS}" ROW_CHUNKS="${CB_ROW_CHUNKS}" MODEL_CHUNKS="${CB_MODEL_CHUNKS}" \
@@ -181,15 +188,16 @@ jid_fm_final=$(chain "$jid_fm_final" "flintmask_${IMG_TAGS[6]}")
 #   CB_DASK_WORKER_MEM="${CB_DASK_WORKER_MEM}" )
 # jid_cb_final=$(chain "$jid_cb_final" "cb_${IMG_TAGS[6]}")
 
-# C) Single uvsub on native 10s MS (no separate applycal loop)
 jid_uvs_native=$( sbatch_submit "uvsub_ms" "${UVSUB_TIME}" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_UVSUB}" "$jid_fm_final" \
   SELFCAL="0" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" FLINT_CASA_SIF="${FLINT_CASA_SIF}" \
-  BIND_SRC="${BIND_SRC}" SCRIPT_DIR="${SCRIPT_DIR}" SCRIPT="${UVSUB_SCRIPT}" INDEX="${last_idx}" EXTENSION="G6" OUT_PREFIX="uvsub" )
+  BIND_SRC="${BIND_SRC}" SCRIPT_DIR="${SCRIPT_DIR}" SCRIPT="${UVSUB_SCRIPT}" INDEX="${last_idx}" EXTENSION="G${last_idx}" OUT_PREFIX="uvsub" )
 jid_uvs_native=$(chain "$jid_uvs_native" "uvsub_native")
 
 # D) fastducc on uvsubbed native MS
 jid_fastducc=$( sbatch_submit "fastducc_ms" "${FD_TIME}" "${FD_CPUS}" "${FD_MEM}" "${ARRAY_SPEC}" "${RUN_FASTDUCC}" "$jid_uvs_native" \
-  SELFCAL="0" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${FASTDUCC_INPUT_PATTERN}" BIND_SRC="${BIND_SRC}" INDEX="${last_idx}" EXTENSION="G6" )
+  SELFCAL="0" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${FASTDUCC_INPUT_PATTERN}" BIND_SRC="${BIND_SRC}" INDEX="${last_idx}" EXTENSION="G${last_idx}" \
+  FD_ENABLE_LOCAL_STATS="${FD_ENABLE_LOCAL_STATS}" FD_LOCAL_BOX_SIZE="${FD_LOCAL_BOX_SIZE}" \
+  FD_ENABLE_VAR_CHUNK="${FD_ENABLE_VAR_CHUNK:-1}" FD_ENABLE_VAR_SCAN="${FD_ENABLE_VAR_SCAN:-1}" FD_ENABLE_VAR_OBS="${FD_ENABLE_VAR_OBS:-1}" )
 jid_fastducc=$(chain "$jid_fastducc" "fastducc")
 
 # E) dstools extract-ds
