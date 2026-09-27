@@ -21,6 +21,7 @@
 USER="$(whoami)"
 # SBID="${SBID:-SB82418}"
 USER_PATH="/fred/oz451"
+DATA_SRC_ROOT="${DATA_SRC_ROOT:-${USER_PATH}/data/craco}"
 DATA_ROOT="${USER_PATH}/${USER}/data/continuum"
 OUT_ROOT="${USER_PATH}/${USER}/data/continuum"
 BIND_SRC="${USER_PATH}"
@@ -43,6 +44,12 @@ CRYSTALBALL_SIF="${CONTAINER_DIR}/casacore.sif"
 ARRAY_SPEC="0-35"
 BIGARRAY_SPEC="0-500"
 NATIVE10S_PATTERN="*beam{beam:02d}_averaged_cal.leakage.ms"
+
+# -------------------- download and symlink --------------
+CASDA_USERNAME="${CASDA_USERNAME:-andrew.zic@csiro.au}"
+DOWNLOAD_WORKERS="12"
+VIS_DL_OPTIONS=""
+DL_SCRIPT="${SCRIPT_DIR}/scripts/utils/download_uvfits.sh"
 
 # =============================================================================
 # 2. Import
@@ -84,6 +91,7 @@ FLAG_OUTER="False" # Whether to flag outer antennas to match the inner antennas 
 RUN_BANDPASS="${SCRIPT_DIR}/scripts/slurm/run_applycal_beams.sh"
 BANDPASS_SCRIPT="${SCRIPT_DIR}/src/casa/applycal_ms_beams.py"
 BANDPASS_TIME="01:00:00"
+BANDPASS_CAL_DIR="CRACO-Calibration-Tables-${SBID}"
 
 RUN_APPLYCAL="${SCRIPT_DIR}/scripts/slurm/run_applycal_beams.sh"
 APPLYCAL_SCRIPT="${SCRIPT_DIR}/src/casa/applycal_ms_beams.py"

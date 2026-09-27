@@ -20,6 +20,7 @@
 USER="${USER:-$(whoami)}"
 # SBID="${SBID:-SB77974}"
 USER_PATH="/fred/oz451" #location on machine where user directory is
+DATA_SRC_ROOT="${DATA_SRC_ROOT:-${USER_PATH}/data/craco}" # location where raw central data is kept
 DATA_ROOT="${USER_PATH}/${USER}/data" # location where data is kept
 OUT_ROOT="${USER_PATH}/${USER}/data" #location where output goes
 CONT_OUT_ROOT="${USER_PATH}/${USER}/data"
@@ -48,6 +49,12 @@ CRYSTALBALL_SIF="${CONTAINER_DIR}/casacore.sif"
 CLOBBER="True" #clobber uvfits before importing | set to "True" or 1 to enable
 ARRAY_SPEC="0-35"
 BIGARRAY_SPEC="0-500"
+
+# -------------------- download and symlink --------------
+CASDA_USERNAME="${CASDA_USERNAME:-andrew.zic@csiro.au}"
+DOWNLOAD_WORKERS="12"
+VIS_DL_OPTIONS=""
+DL_SCRIPT="${SCRIPT_DIR}/scripts/utils/download_uvfits.sh"
 
 # =============================================================================
 # 2. Import
@@ -88,6 +95,7 @@ RUN_BANDPASS="${SCRIPT_DIR}/scripts/slurm/run_applycal_beams.sh"
 BANDPASS_SCRIPT="${SCRIPT_DIR}/src/casa/applycal_ms_beams.py"
 BANDPASS_TIME="01:00:00"
 BANDPASS_INPUT_PATTERN="20??*/*beam{beam:02d}*.20????????????.ms"
+BANDPASS_CAL_DIR="CRACO-Calibration-Tables-${SBID}"
 
 RUN_APPLYCAL="${SCRIPT_DIR}/scripts/slurm/run_applycal_beams.sh"
 APPLYCAL_SCRIPT="${SCRIPT_DIR}/src/casa/applycal_ms_beams.py"

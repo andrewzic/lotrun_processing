@@ -31,20 +31,27 @@ do
 done
 
 #don't forget the cal
-if [ -d "${DATA_SRC_ROOT}${SBID}"/cal ]
-then
-    mkdir -p "${DATA_ROOT}/${SBID}/cal"
-    for c in $( find "${DATA_SRC_ROOT}${SBID}/cal" -name "*.B0" )
-    do
-	bc=$( basename $c )
-	if [ -L "${DATA_ROOT}/${SBID}/cal/$bc" ] && [ -e "${DATA_ROOT}/${SBID}/cal/$bc" ]; then
-	    # Valid symlink already exists, skip
-	    continue
-	fi
-	ln -sf $c "${DATA_ROOT}/${SBID}/cal/$bc"
+cal_src=""
+if [ -d "${DATA_SRC_ROOT}${SBID}/CRACO-Calibration-Tables-${SBID}" ]; then
+    cal_src="${DATA_SRC_ROOT}${SBID}/CRACO-Calibration-Tables-${SBID}"
+elif [ -d "${DATA_SRC_ROOT}${SBID}/cal" ]; then
+    cal_src="${DATA_SRC_ROOT}${SBID}/cal"
+fi
+
+if [ -n "$cal_src" ]; then
+    mkdir -p "${DATA_ROOT}/${SBID}/CRACO-Calibration-Tables-${SBID}"
+    for c in $( find "$cal_src" -name "*.B0" ); do
+        bc=$( basename "$c" )
+        if [ -L "${DATA_ROOT}/${SBID}/CRACO-Calibration-Tables-${SBID}/$bc" ] && [ -e "${DATA_ROOT}/${SBID}/CRACO-Calibration-Tables-${SBID}/$bc" ]; then
+            continue
+        fi
+        ln -sf "$c" "${DATA_ROOT}/${SBID}/CRACO-Calibration-Tables-${SBID}/$bc"
     done
+    if [ ! -e "${DATA_ROOT}/${SBID}/cal" ] && [ ! -L "${DATA_ROOT}/${SBID}/cal" ]; then
+        ln -s "CRACO-Calibration-Tables-${SBID}" "${DATA_ROOT}/${SBID}/cal"
+    fi
 else
-    echo "cannot find cal directory for SBID ${SBID}"
+    echo "cannot find cal or CRACO-Calibration-Tables directory for SBID ${SBID}"
     exit 1
 fi
 

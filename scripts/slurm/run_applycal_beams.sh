@@ -15,7 +15,7 @@ module load apptainer
 SBID=${SBID:-SB77974}
 DATA_ROOT=${DATA_ROOT:-${USER_PATH:-/fred/oz451}/${USER}/data}
 PATTERN=${PATTERN:-"*beam{beam:02d}*.avg.ms"}
-CAL_DIR=${CAL_DIR:-cal}
+CAL_DIR=${CAL_DIR:-CRACO-Calibration-Tables-${SBID}}
 EXTENSION=${EXTENSION:-"G*"}  # e.g. "B0", "G5" etc. Use a wildcard like "G*" to automatically select the 
 # highest numbered Gaintable extension available for each beam (e.g. if G1, G2, G3 are present, it will apply G3). 
 # Default is "B0" which applies the initial calibration table without selfcal solutions.

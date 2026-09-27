@@ -16,7 +16,7 @@ module load apptainer
 SBID=${SBID:-SB77974}
 DATA_ROOT=${DATA_ROOT:-${USER_PATH:-/fred/oz451}/${USER}/data}
 PATTERN=${PATTERN:-"*beam{beam:02d}*.avg.ms"}
-CAL_DIR=${CAL_DIR:-cal}
+CAL_DIR=${CAL_DIR:-CRACO-Calibration-Tables-${SBID}}
 EXTENSION=${EXTENSION:-"B0"}
 SCRIPT_DIR=${SCRIPT_DIR:-${USER_PATH:-/fred/oz451}/${USER}/scripts/lotrun_processing}
 SCRIPT=${SCRIPT:-${SCRIPT_DIR}/src/casa/applycal_ms_beams.py}

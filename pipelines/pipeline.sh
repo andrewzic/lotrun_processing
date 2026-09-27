@@ -23,6 +23,10 @@ for arg in "$@"; do
     VERBOSE=*) VERBOSE="${arg#VERBOSE=}" ;;
     NO_SYMLINK=*) NO_SYMLINK="${arg#NO_SYMLINK=}" ;;
     DRY_RUN=*) DRY_RUN="${arg#DRY_RUN=}" ;;
+    CASDA_USERNAME=*) CASDA_USERNAME="${arg#CASDA_USERNAME=}" ;;
+    DOWNLOAD_WORKERS=*) DOWNLOAD_WORKERS="${arg#DOWNLOAD_WORKERS=}" ;;
+    FORCE_DOWNLOAD=*) FORCE_DOWNLOAD="${arg#FORCE_DOWNLOAD=}" ;;
+    NO_DOWNLOAD=*) NO_DOWNLOAD="${arg#NO_DOWNLOAD=}" ;;
     *) echo "Unknown argument: ${arg}" >&2; exit 1 ;;
   esac
 done
@@ -45,16 +49,6 @@ CONTAINER_DIR="${CONTAINER_DIR:-${USER_PATH:-/fred/oz451}/${USER}/containers}"
 LOG_DIR="${LOG_DIR:-${USER_PATH:-/fred/oz451}/${USER}/lotrun_processing/logs}"
 SCRIPT_DIR="${SCRIPT_DIR:-${USER_PATH:-/fred/oz451}/$USER/scripts/lotrun_processing}"
 
-if [[ "${NO_SYMLINK:-0}" == "0" ]] && [[ "${SHOW_HELP}" == "0" ]]; then
-  echo "doing symlink"
-  # 1) symlink uvfits
-  if [[ "${DRY_RUN:-0}" == "1" ]]; then
-    echo "DRY local: ./scripts/utils/symlink_uvfits.sh ${SBID}" >&2
-  else
-    ${SCRIPT_DIR}/scripts/utils/symlink_uvfits.sh "${SBID}"
-  fi
-fi
-
 CONFIG="${CONFIG:-config.sh}"
 if [[ -f "${CONFIG}" ]]; then
     # shellcheck source=/dev/null
@@ -76,6 +70,55 @@ else
     echo "Config file not found: ${CONFIG}"
     echo "Create one (e.g., pipeline.config.sh) or pass CONFIG=/path/to/file"
     exit 1
+  fi
+fi
+
+# =============================================================================
+# Data Preparation: symlink from DATA_SRC_ROOT, falling back to CASDA download
+# =============================================================================
+DATA_SRC_ROOT="${DATA_SRC_ROOT:-${USER_PATH:-/fred/oz451}/data/craco}"
+DL_SCRIPT="${DL_SCRIPT:-${SCRIPT_DIR}/scripts/utils/download_uvfits.sh}"
+SYMLINK_SCRIPT="${SYMLINK_SCRIPT:-${SCRIPT_DIR}/scripts/utils/symlink_uvfits.sh}"
+CASDA_USERNAME="${CASDA_USERNAME:-andrew.zic@csiro.au}"
+DOWNLOAD_WORKERS="${DOWNLOAD_WORKERS:-12}"
+
+if [[ "${NO_SYMLINK:-0}" == "0" ]] && [[ "${SHOW_HELP}" == "0" ]]; then
+  # Check if source data exists on disk to symlink
+  src_has_uvfits=0
+  if [[ -d "${DATA_SRC_ROOT}/${SBID}" ]]; then
+    if [[ -n "$(find "${DATA_SRC_ROOT}/${SBID}" -name "*.uvfits" -print -quit 2>/dev/null)" ]]; then
+      src_has_uvfits=1
+    fi
+  fi
+
+  # Check if data is already present locally in DATA_ROOT/SBID
+  local_has_uvfits=0
+  if [[ -d "${DATA_ROOT}/${SBID}" ]]; then
+    if [[ -n "$(find "${DATA_ROOT}/${SBID}" -name "*.uvfits" -print -quit 2>/dev/null)" ]]; then
+      local_has_uvfits=1
+    fi
+  fi
+
+  if [[ "${FORCE_DOWNLOAD:-0}" == "0" ]] && [[ "${src_has_uvfits}" == "1" ]]; then
+    echo "Found source data in ${DATA_SRC_ROOT}/${SBID}. Symlinking to ${DATA_ROOT}/${SBID}..."
+    if [[ "${DRY_RUN:-0}" == "1" ]]; then
+      echo "DRY local: ${SYMLINK_SCRIPT} ${SBID}" >&2
+    else
+      ${SYMLINK_SCRIPT} "${SBID}"
+    fi
+  elif [[ "${FORCE_DOWNLOAD:-0}" == "0" ]] && [[ "${local_has_uvfits}" == "1" ]]; then
+    echo "Data already present in ${DATA_ROOT}/${SBID}. Skipping download/symlink."
+  else
+    if [[ "${NO_DOWNLOAD:-0}" == "0" ]]; then
+      echo "Source data not found at ${DATA_SRC_ROOT}/${SBID} to symlink. Falling back to downloading from CASDA to ${DATA_ROOT}/${SBID}..."
+      if [[ "${DRY_RUN:-0}" == "1" ]]; then
+        echo "DRY local: ${DL_SCRIPT} ${SBID} ${CASDA_USERNAME} ${DOWNLOAD_WORKERS}" >&2
+      else
+        ${DL_SCRIPT} "${SBID}" "${CASDA_USERNAME}" "${DOWNLOAD_WORKERS}"
+      fi
+    else
+      echo "Source data not found at ${DATA_SRC_ROOT}/${SBID} and NO_DOWNLOAD=1. Skipping download."
+    fi
   fi
 fi
 __DRY_JID_SEQ="${DRY_FAKE_START:-490000}"
@@ -208,7 +251,7 @@ jid_fl1=$(chain "$jid_fl1" "flag_native")
 # 4) apply bandpass (B0) to native res
 jid_ac1=$( sbatch_submit "bandpass_B0" "${BANDPASS_TIME}" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_BANDPASS}" "${jid_fl1}" \
            SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${BANDPASS_INPUT_PATTERN}" FLINT_CASA_SIF="${FLINT_CASA_SIF}" BIND_SRC="${BIND_SRC}" \
-           SCRIPT="${BANDPASS_SCRIPT}" CAL_DIR="cal" EXTENSION="B0" DELETE_PREVIOUS="--delete-previous" )
+           SCRIPT="${BANDPASS_SCRIPT}" CAL_DIR="${BANDPASS_CAL_DIR:-CRACO-Calibration-Tables-${SBID}}" EXTENSION="B0" DELETE_PREVIOUS="--delete-previous" )
 jid_ac1=$(chain "$jid_ac1" "bandpass_B0")
 
 # 5) flag after B0
