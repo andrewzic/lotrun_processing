@@ -485,7 +485,14 @@ def run_task(task: ExtractTask, *, overwrite: bool, dry_run: bool,
     # concurrently on the same Measurement Set for different sources.
     # We prioritize node-local SSD directory ($JOBFS on OzSTAR), then fall back to TMPDIR / /tmp.
     jobfs = os.environ.get("JOBFS")
-    temp_dir_root = Path(jobfs) if jobfs else Path(tempfile.gettempdir())
+    if jobfs and Path(jobfs).exists() and os.access(jobfs, os.W_OK):
+        temp_dir_root = Path(jobfs)
+    else:
+        tmpdir = os.environ.get("TMPDIR")
+        if tmpdir and Path(tmpdir).exists() and os.access(tmpdir, os.W_OK):
+            temp_dir_root = Path(tmpdir)
+        else:
+            temp_dir_root = Path(tempfile.gettempdir())
     unique_temp_dir = temp_dir_root / f"_dstools_temp_ms_{task.source_id}_{task.beam_id}"
     unique_temp_dir.mkdir(parents=True, exist_ok=True)
     symlink_path = unique_temp_dir / task.ms_path.name

@@ -174,6 +174,9 @@ fi
 for kind in "boxcar"; do
   PIPELINE_STAGES+=( "dstools_extract_${kind}" )
 done
+if [[ -n "${RUN_FASTDUCC_OBSAGG:-}" ]]; then
+  PIPELINE_STAGES+=( "fastducc_obsagg_final" )
+fi
 
 if [[ "${SHOW_HELP}" == "1" ]]; then
   echo "============================================================================="
@@ -470,7 +473,7 @@ else
   jid_prev="$jid_agg"
 fi
 
-# dstools extract-ds for both kinds
+# dstools extract-ds (boxcar only)
 for kind in "boxcar"; do
   KIND="$kind"
   jid_prev=$( sbatch_submit "dstools_extract_${kind}" "${EXTRACT_TIME}" "${EXTRACT_CPUS}" "${EXTRACT_MEM}" "" "${RUN_EXTRACT_DS}" "${jid_prev}" \
@@ -481,8 +484,17 @@ for kind in "boxcar"; do
               DS_BEAM_SCOPE="${DS_BEAM_SCOPE}" DS_MATCH_ARCSEC="${DS_MATCH_ARCSEC}" DS_MS_GLOB_TEMPLATE="${DS_MS_GLOB_TEMPLATE}" \
               DS_DATACOLUMN="${DS_DATACOLUMN}" DS_PRIMARY_BEAM="${DS_PRIMARY_BEAM}" DS_NOFLAG="${DS_NOFLAG}" \
               DS_BASELINE_AVERAGE="${DS_BASELINE_AVERAGE}" DS_MINUVDIST="${DS_MINUVDIST}" DS_VERBOSE="${DS_VERBOSE}" \
-              DS_OVERWRITE="${DS_OVERWRITE}" DS_DRY_RUN="${DS_DRY_RUN}" DS_CATALOGUE="${DS_CATALOGUE}" )
+              DS_OVERWRITE="${DS_OVERWRITE}" DS_DRY_RUN="${DS_DRY_RUN}" DS_CATALOGUE="${DS_CATALOGUE}" \
+              DS_SCAN_SCOPE="${DS_SCAN_SCOPE:-all}" DS_JOB_EXTRA="${DS_JOB_EXTRA:-}" )
   jid_prev=$(chain "$jid_prev" "dstools_extract_${kind}")
 done
+
+# Redo observation aggregation after ds extraction to populate candidate dynamic_spectra/ directories
+if [[ -n "${RUN_FASTDUCC_OBSAGG:-}" ]]; then
+  jid_obs_final=$( sbatch_submit "fastducc_obsagg_final" "${AGG_TIME}" "${AGG_CPUS}" "${AGG_MEM}" "" "${RUN_FASTDUCC_OBSAGG}" "${jid_prev}" \
+                   SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" )
+  jid_obs_final=$(chain "$jid_obs_final" "fastducc_obsagg_final")
+  jid_prev="$jid_obs_final"
+fi
 
 echo "Pipeline submitted."
