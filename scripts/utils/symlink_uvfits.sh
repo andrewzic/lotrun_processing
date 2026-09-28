@@ -1,9 +1,14 @@
 #!/bin/bash
+set -euo pipefail
 
-SBID=$1
-USER=$( whoami )
-DATA_SRC_ROOT=${DATA_SRC_ROOT:-${USER_PATH:-/fred/oz451}/data/craco/}
-DATA_ROOT=${DATA_ROOT:-${USER_PATH:-/fred/oz451}/${USER}/data/}
+SBID="$1"
+USER="${USER:-$(whoami)}"
+DATA_SRC_ROOT="${DATA_SRC_ROOT:-${USER_PATH:-/fred/oz451}/data/craco}"
+DATA_ROOT="${DATA_ROOT:-${USER_PATH:-/fred/oz451}/${USER}/data}"
+
+# Strip trailing slashes for consistent path concatenation
+DATA_SRC_ROOT="${DATA_SRC_ROOT%/}"
+DATA_ROOT="${DATA_ROOT%/}"
 
 # Validate source directory exists
 if [ ! -d "${DATA_SRC_ROOT}/${SBID}" ]; then
@@ -13,42 +18,54 @@ fi
 
 # Remove any broken symlinks in the destination before creating new ones
 if [ -d "${DATA_ROOT}/${SBID}" ]; then
-    find "${DATA_ROOT}/${SBID}" -xtype l -delete 2>/dev/null
+    find "${DATA_ROOT}/${SBID}" -xtype l -delete 2>/dev/null || true
 fi
 
-for f in $( find "${DATA_SRC_ROOT}/${SBID}/" -name "*.uvfits" )
-do
-    bf=$( basename $f )
-    ff=$( realpath $f )
-    scanid=$( echo $ff | sed 's|'"${DATA_SRC_ROOT}"'||g' | awk -F'/' '{print $2}' )
-    sbid=$( echo $ff | sed 's|'"${DATA_SRC_ROOT}"'||g' | awk -F'/' '{print $1}' )
-    mkdir -p ${DATA_ROOT}/$sbid/$scanid/
-    if [ -L "${DATA_ROOT}/$sbid/$scanid/$bf" ] && [ -e "${DATA_ROOT}/$sbid/$scanid/$bf" ]; then
-	# Valid symlink already exists, skip
-	continue
-    fi
-    ln -sf $ff ${DATA_ROOT}/$sbid/$scanid/
-done
+src_dir="${DATA_SRC_ROOT}/${SBID}"
+dest_base="${DATA_ROOT}/${SBID}"
+declare -A seen_dirs
 
-#don't forget the cal
+# Stream find output and use pure bash string operations (zero subshells per file)
+while IFS= read -r f; do
+    bf="${f##*/}"
+    scan_dir="${f%/*}"
+    scanid="${scan_dir##*/}"
+
+    target_dir="${dest_base}/${scanid}"
+    if [[ -z "${seen_dirs[$target_dir]:-}" ]]; then
+        mkdir -p "${target_dir}"
+        seen_dirs["$target_dir"]=1
+    fi
+
+    dest_file="${target_dir}/${bf}"
+    if [[ -L "${dest_file}" && -e "${dest_file}" ]]; then
+        continue
+    fi
+    ln -sf "$f" "${dest_file}"
+done < <(find "${src_dir}/" -name "*.uvfits")
+
+# Calibration tables
 cal_src=""
-if [ -d "${DATA_SRC_ROOT}${SBID}/CRACO-Calibration-Tables-${SBID}" ]; then
-    cal_src="${DATA_SRC_ROOT}${SBID}/CRACO-Calibration-Tables-${SBID}"
-elif [ -d "${DATA_SRC_ROOT}${SBID}/cal" ]; then
-    cal_src="${DATA_SRC_ROOT}${SBID}/cal"
+if [ -d "${src_dir}/CRACO-Calibration-Tables-${SBID}" ]; then
+    cal_src="${src_dir}/CRACO-Calibration-Tables-${SBID}"
+elif [ -d "${src_dir}/cal" ]; then
+    cal_src="${src_dir}/cal"
 fi
 
 if [ -n "$cal_src" ]; then
-    mkdir -p "${DATA_ROOT}/${SBID}/CRACO-Calibration-Tables-${SBID}"
-    for c in $( find "$cal_src" -name "*.B0" ); do
-        bc=$( basename "$c" )
-        if [ -L "${DATA_ROOT}/${SBID}/CRACO-Calibration-Tables-${SBID}/$bc" ] && [ -e "${DATA_ROOT}/${SBID}/CRACO-Calibration-Tables-${SBID}/$bc" ]; then
+    cal_dest="${dest_base}/CRACO-Calibration-Tables-${SBID}"
+    mkdir -p "${cal_dest}"
+    while IFS= read -r c; do
+        bc="${c##*/}"
+        dest_c="${cal_dest}/${bc}"
+        if [[ -L "${dest_c}" && -e "${dest_c}" ]]; then
             continue
         fi
-        ln -sf "$c" "${DATA_ROOT}/${SBID}/CRACO-Calibration-Tables-${SBID}/$bc"
-    done
-    if [ ! -e "${DATA_ROOT}/${SBID}/cal" ] && [ ! -L "${DATA_ROOT}/${SBID}/cal" ]; then
-        ln -s "CRACO-Calibration-Tables-${SBID}" "${DATA_ROOT}/${SBID}/cal"
+        ln -sf "$c" "${dest_c}"
+    done < <(find "$cal_src" -name "*.B0")
+
+    if [ ! -e "${dest_base}/cal" ] && [ ! -L "${dest_base}/cal" ]; then
+        ln -s "CRACO-Calibration-Tables-${SBID}" "${dest_base}/cal"
     fi
 else
     echo "cannot find cal or CRACO-Calibration-Tables directory for SBID ${SBID}"

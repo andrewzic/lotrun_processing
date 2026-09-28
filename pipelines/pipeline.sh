@@ -26,6 +26,7 @@ for arg in "$@"; do
     CASDA_USERNAME=*) CASDA_USERNAME="${arg#CASDA_USERNAME=}" ;;
     DOWNLOAD_WORKERS=*) DOWNLOAD_WORKERS="${arg#DOWNLOAD_WORKERS=}" ;;
     FORCE_DOWNLOAD=*) FORCE_DOWNLOAD="${arg#FORCE_DOWNLOAD=}" ;;
+    FORCE_SYMLINK=*) FORCE_SYMLINK="${arg#FORCE_SYMLINK=}" ;;
     NO_DOWNLOAD=*) NO_DOWNLOAD="${arg#NO_DOWNLOAD=}" ;;
     *) echo "Unknown argument: ${arg}" >&2; exit 1 ;;
   esac
@@ -34,6 +35,7 @@ VERBOSE="${VERBOSE:-0}"
 START_STAGE="${START_STAGE:-}"
 END_STAGE="${END_STAGE:-}"
 BEAMS="${BEAMS:-}"
+FORCE_SYMLINK="${FORCE_SYMLINK:-0}"
 
 # Default SBID if not provided via CLI or environment
 DEFAULT_SBID="${DEFAULT_SBID:-SB77974}"
@@ -82,45 +84,7 @@ SYMLINK_SCRIPT="${SYMLINK_SCRIPT:-${SCRIPT_DIR}/scripts/utils/symlink_uvfits.sh}
 CASDA_USERNAME="${CASDA_USERNAME:-andrew.zic@csiro.au}"
 DOWNLOAD_WORKERS="${DOWNLOAD_WORKERS:-12}"
 
-if [[ "${NO_SYMLINK:-0}" == "0" ]] && [[ "${SHOW_HELP}" == "0" ]]; then
-  # Check if source data exists on disk to symlink
-  src_has_uvfits=0
-  if [[ -d "${DATA_SRC_ROOT}/${SBID}" ]]; then
-    if [[ -n "$(find "${DATA_SRC_ROOT}/${SBID}" -name "*.uvfits" -print -quit 2>/dev/null)" ]]; then
-      src_has_uvfits=1
-    fi
-  fi
 
-  # Check if data is already present locally in DATA_ROOT/SBID
-  local_has_uvfits=0
-  if [[ -d "${DATA_ROOT}/${SBID}" ]]; then
-    if [[ -n "$(find "${DATA_ROOT}/${SBID}" -name "*.uvfits" -print -quit 2>/dev/null)" ]]; then
-      local_has_uvfits=1
-    fi
-  fi
-
-  if [[ "${FORCE_DOWNLOAD:-0}" == "0" ]] && [[ "${src_has_uvfits}" == "1" ]]; then
-    echo "Found source data in ${DATA_SRC_ROOT}/${SBID}. Symlinking to ${DATA_ROOT}/${SBID}..."
-    if [[ "${DRY_RUN:-0}" == "1" ]]; then
-      echo "DRY local: ${SYMLINK_SCRIPT} ${SBID}" >&2
-    else
-      ${SYMLINK_SCRIPT} "${SBID}"
-    fi
-  elif [[ "${FORCE_DOWNLOAD:-0}" == "0" ]] && [[ "${local_has_uvfits}" == "1" ]]; then
-    echo "Data already present in ${DATA_ROOT}/${SBID}. Skipping download/symlink."
-  else
-    if [[ "${NO_DOWNLOAD:-0}" == "0" ]]; then
-      echo "Source data not found at ${DATA_SRC_ROOT}/${SBID} to symlink. Falling back to downloading from CASDA to ${DATA_ROOT}/${SBID}..."
-      if [[ "${DRY_RUN:-0}" == "1" ]]; then
-        echo "DRY local: ${DL_SCRIPT} ${SBID} ${CASDA_USERNAME} ${DOWNLOAD_WORKERS}" >&2
-      else
-        ${DL_SCRIPT} "${SBID}" "${CASDA_USERNAME}" "${DOWNLOAD_WORKERS}"
-      fi
-    else
-      echo "Source data not found at ${DATA_SRC_ROOT}/${SBID} and NO_DOWNLOAD=1. Skipping download."
-    fi
-  fi
-fi
 __DRY_JID_SEQ="${DRY_FAKE_START:-490000}"
 
 last_idx="${SC_INDEX[$((${#SC_INDEX[@]}-1))]}"
@@ -190,6 +154,7 @@ if [[ "${SHOW_HELP}" == "1" ]]; then
   echo "  START_STAGE   Stage to start the pipeline from (see list below)"
   echo "  VERBOSE       Set to 1 to echo submitted command name and job ID to stderr (default: 0)"
   echo "  NO_SYMLINK    Set to 1 to disable uvfits symlinking (default: 0)"
+  echo "  FORCE_SYMLINK Set to 1 to force re-symlinking of uvfits even if local data exists (default: 0)"
   echo "  DRY_RUN       Set to 1 to simulate submission without actually submitting (default: 0)"
   echo ""
   echo "Available START_STAGE selections (based on ${CONFIG}):"
@@ -202,6 +167,53 @@ fi
 
 source "$(dirname "$0")/slurm_helpers.sh"
 validate_stages
+
+# =============================================================================
+# Data Preparation: symlink from DATA_SRC_ROOT, falling back to CASDA download
+# =============================================================================
+if [[ "${NO_SYMLINK:-0}" == "0" ]] && [[ "${SHOW_HELP}" == "0" ]]; then
+  if should_skip "importuvfits" && [[ "${FORCE_SYMLINK:-0}" == "0" ]]; then
+    echo "Stage 'importuvfits' is skipped. Skipping UVFITS data preparation."
+  else
+    # Check if data is already present locally in DATA_ROOT/SBID
+    local_has_uvfits=0
+    if [[ -d "${DATA_ROOT}/${SBID}" ]]; then
+      if [[ -n "$(find "${DATA_ROOT}/${SBID}" -name "*.uvfits" -print -quit 2>/dev/null)" ]]; then
+        local_has_uvfits=1
+      fi
+    fi
+
+    # Check if source data exists on disk to symlink
+    src_has_uvfits=0
+    if [[ -d "${DATA_SRC_ROOT}/${SBID}" ]]; then
+      if [[ -n "$(find "${DATA_SRC_ROOT}/${SBID}" -name "*.uvfits" -print -quit 2>/dev/null)" ]]; then
+        src_has_uvfits=1
+      fi
+    fi
+
+    if [[ "${FORCE_DOWNLOAD:-0}" == "0" && "${FORCE_SYMLINK:-0}" == "0" && "${local_has_uvfits}" == "1" ]]; then
+      echo "Data already present in ${DATA_ROOT}/${SBID}. Skipping download/symlink."
+    elif [[ "${FORCE_DOWNLOAD:-0}" == "0" && "${src_has_uvfits}" == "1" ]]; then
+      echo "Found source data in ${DATA_SRC_ROOT}/${SBID}. Symlinking to ${DATA_ROOT}/${SBID}..."
+      if [[ "${DRY_RUN:-0}" == "1" ]]; then
+        echo "DRY local: ${SYMLINK_SCRIPT} ${SBID}" >&2
+      else
+        ${SYMLINK_SCRIPT} "${SBID}"
+      fi
+    else
+      if [[ "${NO_DOWNLOAD:-0}" == "0" ]]; then
+        echo "Source data not found at ${DATA_SRC_ROOT}/${SBID} to symlink. Falling back to downloading from CASDA to ${DATA_ROOT}/${SBID}..."
+        if [[ "${DRY_RUN:-0}" == "1" ]]; then
+          echo "DRY local: ${DL_SCRIPT} ${SBID} ${CASDA_USERNAME} ${DOWNLOAD_WORKERS}" >&2
+        else
+          ${DL_SCRIPT} "${SBID}" "${CASDA_USERNAME}" "${DOWNLOAD_WORKERS}"
+        fi
+      else
+        echo "Source data not found at ${DATA_SRC_ROOT}/${SBID} and NO_DOWNLOAD=1. Skipping download."
+      fi
+    fi
+  fi
+fi
 
 # -------------------- PIPELINE EXECUTION --------------------
 mkdir -p logs plots
