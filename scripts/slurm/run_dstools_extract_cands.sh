@@ -65,6 +65,7 @@ else
     module load python-scientific/3.11.5-foss-2023b
     unset PYTHONPATH
     source "${CRYSTALBALL_ENV}/bin/activate"
+    export PYTHONUNBUFFERED=1
     PYTHON=${CRYSTALBALL:-python}
 fi
 
@@ -72,7 +73,7 @@ SCRIPT_DIR=${SCRIPT_DIR:-${USER_PATH:-/fred/oz451}/${USER}/scripts/lotrun_proces
 SCRIPT=${SCRIPT:-${SCRIPT_DIR}/src/dstools/extract_ds_orchestrator.py}
 
 # -------------------- Build orchestrator command --------------------
-cmd=( ${PYTHON} "${SCRIPT}"
+cmd=( ${PYTHON} -u "${SCRIPT}"
   --sbid "${SBID}"
   --data-root "${DATA_ROOT}"
   --kind "${KIND}"
@@ -119,7 +120,7 @@ if [[ -n "${DS_PROJECT}" ]]; then
 fi
 
 if [[ -n "${DS_JOB_EXTRA:-}" ]]; then
-  cmd+=( --job-extra "${DS_JOB_EXTRA}" )
+  cmd+=( "--job-extra=${DS_JOB_EXTRA}" )
 fi
 
 # Pass the *same* module/venv steps to the Dask workers via job prologue
@@ -127,7 +128,7 @@ if [[ "${USE_CONTAINER}" == "True" && -n "${CRYSTALBALL_SIF}" ]]; then
   cmd+=( --job-prologue "" )
   cmd+=( --python "apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${CRYSTALBALL_SIF} python" )
 else
-  cmd+=( --job-prologue "module load python-scientific/3.11.5-foss-2023b ; unset PYTHONPATH; source ${CRYSTALBALL_ENV}/bin/activate" )
+  cmd+=( --job-prologue "module load python-scientific/3.11.5-foss-2023b ; unset PYTHONPATH; export PYTHONUNBUFFERED=1; source ${CRYSTALBALL_ENV}/bin/activate" )
 fi
 
 # -------------------- Run --------------------

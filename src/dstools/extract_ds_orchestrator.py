@@ -33,6 +33,7 @@ from __future__ import annotations
 import argparse
 import math
 import os
+import sys
 import glob
 import time
 import re
@@ -148,7 +149,19 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p.add_argument('--retries', type=int, default=1, help='Number of retries per task on failure')
     p.add_argument('--sleep-between-batches', type=float, default=0.0, help='Seconds to sleep between batches')
 
-    return p.parse_args(argv)
+    if argv is None:
+        argv = sys.argv[1:]
+    merged_argv = []
+    i = 0
+    while i < len(argv):
+        if argv[i] == '--job-extra' and i + 1 < len(argv) and not argv[i+1].startswith('--job-'):
+            merged_argv.append(f"--job-extra={argv[i+1]}")
+            i += 2
+        else:
+            merged_argv.append(argv[i])
+            i += 1
+
+    return p.parse_args(merged_argv)
 
 # ---------------- Helpers ----------------------------------------------------
 
@@ -560,7 +573,7 @@ def make_client(args: argparse.Namespace) -> Client:
             "cores": args.cores,
             "memory": args.mem,
             "walltime": args.walltime,
-            "job_extra": jb_extra,
+            "job_extra_directives": jb_extra,
             "job_script_prologue": prologue,
             "local_directory": str(Path.cwd() / 'dask-worker-space'),
         }
@@ -580,11 +593,11 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     # Catalogue
     cat_path = Path(args.catalogue) if args.catalogue else discover_catalogue(sbid_dir, args.sbid, args.kind, sbid_subdir=args.sbid_subdir)
-    print(f"[INFO] Catalogue: {cat_path}")
+    print(f"[INFO] Catalogue: {cat_path}", flush=True)
 
     rows = load_obs_catalogue(cat_path, min_snr=args.min_snr, only_source_id=args.source_id)
     if not rows:
-        print('[INFO] No rows to process after filtering; exiting.')
+        print('[INFO] No rows to process after filtering; exiting.', flush=True)
         return 0
 
     # Parse fieldname from catalogue filename for output naming
@@ -598,12 +611,12 @@ def main(argv: Optional[List[str]] = None) -> int:
         mode=args.mode, combined_dir=args.combined_dir,
     )
     if not tasks:
-        print('[INFO] No tasks to run (no MS found for requested combos).')
+        print('[INFO] No tasks to run (no MS found for requested combos).', flush=True)
         return 0
-    print(f"[INFO] Built {len(tasks)} tasks")
+    print(f"[INFO] Built {len(tasks)} tasks", flush=True)
 
     client = make_client(args)
-    print(f"[INFO] Connected to scheduler: {client}")
+    print(f"[INFO] Connected to scheduler: {client}", flush=True)
 
     batch = []
     completed = 0
@@ -630,7 +643,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             if rc != 0:
                 failures += 1
             completed += 1
-            print(f"[{status}] {out_file}: {msg[:200]}")
+            print(f"[{status}] {out_file}: {msg[:200]}", flush=True)
 
     for t in tasks:
         batch.append(t)
@@ -641,8 +654,9 @@ def main(argv: Optional[List[str]] = None) -> int:
                 time.sleep(args.sleep_between_batches)
     submit_batch(batch)
 
-    print(f"[DONE] completed={completed} failures={failures}")
+    print(f"[DONE] completed={completed} failures={failures}", flush=True)
     return 0 if failures == 0 else 1
 
 if __name__ == '__main__':
     raise SystemExit(main())
+

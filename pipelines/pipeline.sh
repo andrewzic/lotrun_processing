@@ -15,7 +15,7 @@ SHOW_HELP=0
 for arg in "$@"; do
   case "${arg}" in
     -h|--help|help) SHOW_HELP=1 ;;
-    SBID=*)    SBID="${arg#SBID=}" ;;
+    SBID=*)    SBID="${arg#SBID=}"; SBID_CLI="${SBID}" ;;
     CONFIG=*)  CONFIG="${arg#CONFIG=}" ;;
     START_STAGE=*) START_STAGE="${arg#START_STAGE=}" ;;
     END_STAGE=*) END_STAGE="${arg#END_STAGE=}" ;;
@@ -28,6 +28,10 @@ for arg in "$@"; do
     FORCE_DOWNLOAD=*) FORCE_DOWNLOAD="${arg#FORCE_DOWNLOAD=}" ;;
     FORCE_SYMLINK=*) FORCE_SYMLINK="${arg#FORCE_SYMLINK=}" ;;
     NO_DOWNLOAD=*) NO_DOWNLOAD="${arg#NO_DOWNLOAD=}" ;;
+    FD_PLOT_CANDS_ONLY=*|PLOT_CANDS_ONLY=*) FD_PLOT_CANDS_ONLY_CLI="${arg#*=}" ;;
+    FD_NO_VAR_SEARCH=*|NO_VAR_SEARCH=*) FD_NO_VAR_SEARCH_CLI="${arg#*=}" ;;
+    FD_NO_BOX_SEARCH=*|NO_BOX_SEARCH=*) FD_NO_BOX_SEARCH_CLI="${arg#*=}" ;;
+    *.sh) CONFIG="${arg}" ;;
     *) echo "Unknown argument: ${arg}" >&2; exit 1 ;;
   esac
 done
@@ -37,9 +41,16 @@ END_STAGE="${END_STAGE:-}"
 BEAMS="${BEAMS:-}"
 FORCE_SYMLINK="${FORCE_SYMLINK:-0}"
 
-# Default SBID if not provided via CLI or environment
-DEFAULT_SBID="${DEFAULT_SBID:-SB77974}"
-SBID="${SBID:-${DEFAULT_SBID}}"
+CONFIG="${CONFIG:-config.sh}"
+# Default SBID: if not provided on CLI, infer from config filename if available
+if [[ -z "${SBID_CLI:-}" ]]; then
+  if [[ "${CONFIG}" =~ (SB[0-9]{5,}) ]]; then
+    SBID="${BASH_REMATCH[1]}"
+  else
+    DEFAULT_SBID="${DEFAULT_SBID:-SB77974}"
+    SBID="${SBID:-${DEFAULT_SBID}}"
+  fi
+fi
 
 
 # ----------- USER DEFAULTS (ideally edit config.sh to change these) -----------
@@ -58,6 +69,20 @@ if [[ -f "${CONFIG}" ]]; then
     source "${CONFIG}"
     echo "sourced config"
     
+    if [[ -n "${SBID_CLI:-}" ]]; then
+      SBID="${SBID_CLI}"
+    fi
+
+    if [[ -n "${FD_PLOT_CANDS_ONLY_CLI+x}" ]]; then
+      FD_PLOT_CANDS_ONLY="${FD_PLOT_CANDS_ONLY_CLI}"
+    fi
+    if [[ -n "${FD_NO_VAR_SEARCH_CLI+x}" ]]; then
+      FD_NO_VAR_SEARCH="${FD_NO_VAR_SEARCH_CLI}"
+    fi
+    if [[ -n "${FD_NO_BOX_SEARCH_CLI+x}" ]]; then
+      FD_NO_BOX_SEARCH="${FD_NO_BOX_SEARCH_CLI}"
+    fi
+
     if [[ -n "${BEAMS:-}" ]]; then
       ARRAY_SPEC="${BEAMS}"
     fi
@@ -465,7 +490,9 @@ jid_wsclean_native=$(chain "$jid_wsclean_native" "wsclean_native")
 # fastducc on uvsubbed native MS
 jid_fastducc=$( sbatch_submit "fastducc" "${FD_TIME}" "${FD_CPUS}" "${FD_MEM}" "${ARRAY_SPEC}" "${RUN_FASTDUCC}" "${jid_cat_native}" \
                 SELFCAL="0" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${FASTDUCC_INPUT_PATTERN}" BIND_SRC="${BIND_SRC}" INDEX="${last_idx}" \
-                FD_WORKER_TIME="${FD_WORKER_TIME}" EXTENSION="G${last_idx}" NO_VAR_SEARCH="${FD_NO_VAR_SEARCH}" NO_BOX_SEARCH="${FD_NO_BOX_SEARCH}" PLOT_CANDS_ONLY="${FD_PLOT_CANDS_ONLY}" \
+                FD_WORKER_TIME="${FD_WORKER_TIME}" EXTENSION="G${last_idx}" \
+                FD_NO_VAR_SEARCH="${FD_NO_VAR_SEARCH}" FD_NO_BOX_SEARCH="${FD_NO_BOX_SEARCH}" FD_PLOT_CANDS_ONLY="${FD_PLOT_CANDS_ONLY}" \
+                NO_VAR_SEARCH="${FD_NO_VAR_SEARCH}" NO_BOX_SEARCH="${FD_NO_BOX_SEARCH}" PLOT_CANDS_ONLY="${FD_PLOT_CANDS_ONLY}" \
                 FD_ENABLE_LOCAL_STATS="${FD_ENABLE_LOCAL_STATS}" FD_LOCAL_BOX_SIZE="${FD_LOCAL_BOX_SIZE}" \
                 FD_ENABLE_VAR_CHUNK="${FD_ENABLE_VAR_CHUNK:-1}" FD_ENABLE_VAR_SCAN="${FD_ENABLE_VAR_SCAN:-1}" FD_ENABLE_VAR_OBS="${FD_ENABLE_VAR_OBS:-1}" )
 jid_fastducc=$(chain "$jid_fastducc" "fastducc")

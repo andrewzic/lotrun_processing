@@ -274,9 +274,9 @@ FASTDUCC_INPUT_PATTERN="native_combined/*beam{beam:02d}*.calB0.uvsub.ms"
 
 # options for fastducc search/no search/plot_cands/only
 # set to 1 to enable the option; leave empty string to disable
-FD_NO_VAR_SEARCH=""
-FD_NO_BOX_SEARCH=""
-FD_PLOT_CANDS_ONLY=""
+FD_NO_VAR_SEARCH="${FD_NO_VAR_SEARCH:-}"
+FD_NO_BOX_SEARCH="${FD_NO_BOX_SEARCH:-}"
+FD_PLOT_CANDS_ONLY="${FD_PLOT_CANDS_ONLY:-}"
 FD_ENABLE_VAR_CHUNK="1" # 1 to enable per-chunk variance search; 0 to disable
 FD_ENABLE_VAR_SCAN="1"  # 1 to enable per-scan variance search; 0 to disable
 FD_ENABLE_VAR_OBS="1"   # 1 to enable whole per-obs variance search; 0 to disable
@@ -304,14 +304,14 @@ FD_SLURM_MEM="32GB"
 # =============================================================================
 RUN_EXTRACT_DS="${SCRIPT_DIR}/scripts/slurm/run_dstools_extract_cands.sh"
 EXTRACT_SCRIPT="${SCRIPT_DIR}/src/dstools/extract_ds_orchestrator.py"
-EXTRACT_TIME="00:30:00"
+EXTRACT_TIME="01:30:00"
 EXTRACT_CPUS="1"
 EXTRACT_MEM="2G"
 
 DS_N_WORKERS="48"
 DS_CPUS="1"
 DS_MEM="4GB"
-DS_WALLTIME="00:20:00"
+DS_WALLTIME="01:00:00"
 DS_QUEUE=""
 DS_PROJECT=""
 DS_JOB_EXTRA="--tmp=150GB"
