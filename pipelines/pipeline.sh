@@ -23,11 +23,6 @@ for arg in "$@"; do
     VERBOSE=*) VERBOSE="${arg#VERBOSE=}" ;;
     NO_SYMLINK=*) NO_SYMLINK="${arg#NO_SYMLINK=}" ;;
     DRY_RUN=*) DRY_RUN="${arg#DRY_RUN=}" ;;
-    CASDA_USERNAME=*) CASDA_USERNAME="${arg#CASDA_USERNAME=}" ;;
-    DOWNLOAD_WORKERS=*) DOWNLOAD_WORKERS="${arg#DOWNLOAD_WORKERS=}" ;;
-    FORCE_DOWNLOAD=*) FORCE_DOWNLOAD="${arg#FORCE_DOWNLOAD=}" ;;
-    FORCE_SYMLINK=*) FORCE_SYMLINK="${arg#FORCE_SYMLINK=}" ;;
-    NO_DOWNLOAD=*) NO_DOWNLOAD="${arg#NO_DOWNLOAD=}" ;;
     FD_PLOT_CANDS_ONLY=*|PLOT_CANDS_ONLY=*) FD_PLOT_CANDS_ONLY_CLI="${arg#*=}" ;;
     FD_NO_VAR_SEARCH=*|NO_VAR_SEARCH=*) FD_NO_VAR_SEARCH_CLI="${arg#*=}" ;;
     FD_NO_BOX_SEARCH=*|NO_BOX_SEARCH=*) FD_NO_BOX_SEARCH_CLI="${arg#*=}" ;;
@@ -39,7 +34,6 @@ VERBOSE="${VERBOSE:-0}"
 START_STAGE="${START_STAGE:-}"
 END_STAGE="${END_STAGE:-}"
 BEAMS="${BEAMS:-}"
-FORCE_SYMLINK="${FORCE_SYMLINK:-0}"
 
 CONFIG="${CONFIG:-config.sh}"
 # Default SBID: if not provided on CLI, infer from config filename if available
@@ -105,9 +99,18 @@ fi
 # =============================================================================
 DATA_SRC_ROOT="${DATA_SRC_ROOT:-${USER_PATH:-/fred/oz451}/data/craco}"
 DL_SCRIPT="${DL_SCRIPT:-${SCRIPT_DIR}/scripts/utils/download_uvfits.sh}"
+RUN_DOWNLOAD="${RUN_DOWNLOAD:-${SCRIPT_DIR}/scripts/slurm/run_download.sh}"
 SYMLINK_SCRIPT="${SYMLINK_SCRIPT:-${SCRIPT_DIR}/scripts/utils/symlink_uvfits.sh}"
 CASDA_USERNAME="${CASDA_USERNAME:-andrew.zic@csiro.au}"
 DOWNLOAD_WORKERS="${DOWNLOAD_WORKERS:-12}"
+DOWNLOAD_PARTITION="${DOWNLOAD_PARTITION:-datamover}"
+DOWNLOAD_CPUS="${DOWNLOAD_CPUS:-16}"
+DOWNLOAD_MEM="${DOWNLOAD_MEM:-0}"
+DOWNLOAD_TIME="${DOWNLOAD_TIME:-04:00:00}"
+LOCAL_DOWNLOAD="${LOCAL_DOWNLOAD:-0}"
+FORCE_DOWNLOAD="${FORCE_DOWNLOAD:-0}"
+FORCE_SYMLINK="${FORCE_SYMLINK:-0}"
+NO_DOWNLOAD="${NO_DOWNLOAD:-0}"
 
 
 __DRY_JID_SEQ="${DRY_FAKE_START:-490000}"
@@ -119,6 +122,7 @@ WSCLEAN_NATIVE_PATTERN="${WSCLEAN_NATIVE_PATTERN/G6/G${last_idx}}"
 
 # -------------------- STAGE SKIP LIST --------------------
 declare -ag PIPELINE_STAGES=(
+  "download"
   "importuvfits"
   "quack_native"
   "flag_native"
@@ -179,7 +183,6 @@ if [[ "${SHOW_HELP}" == "1" ]]; then
   echo "  START_STAGE   Stage to start the pipeline from (see list below)"
   echo "  VERBOSE       Set to 1 to echo submitted command name and job ID to stderr (default: 0)"
   echo "  NO_SYMLINK    Set to 1 to disable uvfits symlinking (default: 0)"
-  echo "  FORCE_SYMLINK Set to 1 to force re-symlinking of uvfits even if local data exists (default: 0)"
   echo "  DRY_RUN       Set to 1 to simulate submission without actually submitting (default: 0)"
   echo ""
   echo "Available START_STAGE selections (based on ${CONFIG}):"
@@ -197,8 +200,8 @@ validate_stages
 # Data Preparation: symlink from DATA_SRC_ROOT, falling back to CASDA download
 # =============================================================================
 if [[ "${NO_SYMLINK:-0}" == "0" ]] && [[ "${SHOW_HELP}" == "0" ]]; then
-  if should_skip "importuvfits" && [[ "${FORCE_SYMLINK:-0}" == "0" ]]; then
-    echo "Stage 'importuvfits' is skipped. Skipping UVFITS data preparation."
+  if should_skip "download" && should_skip "importuvfits" && [[ "${FORCE_SYMLINK:-0}" == "0" && "${FORCE_DOWNLOAD:-0}" == "0" ]]; then
+    echo "Stages 'download' and 'importuvfits' are skipped. Skipping UVFITS data preparation."
   else
     # Check if data is already present locally in DATA_ROOT/SBID
     local_has_uvfits=0
@@ -227,11 +230,45 @@ if [[ "${NO_SYMLINK:-0}" == "0" ]] && [[ "${SHOW_HELP}" == "0" ]]; then
       fi
     else
       if [[ "${NO_DOWNLOAD:-0}" == "0" ]]; then
-        echo "Source data not found at ${DATA_SRC_ROOT}/${SBID} to symlink. Falling back to downloading from CASDA to ${DATA_ROOT}/${SBID}..."
-        if [[ "${DRY_RUN:-0}" == "1" ]]; then
-          echo "DRY local: ${DL_SCRIPT} ${SBID} ${CASDA_USERNAME} ${DOWNLOAD_WORKERS}" >&2
+        if should_skip "download"; then
+          echo "Stage 'download' is skipped. Skipping CASDA download."
         else
-          ${DL_SCRIPT} "${SBID}" "${CASDA_USERNAME}" "${DOWNLOAD_WORKERS}"
+          mkdir -p logs
+          if [[ "${LOCAL_DOWNLOAD:-0}" == "1" ]]; then
+            echo "Source data not found at ${DATA_SRC_ROOT}/${SBID} to symlink. Running CASDA download locally..."
+            if [[ "${DRY_RUN:-0}" == "1" ]]; then
+              echo "DRY local: ${DL_SCRIPT} ${SBID} ${CASDA_USERNAME} ${DOWNLOAD_WORKERS}" >&2
+            else
+              ${DL_SCRIPT} "${SBID}" "${CASDA_USERNAME}" "${DOWNLOAD_WORKERS}"
+            fi
+          else
+            echo "Source data not found at ${DATA_SRC_ROOT}/${SBID} to symlink. Submitting CASDA download to ${DOWNLOAD_PARTITION} via Slurm..."
+            dl_cmd=( sbatch
+                     --partition="${DOWNLOAD_PARTITION}"
+                     --job-name="download_${SBID}"
+                     --time="${DOWNLOAD_TIME}"
+                     --cpus-per-task="${DOWNLOAD_CPUS}"
+                     --mem="${DOWNLOAD_MEM}"
+                     --output="logs/download_${SBID}_%j.out"
+                     --error="logs/download_${SBID}_%j.err"
+                     --wait
+                     --export=ALL,SBID="${SBID}",CASDA_USERNAME="${CASDA_USERNAME}",DOWNLOAD_WORKERS="${DOWNLOAD_WORKERS}",DATA_ROOT="${DATA_ROOT}",DL_SCRIPT="${DL_SCRIPT}"
+                     "${RUN_DOWNLOAD}" )
+            if [[ "${DRY_RUN:-0}" == "1" ]]; then
+              printf 'DRY sbatch:' >&2
+              for token in "${dl_cmd[@]}"; do
+                if [[ "$token" =~ [[:space:]] ]]; then
+                  printf ' "%s"' "$token" >&2
+                else
+                  printf ' %s' "$token" >&2
+                fi
+              done
+              printf '\n' >&2
+            else
+              "${dl_cmd[@]}"
+              echo "CASDA download job completed on ${DOWNLOAD_PARTITION}."
+            fi
+          fi
         fi
       else
         echo "Source data not found at ${DATA_SRC_ROOT}/${SBID} and NO_DOWNLOAD=1. Skipping download."

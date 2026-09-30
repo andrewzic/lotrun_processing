@@ -52,9 +52,18 @@ BIGARRAY_SPEC="0-500"
 
 # -------------------- download and symlink --------------
 CASDA_USERNAME="${CASDA_USERNAME:-andrew.zic@csiro.au}"
-DOWNLOAD_WORKERS="12"
+DOWNLOAD_WORKERS="16"
+FORCE_DOWNLOAD="0"
+FORCE_SYMLINK="0"
+NO_DOWNLOAD="0"
+DOWNLOAD_PARTITION="datamover"
+DOWNLOAD_CPUS="16"
+DOWNLOAD_MEM="0"
+DOWNLOAD_TIME="04:00:00"
+LOCAL_DOWNLOAD="0"
 VIS_DL_OPTIONS=""
 DL_SCRIPT="${SCRIPT_DIR}/scripts/utils/download_uvfits.sh"
+RUN_DOWNLOAD="${SCRIPT_DIR}/scripts/slurm/run_download.sh"
 
 # =============================================================================
 # 2. Import
