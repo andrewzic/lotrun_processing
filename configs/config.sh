@@ -271,7 +271,7 @@ RUN_FASTDUCC_OBSAGG="${SCRIPT_DIR}/scripts/slurm/run_fastducc_aggregate_obs.sh"
 FD_CPUS="1"
 FD_MEM="4G" #mem request for main fastducc driver
 FD_TIME="06:00:00"
-FD_WORKER_TIME="02:00:00"
+FD_WORKER_TIME="02:30:00"
 AGG_TIME="00:15:00"
 AGG_CPUS="1"
 AGG_MEM="1G"
@@ -291,7 +291,7 @@ FD_ENABLE_VAR_SCAN="1"  # 1 to enable per-scan variance search; 0 to disable
 FD_ENABLE_VAR_OBS="1"   # 1 to enable whole per-obs variance search; 0 to disable
 
 # FastDUCC algorithm and worker settings
-FD_CHUNK_SIZE="1024"
+FD_CHUNK_SIZE="512"
 FD_CORR_MODE="single"
 FD_BASIS="linear"
 FD_SINGLE_POL="XX"
@@ -304,9 +304,16 @@ FD_VAR_THRESHOLD_SIGMA="8.0"
 FD_ENABLE_LOCAL_STATS="1"
 FD_LOCAL_BOX_SIZE="64"
 FD_PARALLEL_MODE="dask-slurm"
-FD_DASK_WORKERS="16"
-FD_SLURM_CORES_PER_WORKER="1"
+FD_DASK_WORKERS="0" # 0 scales to match the expected number of time chunks
+FD_SLURM_CORES_PER_WORKER="4"
 FD_SLURM_MEM="32GB"
+
+# FastDUCC DedispersionPlan settings
+FD_DM=""
+FD_DM_LIST=""
+FD_DM_MIN="0.0"
+FD_DM_MAX="1000.0"
+FD_DM_TOL="1.25"
 
 # =============================================================================
 # 11. DStools Extraction

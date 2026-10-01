@@ -82,6 +82,7 @@ class ExtractTask:
     beam_id: str
     ms_path: Path
     out_file: Path
+    dm: float = 0.0
 
 # ---------------- CLI args ---------------------------------------------------
 def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
@@ -198,6 +199,7 @@ def load_obs_catalogue(vot_path: Path, min_snr: Optional[float] = None, only_sou
     col_beams = get_col('beams_all')
     col_max_beam = get_col('max_snr_beam')
     col_max_time = get_col('max_snr_time_center')
+    col_dm = get_col('dm', 'dm_all')
 
 
 
@@ -229,6 +231,7 @@ def load_obs_catalogue(vot_path: Path, min_snr: Optional[float] = None, only_sou
                     max_time = None
             if not scan_ids:
                 scan_ids = ['combined']
+            dm_str = str(r[col_dm]) if col_dm else '0.0'
             rows.append({
                 'source_id': sid,
                 'srcname': name,
@@ -238,6 +241,7 @@ def load_obs_catalogue(vot_path: Path, min_snr: Optional[float] = None, only_sou
                 'beams_all': beams_all,
                 'max_snr_beam': max_beam,
                 'max_snr_time_center': max_time,
+                'dm': dm_str,
             })
         except Exception as e:
             print(f"[WARN] Skipping VOT row due to parse error: {e}")
@@ -476,9 +480,12 @@ def build_tasks(
                     cand_dir = scan_dir / 'candidates'
                     cand_dir.mkdir(parents=True, exist_ok=True)
                     out_name = f"{fieldname}.{sbid}.{b}.{sc}_cand_{name}.ds"
-                    out_file = cand_dir / out_name
+                    try:
+                        cand_dm = float(str(row.get('dm', 0.0)).split(',')[0])
+                    except Exception:
+                        cand_dm = 0.0
                     for ms in ms_list:
-                        tasks.append(ExtractTask(sid, name, ra, dec, sc, b, ms, out_file))
+                        tasks.append(ExtractTask(sid, name, ra, dec, sc, b, ms, out_file, dm=cand_dm))
     return tasks
 
 # ---------------- Dask submission -------------------------------------------

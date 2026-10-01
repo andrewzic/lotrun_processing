@@ -197,7 +197,15 @@ jid_uvs_native=$(chain "$jid_uvs_native" "uvsub_native")
 jid_fastducc=$( sbatch_submit "fastducc_ms" "${FD_TIME}" "${FD_CPUS}" "${FD_MEM}" "${ARRAY_SPEC}" "${RUN_FASTDUCC}" "$jid_uvs_native" \
   SELFCAL="0" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${FASTDUCC_INPUT_PATTERN}" BIND_SRC="${BIND_SRC}" INDEX="${last_idx}" EXTENSION="G${last_idx}" \
   FD_ENABLE_LOCAL_STATS="${FD_ENABLE_LOCAL_STATS}" FD_LOCAL_BOX_SIZE="${FD_LOCAL_BOX_SIZE}" \
-  FD_ENABLE_VAR_CHUNK="${FD_ENABLE_VAR_CHUNK:-1}" FD_ENABLE_VAR_SCAN="${FD_ENABLE_VAR_SCAN:-1}" FD_ENABLE_VAR_OBS="${FD_ENABLE_VAR_OBS:-1}" )
+  FD_ENABLE_VAR_CHUNK="${FD_ENABLE_VAR_CHUNK:-1}" FD_ENABLE_VAR_SCAN="${FD_ENABLE_VAR_SCAN:-1}" FD_ENABLE_VAR_OBS="${FD_ENABLE_VAR_OBS:-1}" \
+  FD_WORKER_TIME="${FD_WORKER_TIME:-02:30:00}" \
+  FD_CHUNK_SIZE="${FD_CHUNK_SIZE:-512}" \
+  FD_PARALLEL_MODE="${FD_PARALLEL_MODE:-dask-slurm}" \
+  FD_DASK_WORKERS="${FD_DASK_WORKERS:-0}" \
+  FD_SLURM_CORES_PER_WORKER="${FD_SLURM_CORES_PER_WORKER:-4}" \
+  FD_SLURM_MEM="${FD_SLURM_MEM:-32GB}" \
+  FD_DM="${FD_DM:-}" FD_DM_LIST="${FD_DM_LIST:-}" \
+  FD_DM_MIN="${FD_DM_MIN:-0.0}" FD_DM_MAX="${FD_DM_MAX:-1000.0}" FD_DM_TOL="${FD_DM_TOL:-1.25}" )
 jid_fastducc=$(chain "$jid_fastducc" "fastducc")
 
 # E) dstools extract-ds

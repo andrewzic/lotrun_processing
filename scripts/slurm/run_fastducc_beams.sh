@@ -19,7 +19,7 @@ DATA_ROOT=${DATA_ROOT:-${USER_PATH:-/fred/oz451}/${USER}/data}
 EXTENSION=${EXTENSION:-"B0"}
 # pattern relative to data-root/SBID; {beam:02d} will be replaced with the beam index
 PATTERN=${PATTERN:-"*beam{beam:02d}*.cal${EXTENSION}.ms"}
-FD_WORKER_TIME="${FD_WORKER_TIME:-02:00:00}"
+FD_WORKER_TIME="${FD_WORKER_TIME:-02:30:00}"
 
 OUT_PREFIX=${OUT_PREFIX:-"uvsub"}  # not used by fastducc; kept for compatibility/logging
 INDEX=${INDEX:-1}
@@ -47,9 +47,22 @@ FD_VAR_THRESHOLD_SIGMA="${FD_VAR_THRESHOLD_SIGMA:-8.0}"
 FD_ENABLE_LOCAL_STATS="${FD_ENABLE_LOCAL_STATS:-1}"
 FD_LOCAL_BOX_SIZE="${FD_LOCAL_BOX_SIZE:-64}"
 FD_PARALLEL_MODE="${FD_PARALLEL_MODE:-dask-slurm}"
-FD_DASK_WORKERS="${FD_DASK_WORKERS:-16}"
-FD_SLURM_CORES_PER_WORKER="${FD_SLURM_CORES_PER_WORKER:-1}"
+FD_DASK_WORKERS="${FD_DASK_WORKERS:-0}"
+FD_SLURM_CORES_PER_WORKER="${FD_SLURM_CORES_PER_WORKER:-4}"
 FD_SLURM_MEM="${FD_SLURM_MEM:-32GB}"
+
+# Dedispersion & chunk filtering options
+FD_DM="${FD_DM:-}"
+FD_DM_LIST="${FD_DM_LIST:-}"
+FD_DM_MIN="${FD_DM_MIN:-0.0}"
+FD_DM_MAX="${FD_DM_MAX:-1000.0}"
+FD_DM_STEP="${FD_DM_STEP:-}"
+FD_DM_TOL="${FD_DM_TOL:-1.25}"
+FD_SCAN_ID="${FD_SCAN_ID:-}"
+FD_MAX_CHUNKS="${FD_MAX_CHUNKS:-}"
+FD_COLLAPSE_CHANNELS="${FD_COLLAPSE_CHANNELS:-}"
+FD_NSUBBANDS="${FD_NSUBBANDS:-}"
+FD_EXACT_UVW="${FD_EXACT_UVW:-}"
 
 beam="${SLURM_ARRAY_TASK_ID}"
 printf -v beam2 "%02d" "${beam}"
@@ -151,6 +164,45 @@ for ms in "${msnames[@]}"; do
     cmd+=( --enable-local-stats --local-box-size "${FD_LOCAL_BOX_SIZE}" )
   else
     cmd+=( --disable-local-stats )
+  fi
+
+  # Forward DM & chunk filtering arguments
+  if [[ -n "${FD_DM}" ]]; then
+    cmd+=( --dm "${FD_DM}" )
+  fi
+  if [[ -n "${FD_DM_LIST}" ]]; then
+    cmd+=( --dm-list ${FD_DM_LIST} )
+  fi
+  if [[ -n "${FD_DM_MIN}" ]]; then
+    cmd+=( --dm-min "${FD_DM_MIN}" )
+  fi
+  if [[ -n "${FD_DM_MAX}" ]]; then
+    cmd+=( --dm-max "${FD_DM_MAX}" )
+  fi
+  if [[ -n "${FD_DM_STEP}" ]]; then
+    cmd+=( --dm-step "${FD_DM_STEP}" )
+  fi
+  if [[ -n "${FD_DM_TOL}" ]]; then
+    cmd+=( --dm-tol "${FD_DM_TOL}" )
+  fi
+  if [[ -n "${FD_SCAN_ID}" ]]; then
+    cmd+=( --scan-id "${FD_SCAN_ID}" )
+  fi
+  if [[ -n "${FD_MAX_CHUNKS}" && "${FD_MAX_CHUNKS}" != "0" ]]; then
+    cmd+=( --max-chunks "${FD_MAX_CHUNKS}" )
+  fi
+  if [[ "${FD_COLLAPSE_CHANNELS}" == "1" || "${FD_COLLAPSE_CHANNELS}" == "true" || "${FD_COLLAPSE_CHANNELS}" == "True" ]]; then
+    cmd+=( --collapse-channels )
+  elif [[ -n "${FD_COLLAPSE_CHANNELS}" ]]; then
+    cmd+=( --no-collapse-channels )
+  fi
+  if [[ -n "${FD_NSUBBANDS}" ]]; then
+    cmd+=( --nsubbands "${FD_NSUBBANDS}" )
+  fi
+  if [[ "${FD_EXACT_UVW}" == "0" || "${FD_EXACT_UVW}" == "false" || "${FD_EXACT_UVW}" == "False" ]]; then
+    cmd+=( --no-exact-uvw )
+  elif [[ -n "${FD_EXACT_UVW}" ]]; then
+    cmd+=( --exact-uvw )
   fi
 
   echo "Running command: ${cmd[*]}"

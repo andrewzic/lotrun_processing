@@ -268,9 +268,17 @@ FD_VAR_THRESHOLD_SIGMA="8.0"
 FD_ENABLE_LOCAL_STATS="1"
 FD_LOCAL_BOX_SIZE="64"
 FD_PARALLEL_MODE="dask-slurm"
-FD_DASK_WORKERS="16"
-FD_SLURM_CORES_PER_WORKER="1"
+FD_DASK_WORKERS="0" # 0 scales to match the expected number of time chunks
+FD_SLURM_CORES_PER_WORKER="4"
 FD_SLURM_MEM="32GB"
+FD_WORKER_TIME="02:30:00"
+
+# FastDUCC DedispersionPlan settings
+FD_DM=""
+FD_DM_LIST=""
+FD_DM_MIN="0.0"
+FD_DM_MAX="1000.0"
+FD_DM_TOL="1.25"
 
 # =============================================================================
 # 10. Dstools Extraction
