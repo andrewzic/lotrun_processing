@@ -525,7 +525,11 @@ jid_wsclean_native=$( sbatch_submit "wsclean_native" "${WSCLEAN_NATIVE_TIME}" "$
 jid_wsclean_native=$(chain "$jid_wsclean_native" "wsclean_native")
 
 # fastducc on uvsubbed native MS
-jid_fastducc=$( sbatch_submit "fastducc" "${FD_TIME}" "${FD_CPUS}" "${FD_MEM}" "${ARRAY_SPEC}" "${RUN_FASTDUCC}" "${jid_cat_native}" \
+fd_array_spec="${ARRAY_SPEC}"
+if [[ -n "${FD_ARRAY_CONCURRENCY:-}" ]]; then
+  fd_array_spec="${ARRAY_SPEC}%${FD_ARRAY_CONCURRENCY}"
+fi
+jid_fastducc=$( sbatch_submit "fastducc" "${FD_TIME}" "${FD_CPUS}" "${FD_MEM}" "${fd_array_spec}" "${RUN_FASTDUCC}" "${jid_cat_native}" \
                 SELFCAL="0" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${FASTDUCC_INPUT_PATTERN}" BIND_SRC="${BIND_SRC}" INDEX="${last_idx}" \
                 FD_WORKER_TIME="${FD_WORKER_TIME}" EXTENSION="G${last_idx}" \
                 FD_NO_VAR_SEARCH="${FD_NO_VAR_SEARCH}" FD_NO_BOX_SEARCH="${FD_NO_BOX_SEARCH}" FD_PLOT_CANDS_ONLY="${FD_PLOT_CANDS_ONLY}" \
@@ -534,7 +538,7 @@ jid_fastducc=$( sbatch_submit "fastducc" "${FD_TIME}" "${FD_CPUS}" "${FD_MEM}" "
                 FD_ENABLE_VAR_CHUNK="${FD_ENABLE_VAR_CHUNK:-1}" FD_ENABLE_VAR_SCAN="${FD_ENABLE_VAR_SCAN:-1}" FD_ENABLE_VAR_OBS="${FD_ENABLE_VAR_OBS:-1}" \
                 FD_CHUNK_SIZE="${FD_CHUNK_SIZE:-512}" \
                 FD_PARALLEL_MODE="${FD_PARALLEL_MODE:-dask-slurm}" \
-                FD_DASK_WORKERS="${FD_DASK_WORKERS:-0}" \
+                FD_DASK_WORKERS="${FD_DASK_WORKERS:-16}" \
                 FD_SLURM_CORES_PER_WORKER="${FD_SLURM_CORES_PER_WORKER:-4}" \
                 FD_SLURM_MEM="${FD_SLURM_MEM:-32GB}" \
                 FD_DM="${FD_DM:-}" FD_DM_LIST="${FD_DM_LIST:-}" \

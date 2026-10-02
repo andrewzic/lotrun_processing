@@ -19,10 +19,13 @@
 # =============================================================================
 USER="${USER:-$(whoami)}"
 # SBID="${SBID:-SB77974}"
-USER_PATH="/fred/oz451" #location on machine where user directory is
+# -----------------------------------------------------------------------------
+# System Profile 1: OzSTAR Default (/fred/oz451) [ACTIVE]
+# -----------------------------------------------------------------------------
+USER_PATH="/fred/oz451" # location on machine where user directory is
 DATA_SRC_ROOT="${DATA_SRC_ROOT:-${USER_PATH}/data/craco}" # location where raw central data is kept
 DATA_ROOT="${USER_PATH}/${USER}/data" # location where data is kept
-OUT_ROOT="${USER_PATH}/${USER}/data" #location where output goes
+OUT_ROOT="${USER_PATH}/${USER}/data" # location where output goes
 CONT_OUT_ROOT="${USER_PATH}/${USER}/data"
 NATIVE_OUT_ROOT="${USER_PATH}/${USER}/data"
 CONT_OUT_SUBDIR="cont_combined"
@@ -32,6 +35,56 @@ BIND_SRC="${USER_PATH}"
 CONTAINER_DIR="${USER_PATH}/${USER}/containers"
 LOG_DIR="${USER_PATH}/${USER}/lotrun_processing/logs"
 SCRIPT_DIR="${USER_PATH}/$USER/scripts/lotrun_processing"
+USE_CONTAINER="False"
+DOWNLOAD_PARTITION="datamover"
+
+# -----------------------------------------------------------------------------
+# System Profile 2: OzSTAR Fast Scratch (/aphid/scratch-3month) [COMMENTED OUT]
+# Fast NVMe/scratch filesystem. Retains data for 3 months.
+# -----------------------------------------------------------------------------
+# USER_PATH="/aphid/scratch-3month/${USER}"
+# DATA_SRC_ROOT="/fred/oz451/data/craco" # Keep pointing to /fred so symlinking works
+# DATA_ROOT="${USER_PATH}/data"
+# OUT_ROOT="${USER_PATH}/data"
+# CONT_OUT_ROOT="${USER_PATH}/data"
+# NATIVE_OUT_ROOT="${USER_PATH}/data"
+# CONT_OUT_SUBDIR="cont_combined"
+# CONT_CALTABLE_DIR="caltables"
+# NATIVE_OUT_SUBDIR="native_combined"
+# BIND_SRC="/fred/oz451"
+# export APPTAINER_BINDPATH="/fred/oz451,/aphid/scratch-3month"
+# CONTAINER_DIR="/fred/oz451/${USER}/containers"
+# LOG_DIR="${USER_PATH}/lotrun_processing/logs"
+# SCRIPT_DIR="/fred/oz451/${USER}/scripts/lotrun_processing"
+# USE_CONTAINER="False"
+# DOWNLOAD_PARTITION="datamover"
+
+# -----------------------------------------------------------------------------
+# System Profile 3: Petrichor (/scratch3/zic006) [COMMENTED OUT]
+# CSIRO HPC cluster with /scratch3 filesystem and 'io' datamover partition.
+# Uses full containerisation (USE_CONTAINER="True") to bypass host module differences.
+# -----------------------------------------------------------------------------
+# USER="zic006"
+# USER_PATH="/scratch3/${USER}"
+# DATA_SRC_ROOT="${USER_PATH}/data/craco" # Non-existent locally; pipeline will auto-download from CASDA
+# DATA_ROOT="${USER_PATH}/data"
+# OUT_ROOT="${USER_PATH}/data"
+# CONT_OUT_ROOT="${USER_PATH}/data"
+# NATIVE_OUT_ROOT="${USER_PATH}/data"
+# CONT_OUT_SUBDIR="cont_combined"
+# CONT_CALTABLE_DIR="caltables"
+# NATIVE_OUT_SUBDIR="native_combined"
+# BIND_SRC="${USER_PATH}"
+# export APPTAINER_BINDPATH="${USER_PATH}"
+# CONTAINER_DIR="${USER_PATH}/containers"
+# LOG_DIR="${USER_PATH}/lotrun_processing/logs"
+# SCRIPT_DIR="${USER_PATH}/scripts/lotrun_processing"
+# USE_CONTAINER="True"
+# DOWNLOAD_PARTITION="io"
+# export SBATCH_ACCOUNT="OD-241659"
+# export SLURM_ACCOUNT="OD-241659"
+# DS_PROJECT="OD-241659"
+# CB_DASK_SLURM_ACCOUNT="OD-241659"
 
 # -------------------- Dry-run controls --------------------
 # When DRY_RUN=1, no sbatch calls are made; commands are printed and fake JIDs returned.
@@ -40,7 +93,7 @@ DRY_FAKE_START="${DRY_FAKE_START:-490000}"
 DRY_PRINT_CMDS="${DRY_PRINT_CMDS:-1}"
 
 # -------------------- Containers -----------------------
-USE_CONTAINER="False" # Set to "True" to run via the casacore SIF container, or "False" to run via local venv
+USE_CONTAINER="${USE_CONTAINER:-False}" # Set to "True" to run via the casacore SIF container, or "False" to run via local venv
 FLINT_WSCLEAN_SIF="${CONTAINER_DIR}/flint-containers_wsclean.sif"
 FLINT_CASA_SIF="${CONTAINER_DIR}/flint-containers_casa.sif"
 CRYSTALBALL_SIF="${CONTAINER_DIR}/casacore.sif"
@@ -56,7 +109,7 @@ DOWNLOAD_WORKERS="16"
 FORCE_DOWNLOAD="0"
 FORCE_SYMLINK="0"
 NO_DOWNLOAD="0"
-DOWNLOAD_PARTITION="datamover"
+DOWNLOAD_PARTITION="${DOWNLOAD_PARTITION:-datamover}"
 DOWNLOAD_CPUS="16"
 DOWNLOAD_MEM="0"
 DOWNLOAD_TIME="04:00:00"
@@ -269,9 +322,9 @@ RUN_FASTDUCC_AGG="${SCRIPT_DIR}/scripts/slurm/run_fastducc_aggregate_chunks.sh"
 # Optional obs-level aggregation (leave unset/comment out to skip)
 RUN_FASTDUCC_OBSAGG="${SCRIPT_DIR}/scripts/slurm/run_fastducc_aggregate_obs.sh"
 FD_CPUS="1"
-FD_MEM="4G" #mem request for main fastducc driver
-FD_TIME="06:00:00"
-FD_WORKER_TIME="02:30:00"
+FD_MEM="32G" #mem request for main fastducc driver
+FD_TIME="08:00:00"
+FD_WORKER_TIME="08:00:00"
 AGG_TIME="00:15:00"
 AGG_CPUS="1"
 AGG_MEM="1G"
@@ -304,7 +357,8 @@ FD_VAR_THRESHOLD_SIGMA="8.0"
 FD_ENABLE_LOCAL_STATS="1"
 FD_LOCAL_BOX_SIZE="64"
 FD_PARALLEL_MODE="dask-slurm"
-FD_DASK_WORKERS="0" # 0 scales to match the expected number of time chunks
+FD_DASK_WORKERS="16" # bounded workers per beam
+FD_ARRAY_CONCURRENCY="12" # throttle concurrent beams in SLURM array (e.g. 12 beams * 16 workers = 192 total)
 FD_SLURM_CORES_PER_WORKER="4"
 FD_SLURM_MEM="32GB"
 

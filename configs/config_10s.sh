@@ -20,6 +20,9 @@
 # =============================================================================
 USER="$(whoami)"
 # SBID="${SBID:-SB82418}"
+# -----------------------------------------------------------------------------
+# System Profile 1: OzSTAR Default (/fred/oz451) [ACTIVE]
+# -----------------------------------------------------------------------------
 USER_PATH="/fred/oz451"
 DATA_SRC_ROOT="${DATA_SRC_ROOT:-${USER_PATH}/data/craco}"
 DATA_ROOT="${USER_PATH}/${USER}/data/continuum"
@@ -28,6 +31,46 @@ BIND_SRC="${USER_PATH}"
 CONTAINER_DIR="${USER_PATH}/${USER}/containers"
 LOG_DIR="${USER_PATH}/${USER}/lotrun_processing/logs"
 SCRIPT_DIR="${USER_PATH}/$USER/scripts/lotrun_processing"
+USE_CONTAINER="False"
+DOWNLOAD_PARTITION="datamover"
+
+# -----------------------------------------------------------------------------
+# System Profile 2: OzSTAR Fast Scratch (/aphid/scratch-3month) [COMMENTED OUT]
+# Fast NVMe/scratch filesystem. Retains data for 3 months.
+# -----------------------------------------------------------------------------
+# USER_PATH="/aphid/scratch-3month/${USER}"
+# DATA_SRC_ROOT="/fred/oz451/data/craco" # Keep pointing to /fred so symlinking works
+# DATA_ROOT="${USER_PATH}/data/continuum"
+# OUT_ROOT="${USER_PATH}/data/continuum"
+# BIND_SRC="/fred/oz451"
+# export APPTAINER_BINDPATH="/fred/oz451,/aphid/scratch-3month"
+# CONTAINER_DIR="/fred/oz451/${USER}/containers"
+# LOG_DIR="${USER_PATH}/lotrun_processing/logs"
+# SCRIPT_DIR="/fred/oz451/${USER}/scripts/lotrun_processing"
+# USE_CONTAINER="False"
+# DOWNLOAD_PARTITION="datamover"
+
+# -----------------------------------------------------------------------------
+# System Profile 3: Petrichor (/scratch3/zic006) [COMMENTED OUT]
+# CSIRO HPC cluster with /scratch3 filesystem and 'io' datamover partition.
+# Uses full containerisation (USE_CONTAINER="True") to bypass host module differences.
+# -----------------------------------------------------------------------------
+# USER="zic006"
+# USER_PATH="/scratch3/${USER}"
+# DATA_SRC_ROOT="${USER_PATH}/data/craco" # Non-existent locally; pipeline will auto-download from CASDA
+# DATA_ROOT="${USER_PATH}/data/continuum"
+# OUT_ROOT="${USER_PATH}/data/continuum"
+# BIND_SRC="${USER_PATH}"
+# export APPTAINER_BINDPATH="${USER_PATH}"
+# CONTAINER_DIR="${USER_PATH}/containers"
+# LOG_DIR="${USER_PATH}/lotrun_processing/logs"
+# SCRIPT_DIR="${USER_PATH}/scripts/lotrun_processing"
+# USE_CONTAINER="True"
+# DOWNLOAD_PARTITION="io"
+# export SBATCH_ACCOUNT="OD-241659"
+# export SLURM_ACCOUNT="OD-241659"
+# DS_PROJECT="OD-241659"
+# CB_DASK_SLURM_ACCOUNT="OD-241659"
 
 # -------------------- Dry-run controls --------------------
 DRY_RUN="${DRY_RUN:-0}"
@@ -35,7 +78,7 @@ DRY_FAKE_START="${DRY_FAKE_START:-490000}"
 DRY_PRINT_CMDS="${DRY_PRINT_CMDS:-1}"
 
 # -------------------- Containers -----------------------
-USE_CONTAINER="False" # Set to "True" to run via the casacore SIF container, or "False" to run via local venv
+USE_CONTAINER="${USE_CONTAINER:-False}" # Set to "True" to run via the casacore SIF container, or "False" to run via local venv
 FLINT_WSCLEAN_SIF="${CONTAINER_DIR}/flint-containers_wsclean.sif"
 FLINT_CASA_SIF="${CONTAINER_DIR}/flint-containers_casa.sif"
 CRYSTALBALL_SIF="${CONTAINER_DIR}/casacore.sif"
@@ -48,6 +91,7 @@ NATIVE10S_PATTERN="*beam{beam:02d}_averaged_cal.leakage.ms"
 # -------------------- download and symlink --------------
 CASDA_USERNAME="${CASDA_USERNAME:-andrew.zic@csiro.au}"
 DOWNLOAD_WORKERS="12"
+DOWNLOAD_PARTITION="${DOWNLOAD_PARTITION:-datamover}"
 VIS_DL_OPTIONS=""
 DL_SCRIPT="${SCRIPT_DIR}/scripts/utils/download_uvfits.sh"
 
@@ -235,8 +279,8 @@ UVSUB_OUT_PREFIX="uvsub"
 RUN_FASTDUCC="${SCRIPT_DIR}/scripts/slurm/run_fastducc_beams.sh"
 RUN_FASTDUCC_AGG="${SCRIPT_DIR}/scripts/slurm/run_fastducc_aggregate_chunks.sh"
 FD_CPUS="1"
-FD_MEM="4G"
-FD_TIME="02:00:00"
+FD_MEM="32G"
+FD_TIME="06:00:00"
 AGG_TIME="00:15:00"
 AGG_CPUS="1"
 AGG_MEM="1G"
