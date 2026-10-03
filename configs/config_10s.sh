@@ -315,7 +315,7 @@ FD_PARALLEL_MODE="dask-slurm"
 FD_DASK_WORKERS="0" # 0 scales to match the expected number of time chunks
 FD_SLURM_CORES_PER_WORKER="4"
 FD_SLURM_MEM="32GB"
-FD_WORKER_TIME="02:30:00"
+FD_WORKER_TIME="06:00:00"
 
 # FastDUCC DedispersionPlan settings
 FD_DM=""

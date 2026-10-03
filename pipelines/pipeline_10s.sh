@@ -194,11 +194,15 @@ jid_uvs_native=$( sbatch_submit "uvsub_ms" "${UVSUB_TIME}" "${SC_CPUS}" "${SC_ME
 jid_uvs_native=$(chain "$jid_uvs_native" "uvsub_native")
 
 # D) fastducc on uvsubbed native MS
-jid_fastducc=$( sbatch_submit "fastducc_ms" "${FD_TIME}" "${FD_CPUS}" "${FD_MEM}" "${ARRAY_SPEC}" "${RUN_FASTDUCC}" "$jid_uvs_native" \
+fd_array_spec="${ARRAY_SPEC}"
+if [[ -n "${FD_ARRAY_CONCURRENCY:-}" ]]; then
+  fd_array_spec="${ARRAY_SPEC}%${FD_ARRAY_CONCURRENCY}"
+fi
+jid_fastducc=$( sbatch_submit "fastducc_ms" "${FD_TIME}" "${FD_CPUS}" "${FD_MEM}" "${fd_array_spec}" "${RUN_FASTDUCC}" "$jid_uvs_native" \
   SELFCAL="0" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${FASTDUCC_INPUT_PATTERN}" BIND_SRC="${BIND_SRC}" INDEX="${last_idx}" EXTENSION="G${last_idx}" \
   FD_ENABLE_LOCAL_STATS="${FD_ENABLE_LOCAL_STATS}" FD_LOCAL_BOX_SIZE="${FD_LOCAL_BOX_SIZE}" \
   FD_ENABLE_VAR_CHUNK="${FD_ENABLE_VAR_CHUNK:-1}" FD_ENABLE_VAR_SCAN="${FD_ENABLE_VAR_SCAN:-1}" FD_ENABLE_VAR_OBS="${FD_ENABLE_VAR_OBS:-1}" \
-  FD_WORKER_TIME="${FD_WORKER_TIME:-02:30:00}" \
+  FD_WORKER_TIME="${FD_WORKER_TIME:-${FD_TIME:-06:00:00}}" \
   FD_CHUNK_SIZE="${FD_CHUNK_SIZE:-512}" \
   FD_PARALLEL_MODE="${FD_PARALLEL_MODE:-dask-slurm}" \
   FD_DASK_WORKERS="${FD_DASK_WORKERS:-0}" \

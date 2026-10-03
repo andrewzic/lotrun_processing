@@ -2,7 +2,7 @@
 #SBATCH --job-name=fastducc_ms
 #SBATCH --output=logs/fastducc_%A_%a.out
 #SBATCH --error=logs/fastducc_%A_%a.err
-#SBATCH --time=08:00:00
+#SBATCH --time=04:00:00
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=64G
 #SBATCH --array=0-35
@@ -19,7 +19,7 @@ DATA_ROOT=${DATA_ROOT:-${USER_PATH:-/fred/oz451}/${USER}/data}
 EXTENSION=${EXTENSION:-"B0"}
 # pattern relative to data-root/SBID; {beam:02d} will be replaced with the beam index
 PATTERN=${PATTERN:-"*beam{beam:02d}*.cal${EXTENSION}.ms"}
-FD_WORKER_TIME="${FD_WORKER_TIME:-08:00:00}"
+FD_WORKER_TIME="${FD_WORKER_TIME:-${FD_TIME:-02:00:00}}"
 
 OUT_PREFIX=${OUT_PREFIX:-"uvsub"}  # not used by fastducc; kept for compatibility/logging
 INDEX=${INDEX:-1}
@@ -47,9 +47,9 @@ FD_VAR_THRESHOLD_SIGMA="${FD_VAR_THRESHOLD_SIGMA:-8.0}"
 FD_ENABLE_LOCAL_STATS="${FD_ENABLE_LOCAL_STATS:-1}"
 FD_LOCAL_BOX_SIZE="${FD_LOCAL_BOX_SIZE:-64}"
 FD_PARALLEL_MODE="${FD_PARALLEL_MODE:-dask-slurm}"
-FD_DASK_WORKERS="${FD_DASK_WORKERS:-16}"
+FD_DASK_WORKERS="${FD_DASK_WORKERS:-0}"
 FD_SLURM_CORES_PER_WORKER="${FD_SLURM_CORES_PER_WORKER:-4}"
-FD_SLURM_MEM="${FD_SLURM_MEM:-32GB}"
+FD_SLURM_MEM="${FD_SLURM_MEM:-24GB}"
 
 # Dedispersion & chunk filtering options
 FD_DM="${FD_DM:-}"

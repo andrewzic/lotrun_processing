@@ -323,8 +323,8 @@ RUN_FASTDUCC_AGG="${SCRIPT_DIR}/scripts/slurm/run_fastducc_aggregate_chunks.sh"
 RUN_FASTDUCC_OBSAGG="${SCRIPT_DIR}/scripts/slurm/run_fastducc_aggregate_obs.sh"
 FD_CPUS="1"
 FD_MEM="32G" #mem request for main fastducc driver
-FD_TIME="08:00:00"
-FD_WORKER_TIME="08:00:00"
+FD_TIME="04:00:00"
+FD_WORKER_TIME="02:00:00"
 AGG_TIME="00:15:00"
 AGG_CPUS="1"
 AGG_MEM="1G"
@@ -357,10 +357,10 @@ FD_VAR_THRESHOLD_SIGMA="8.0"
 FD_ENABLE_LOCAL_STATS="1"
 FD_LOCAL_BOX_SIZE="64"
 FD_PARALLEL_MODE="dask-slurm"
-FD_DASK_WORKERS="16" # bounded workers per beam
-FD_ARRAY_CONCURRENCY="12" # throttle concurrent beams in SLURM array (e.g. 12 beams * 16 workers = 192 total)
+FD_DASK_WORKERS="0" # 0 scales to match the expected number of time chunks (1 worker per chunk)
+FD_ARRAY_CONCURRENCY="4" # throttle concurrent beams in SLURM array (e.g. 4 beams * ~118 workers = ~472 total)
 FD_SLURM_CORES_PER_WORKER="4"
-FD_SLURM_MEM="32GB"
+FD_SLURM_MEM="24GB"
 
 # FastDUCC DedispersionPlan settings
 FD_DM=""
