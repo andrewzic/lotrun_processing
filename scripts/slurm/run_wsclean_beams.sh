@@ -43,7 +43,7 @@ root="${DATA_ROOT}/${SBID}"
 glob="${PATTERN//\{beam:02d\}/$beam2}"
 if (( INDEX > 0 )); then
     glob2="${glob/calB0/selfcal_${INDEX}}"
-    glob2="${glob2/_averaged_cal.leakage/selfcal_${INDEX}}" #catch all for continuum
+    glob2="${glob2/_averaged_cal.leakage/.selfcal_${INDEX}}" #catch all for continuum
 else
     glob2="${glob}"
 fi
@@ -64,7 +64,7 @@ if [[ -n "${FITS_MASK_TAG}" ]]; then
     mask_glob="${PATTERN//\{beam:02d\}/$beam2}"
     if (( INDEX > 1 )); then
 	mask_glob2="${mask_glob/calB0/selfcal_$((INDEX-1))}"
-    mask_glob2="${mask_glob2/_averaged_cal.leakage/selfcal_$((INDEX-1))}" #catch all for continuum
+    mask_glob2="${mask_glob2/_averaged_cal.leakage/.selfcal_$((INDEX-1))}" #catch all for continuum
     elif (( INDEX <= 1 )); then
 	mask_glob2="${mask_glob}"
     fi
@@ -99,8 +99,11 @@ do
         if (( LAST_SUCCESSFUL_INDEX > 0 )); then
             last_msname="${msname/selfcal_${INDEX}/selfcal_${LAST_SUCCESSFUL_INDEX}}"
         else
-            last_msname="${msname/selfcal_${INDEX}/calB0}"
-            last_msname="${last_msname/selfcal_${INDEX}/_averaged_cal.leakage}"
+            if [[ "${PATTERN}" == *"_averaged_cal.leakage"* ]]; then
+                last_msname="${msname/\.selfcal_${INDEX}/_averaged_cal.leakage}"
+            else
+                last_msname="${msname/selfcal_${INDEX}/calB0}"
+            fi
         fi
         last_outname="${last_msname%.ms}.${LAST_SUCCESSFUL_TAG}_img"
         
@@ -139,8 +142,11 @@ do
 	    if (( LAST_SUCCESSFUL_INDEX > 0 )); then
 	        last_mask_msname="${mask_msname/selfcal_$((INDEX-1))/selfcal_${LAST_SUCCESSFUL_INDEX}}"
 	    else
-	        last_mask_msname="${mask_msname/selfcal_$((INDEX-1))/calB0}"
-	        last_mask_msname="${last_mask_msname/selfcal_$((INDEX-1))/_averaged_cal.leakage}"
+	        if [[ "${PATTERN}" == *"_averaged_cal.leakage"* ]]; then
+	            last_mask_msname="${mask_msname/\.selfcal_$((INDEX-1))/_averaged_cal.leakage}"
+	        else
+	            last_mask_msname="${mask_msname/selfcal_$((INDEX-1))/calB0}"
+	        fi
 	    fi
 	    
 	    LAST_FITS_MASK="${last_mask_msname%.ms}.${LAST_SUCCESSFUL_TAG}_img-MFS-image.mask.fits"
@@ -161,11 +167,17 @@ do
     else
 	NEW_WSCLEAN_OPTS="${WSCLEAN_OPTS}"
     fi
+
+    # Ensure memory usage is bounded so WSClean does not exceed Slurm cgroup limits
+    if [[ "${NEW_WSCLEAN_OPTS}" != *"-abs-mem"* && "${NEW_WSCLEAN_OPTS}" != *"-mem"* ]]; then
+        abs_mem="${WSCLEAN_ABS_MEM:-42}"
+        NEW_WSCLEAN_OPTS="-abs-mem ${abs_mem} ${NEW_WSCLEAN_OPTS}"
+    fi
     outname="${msname%.ms}.${IMG_TAG}_img"
     echo "outname is $outname"
     echo "Running WSClean: MS=${msname} -> name=${outname}"
     echo "apptainer exec --bind ${BIND_SRC}:${BIND_SRC} ${FLINT_WSCLEAN_SIF} wsclean -name ${outname} ${NEW_WSCLEAN_OPTS} ${msname}"
-    apptainer exec --bind "${BIND_SRC}:${BIND_SRC}" "${FLINT_WSCLEAN_SIF}" wsclean -name "${outname}" ${NEW_WSCLEAN_OPTS} "${msname}"
+    apptainer exec --bind "${BIND_SRC}:${BIND_SRC}" "${FLINT_WSCLEAN_SIF}" wsclean -name "${outname}" ${NEW_WSCLEAN_OPTS} "${msname}" 2>&1 | tee "${outname}.wsclean.log"
     if (( DELETE_TEMP_IMGS == 1 )); then
         if (( KEEP_DIRTY == 0 )); then
             rm -rf "${outname}"*-00*-dirty.fits

@@ -43,7 +43,7 @@ root="${DATA_ROOT}/${SBID}"
 glob="${PATTERN//\{beam:02d\}/$beam2}"
 if (( INDEX > 0 )); then
     glob2="${glob/calB0/selfcal_${INDEX}}"
-    glob2="${glob2/_averaged_cal.leakage/selfcal_${INDEX}}" #catch all for continuum
+    glob2="${glob2/_averaged_cal.leakage/.selfcal_${INDEX}}" #catch all for continuum
 else
     glob2="${glob}"
 fi
@@ -63,5 +63,5 @@ for i in "${!msnames[@]}"
 do
     msname=${msnames[$i]}
     echo "found msname=$msname"
-    python "$SCRIPT" "$msname"
+    $PYTHON "$SCRIPT" "$msname"
 done
