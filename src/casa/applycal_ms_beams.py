@@ -25,6 +25,8 @@ def parse_args():
     parser.add_argument("--extension", default="B0", help='Gain table extension (e.g. "B0", "G5" etc.) to specify which calibrationt table to apply for beams. Use a wildcard like "G*" to automatically select the highest numbered Gaintable extension available for each beam (e.g. if G1, G2, G3 are present, it will apply G3). Default is "B0" which applies the initial calibration table without selfcal solutions.')
     parser.add_argument("--dry-run", action="store_true", help="List planned operations without running applycal")
     parser.add_argument("--delete-previous", action="store_true", help="Delete previous generation ms split to save filesystem errors")
+    parser.add_argument("--applymode", default="calflag", choices=["calflag", "calonly", "flagonly", "trial"],
+                        help="CASA applycal applymode (default: 'calflag' to flag bad/uncalibrated antenna solutions)")
     return parser.parse_args()
 
 
@@ -80,7 +82,7 @@ def main():
             for msname in ms_list:
                 print(f"running applycal on  MS: {msname}")
                 if not args.dry_run:
-                    run_applycal(msname, caltables, delete_previous=args.delete_previous, output_extension=beam_target_ext)
+                    run_applycal(msname, caltables, delete_previous=args.delete_previous, output_extension=beam_target_ext, applymode=args.applymode)
         except FileNotFoundError as e:
             # If no caltables are found (e.g. selfcal failed at stage 1 or all G* tables deleted/moved)
             print(f"WARN: No calibration tables found for beam {beam:02d}: {e}")

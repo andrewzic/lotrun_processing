@@ -133,11 +133,96 @@ def find_ms_files(data_root: str, sbid: str, pattern: str, beam: int) -> list:
     return sorted(glob.glob(pat))
 
 # Specific to applycal
-def find_caltables(data_root: str, sbid: str, cal_dir: str, beam: int, extension: str="B0") -> str:
+def find_caltables(data_root: str, sbid: str, cal_dir: str, beam: int, extension: str="B0") -> List[str]:
+    """
+    Find calibration tables for the specified beam and extension.
+
+    For initial bandpass calibration (extension == "B0"):
+      1. Prefers full per-channel continuum bandpass solutions from CASDA CalibrationTables.
+         If an existing converted continuum table (contCal.*beam{beam:02d}*.B0) exists, uses it.
+         If a raw continuum bandpass table (calparameters.*_bp.*.tab) exists, converts it
+         on-the-fly to contCal.<sbid>.beam{beam:02d}.B0 and uses it.
+      2. If no continuum solutions are found, falls back to native CRACO calibration tables
+         in cal_dir (e.g. CRACO-Calibration-Tables-<sbid> or cal/).
+
+    For selfcal gain tables (e.g. extension == "G*", "G1", etc.):
+      Searches directly in data_root/sbid/cal_dir.
+    """
     root = os.path.join(data_root, sbid, cal_dir)
+
+    if extension == "B0":
+        # 1. Check for already-converted continuum bandpass tables
+        search_dirs = [
+            os.path.join(data_root, sbid, "CalibrationTables"),
+            os.path.join(data_root, sbid, "cal_cont"),
+            os.path.join(data_root, sbid, "casda", "CalibrationTables"),
+        ]
+        for sdir in search_dirs:
+            if os.path.isdir(sdir):
+                cont_matches = sorted(glob.glob(os.path.join(sdir, f"contCal*beam{beam:02d}*.B0")))
+                if cont_matches:
+                    print(f"Beam {beam:02d}: using continuum bandpass table: {cont_matches[0]}")
+                    return [cont_matches[0]]
+
+        # 2. Check if a raw continuum bandpass table exists to convert on the fly
+        try:
+            try:
+                from convert_bp_to_casa import (
+                    find_continuum_bandpass_table,
+                    find_template_b0,
+                    convert_continuum_bp_to_casa,
+                )
+            except ImportError:
+                from src.casa.convert_bp_to_casa import (
+                    find_continuum_bandpass_table,
+                    find_template_b0,
+                    convert_continuum_bp_to_casa,
+                )
+
+            cont_tab = find_continuum_bandpass_table(data_root, sbid, cal_dir)
+            if cont_tab:
+                template_b0 = find_template_b0(data_root, sbid, beam=beam, cal_dir=cal_dir)
+                if template_b0:
+                    out_dir = os.path.join(data_root, sbid, "CalibrationTables")
+                    os.makedirs(out_dir, exist_ok=True)
+                    out_b0 = os.path.join(out_dir, f"contCal.{sbid}.beam{beam:02d}.B0")
+                    print(f"Beam {beam:02d}: found continuum bandpass table {cont_tab}; converting on the fly -> {out_b0}")
+                    convert_continuum_bp_to_casa(
+                        cont_bp_tab_path=cont_tab,
+                        template_b0_path=template_b0,
+                        output_b0_path=out_b0,
+                        beam=beam,
+                        clobber=False,
+                        verbose=True
+                    )
+                    return [out_b0]
+                else:
+                    print(f"WARN: Found continuum bandpass {cont_tab} but no template B0 found. Falling back to CRACO caltables.")
+        except Exception as e:
+            print(f"WARN: Error during on-the-fly continuum bandpass conversion for beam {beam:02d}: {e}. Falling back to CRACO caltables.")
+
+        # 3. Fallback to native CRACO calibration tables
+        print(f"INFO: No continuum bandpass solutions found for {sbid}; falling back to CRACO calibration tables.")
+
+    # Search in cal_dir
     matches = sorted(glob.glob(os.path.join(root, f"*beam{beam:02d}*.{extension}")))
     if not matches:
-        raise FileNotFoundError(f"No cal table found in '{root}' for beam {beam:02d} matching '*beam{beam:02d}*.{extension}'")
+        # Also check fallback locations for CRACO tables
+        fallback_dirs = [
+            os.path.join(data_root, sbid, f"CRACO-Calibration-Tables-{sbid}"),
+            os.path.join(data_root, sbid, "cal"),
+            os.path.join(data_root, sbid, "casda", f"CRACO-Calibration-Tables-{sbid}"),
+        ]
+        for fdir in fallback_dirs:
+            if os.path.isdir(fdir) and fdir != root:
+                fallback_matches = sorted(glob.glob(os.path.join(fdir, f"*beam{beam:02d}*.{extension}")))
+                if fallback_matches:
+                    print(f"Beam {beam:02d}: found cal table in fallback directory: {fallback_matches[0]}")
+                    return [fallback_matches[0]]
+
+        raise FileNotFoundError(
+            f"No cal table found in '{root}' or fallbacks for beam {beam:02d} matching '*beam{beam:02d}*.{extension}'"
+        )
     return matches
 
 def validate_and_clean_ms(msname: str, outputvis: str, delete_previous: bool=True) -> bool:
@@ -212,7 +297,7 @@ def get_timebin(msname: str) -> float:
 
     return timebin
 
-def run_applycal(msname: str, caltables: List[str], delete_previous: bool = False, output_extension: str = None) -> str:
+def run_applycal(msname: str, caltables: List[str], delete_previous: bool = False, output_extension: str = None, applymode: str = "calflag") -> str:
     """
     Apply a calibration table to 'msname' and split the corrected data to a new MS
     labeled with '.cal{extension}.ms' where extension is determined from the highest
@@ -233,8 +318,8 @@ def run_applycal(msname: str, caltables: List[str], delete_previous: bool = Fals
     time_interp = "nearest" if extension == "B0" else "linear"
     freq_interp = "linear"
     from casatasks import applycal, split
-    print(f"applying caltables {caltables} to ms {msname}")    
-    applycal(vis=msname, gaintable=caltables, interp=[time_interp, freq_interp]*len(caltables), applymode="calonly")
+    print(f"applying caltables {caltables} to ms {msname} (applymode={applymode})")    
+    applycal(vis=msname, gaintable=caltables, interp=[time_interp, freq_interp]*len(caltables), applymode=applymode, calwt=False)
     
     output_extension = f".cal{extension}.ms"
     if "cal" in msname:
@@ -543,13 +628,15 @@ def apply_gain_and_combine(old_ms_multispw: str, old_ms: str, new_ms: str, calta
 
     print(f"[{datetime.now().isoformat()}] Overwriting FEED and SOURCE tables from {old_ms} to {old_ms_corrected_1spw} to prevent corruption")
     for ms_table in ("FEED", "SOURCE"):
+        src_table = os.path.join(old_ms, ms_table)
         dest_table = os.path.join(old_ms_corrected_1spw, ms_table)
-        if os.path.isdir(dest_table):
-            shutil.rmtree(dest_table)
-        tb_orig = table()
-        tb_orig.open(os.path.join(old_ms, ms_table))
-        tb_orig.copy(newtablename=dest_table)
-        tb_orig.close()
+        if os.path.exists(src_table):
+            if os.path.isdir(dest_table):
+                shutil.rmtree(dest_table)
+            tb_orig = table()
+            tb_orig.open(src_table)
+            tb_orig.copy(newtablename=dest_table)
+            tb_orig.close()
 
     # Split corrected data to new_ms
     if os.path.exists(new_ms):

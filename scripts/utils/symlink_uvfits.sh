@@ -67,8 +67,25 @@ if [ -n "$cal_src" ]; then
     if [ ! -e "${dest_base}/cal" ] && [ ! -L "${dest_base}/cal" ]; then
         ln -s "CRACO-Calibration-Tables-${SBID}" "${dest_base}/cal"
     fi
-else
-    echo "cannot find cal or CRACO-Calibration-Tables directory for SBID ${SBID}"
+fi
+
+# Continuum calibration tables (CASDA continuum bandpass and selfcal)
+if [ -d "${src_dir}/CalibrationTables" ]; then
+    cal_cont_dest="${dest_base}/CalibrationTables"
+    mkdir -p "${cal_cont_dest}"
+    while IFS= read -r c; do
+        bc="${c##*/}"
+        dest_c="${cal_cont_dest}/${bc}"
+        if [[ -L "${dest_c}" && -e "${dest_c}" ]]; then
+            continue
+        fi
+        ln -sf "$c" "${dest_c}"
+    done < <(find "${src_dir}/CalibrationTables" -maxdepth 1 -name "calparameters.*" -o -name "*.B0")
+    echo "Symlinked continuum calibration tables to ${cal_cont_dest}"
+fi
+
+if [ -z "$cal_src" ] && [ ! -d "${src_dir}/CalibrationTables" ]; then
+    echo "cannot find cal, CRACO-Calibration-Tables, or CalibrationTables directory for SBID ${SBID}"
     exit 1
 fi
 
