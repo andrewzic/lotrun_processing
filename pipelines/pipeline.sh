@@ -11,12 +11,14 @@ set -euo pipefail
 #   VERBOSE=1  — after each stage, echo the submitted command name and Slurm job ID to stderr
 
 SHOW_HELP=0
+CONFIG_CLI=""
+SBID_CLI=""
 # Parse KEY=VALUE command-line arguments
 for arg in "$@"; do
   case "${arg}" in
     -h|--help|help) SHOW_HELP=1 ;;
     SBID=*)    SBID="${arg#SBID=}"; SBID_CLI="${SBID}" ;;
-    CONFIG=*)  CONFIG="${arg#CONFIG=}" ;;
+    CONFIG=*)  CONFIG="${arg#CONFIG=}"; CONFIG_CLI="${CONFIG}" ;;
     START_STAGE=*) START_STAGE="${arg#START_STAGE=}" ;;
     END_STAGE=*) END_STAGE="${arg#END_STAGE=}" ;;
     BEAMS=*) BEAMS="${arg#BEAMS=}" ;;
@@ -26,7 +28,7 @@ for arg in "$@"; do
     FD_PLOT_CANDS_ONLY=*|PLOT_CANDS_ONLY=*) FD_PLOT_CANDS_ONLY_CLI="${arg#*=}" ;;
     FD_NO_VAR_SEARCH=*|NO_VAR_SEARCH=*) FD_NO_VAR_SEARCH_CLI="${arg#*=}" ;;
     FD_NO_BOX_SEARCH=*|NO_BOX_SEARCH=*) FD_NO_BOX_SEARCH_CLI="${arg#*=}" ;;
-    *.sh) CONFIG="${arg}" ;;
+    *.sh) CONFIG="${arg}"; CONFIG_CLI="${CONFIG}" ;;
     *) echo "Unknown argument: ${arg}" >&2; exit 1 ;;
   esac
 done
@@ -56,12 +58,22 @@ CONTAINER_DIR="${CONTAINER_DIR:-${USER_PATH:-/fred/oz451}/${USER}/containers}"
 LOG_DIR="${LOG_DIR:-${USER_PATH:-/fred/oz451}/${USER}/lotrun_processing/logs}"
 SCRIPT_DIR="${SCRIPT_DIR:-${USER_PATH:-/fred/oz451}/$USER/scripts/lotrun_processing}"
 
-CONFIG="${CONFIG:-config.sh}"
+CONFIG_LOADED=0
 if [[ -f "${CONFIG}" ]]; then
+  if [[ "${SHOW_HELP}" == "0" || -n "${CONFIG_CLI}" || "${CONFIG}" != "config.sh" ]]; then
+    CONFIG_LOADED=1
+  fi
+fi
+
+if [[ "${CONFIG_LOADED}" == "1" ]]; then
     # shellcheck source=/dev/null
-    echo "sourcing config $CONFIG"
+    if [[ "${SHOW_HELP}" == "0" ]]; then
+      echo "sourcing config $CONFIG"
+    fi
     source "${CONFIG}"
-    echo "sourced config"
+    if [[ "${SHOW_HELP}" == "0" ]]; then
+      echo "sourced config"
+    fi
     
     if [[ -n "${SBID_CLI:-}" ]]; then
       SBID="${SBID_CLI}"
@@ -82,14 +94,13 @@ if [[ -f "${CONFIG}" ]]; then
     fi
 else
   if [[ "${SHOW_HELP}" == "1" ]]; then
-    echo "Warning: Config file not found (${CONFIG}). START_STAGE list will be incomplete." >&2
-    SC_INDEX=(0)
-    IMG_TAGS=("dummy" "dummy")
-    CONCAT_NATIVE_INPUT_PATTERN="dummy"
-    WSCLEAN_NATIVE_PATTERN="dummy"
+    SC_INDEX=(1 2 3 4 5 6 7)
+    IMG_TAGS=("initial_scratch" "selfcal_1" "selfcal_2" "selfcal_3" "selfcal_4" "selfcal_5" "selfcal_6" "selfcal_7")
+    SC_CALMODE=("p" "p" "p" "p" "ap" "ap" "ap")
+    RUN_FASTDUCC_OBSAGG="1"
   else
-    echo "Config file not found: ${CONFIG}"
-    echo "Create one (e.g., pipeline.config.sh) or pass CONFIG=/path/to/file"
+    echo "Config file not found: ${CONFIG}" >&2
+    echo "Create one (e.g., configs/config.sh) or pass CONFIG=/path/to/file" >&2
     exit 1
   fi
 fi
@@ -116,9 +127,26 @@ NO_DOWNLOAD="${NO_DOWNLOAD:-0}"
 __DRY_JID_SEQ="${DRY_FAKE_START:-490000}"
 
 last_idx="${SC_INDEX[$((${#SC_INDEX[@]}-1))]}"
-CONCAT_NATIVE_INPUT_PATTERN="${CONCAT_NATIVE_INPUT_PATTERN/G6/G${last_idx}}"
-WSCLEAN_NATIVE_PATTERN="${WSCLEAN_NATIVE_PATTERN/G6/G${last_idx}}"
+if [[ -n "${CONCAT_NATIVE_INPUT_PATTERN:-}" ]]; then
+  CONCAT_NATIVE_INPUT_PATTERN="${CONCAT_NATIVE_INPUT_PATTERN/G6/G${last_idx}}"
+fi
+if [[ -n "${WSCLEAN_NATIVE_PATTERN:-}" ]]; then
+  WSCLEAN_NATIVE_PATTERN="${WSCLEAN_NATIVE_PATTERN/G6/G${last_idx}}"
+fi
 
+
+# Sync eyepatch aliases if defined
+[[ -n "${seedclipOptions+x}" && ${#seedclipOptions[@]} -gt 0 ]] && EYEPATCH_SEED_CLIP=("${seedclipOptions[@]}")
+[[ -n "${floodclipOptions+x}" && ${#floodclipOptions[@]} -gt 0 ]] && EYEPATCH_FLOOD_CLIP=("${floodclipOptions[@]}")
+[[ -n "${macboxsizeOptions+x}" && ${#macboxsizeOptions[@]} -gt 0 ]] && EYEPATCH_MAC_BOX_SIZE=("${macboxsizeOptions[@]}")
+[[ -n "${beamerodeminresponseOptions+x}" && ${#beamerodeminresponseOptions[@]} -gt 0 ]] && EYEPATCH_BEAM_ERODE_MIN_RESPONSE=("${beamerodeminresponseOptions[@]}")
+[[ -n "${cleanscalesOptions+x}" && ${#cleanscalesOptions[@]} -gt 0 ]] && EYEPATCH_CLEAN_SCALES=("${cleanscalesOptions[@]}")
+[[ -n "${useMacAdaptiveStepFactorOptions+x}" && ${#useMacAdaptiveStepFactorOptions[@]} -gt 0 ]] && EYEPATCH_MAC_ADAPTIVE_STEP_FACTOR=("${useMacAdaptiveStepFactorOptions[@]}")
+
+RUN_EYEPATCH="${RUN_EYEPATCH:-${RUN_FLINT_MASK:-${SCRIPT_DIR}/scripts/slurm/run_eyepatch_beams.sh}}"
+EP_TIME="${EP_TIME:-${FM_TIME:-00:20:00}}"
+EP_CPUS="${EP_CPUS:-${FM_CPUS:-1}}"
+EP_MEM="${EP_MEM:-${FM_MEM:-2G}}"
 
 # -------------------- STAGE SKIP LIST --------------------
 declare -ag PIPELINE_STAGES=(
@@ -132,14 +160,14 @@ declare -ag PIPELINE_STAGES=(
   "flag_avg"
   "concat"
   "wsclean_initial_scratch"
-  "flintmask_initial_scratch"
+  "eyepatch_initial_scratch"
 )
 for r in "${!SC_INDEX[@]}"; do
   img_tag="${IMG_TAGS[$((r+1))]}"
-  PIPELINE_STAGES+=( "wsclean_${img_tag}" "flintmask_${img_tag}" "selfcal_${img_tag}" )
+  PIPELINE_STAGES+=( "wsclean_${img_tag}" "eyepatch_${img_tag}" "selfcal_${img_tag}" )
 
   do_flag=0
-  if [[ "${SC_CALMODE[$r]}" == "ap" ]]; then
+  if [[ "${SC_CALMODE[$r]:-}" == "ap" ]]; then
     do_flag=1
   elif [[ "${SC_CALMODE[$((r+1))]:-}" == "ap" ]]; then
     do_flag=1
@@ -151,7 +179,7 @@ done
 PIPELINE_STAGES+=(
   "wsclean_${IMG_TAGS[${last_idx}]}_final"
   "copy_continuum"
-  "flintmask_${IMG_TAGS[${last_idx}]}_final"
+  "eyepatch_${IMG_TAGS[${last_idx}]}_final"
   "uvsub_concat"
   "applycal_native"
   "predict_native"
@@ -180,12 +208,29 @@ if [[ "${SHOW_HELP}" == "1" ]]; then
   echo "Arguments (KEY=VALUE format):"
   echo "  SBID          Scheduling Block ID (default: ${DEFAULT_SBID:-SB77974})"
   echo "  CONFIG        Path to configuration file (default: config.sh)"
+  echo "  BEAMS         Slurm array spec or beam list (e.g. 0-35, 16)"
   echo "  START_STAGE   Stage to start the pipeline from (see list below)"
+  echo "  END_STAGE     Stage to end the pipeline at"
   echo "  VERBOSE       Set to 1 to echo submitted command name and job ID to stderr (default: 0)"
   echo "  NO_SYMLINK    Set to 1 to disable uvfits symlinking (default: 0)"
   echo "  DRY_RUN       Set to 1 to simulate submission without actually submitting (default: 0)"
+  echo "  FD_PLOT_CANDS_ONLY  Set to 1 to only plot candidates in FastDUCC (default: 0)"
+  echo "  FD_NO_VAR_SEARCH    Set to 1 to disable variance search in FastDUCC (default: 0)"
+  echo "  FD_NO_BOX_SEARCH    Set to 1 to disable box search in FastDUCC (default: 0)"
   echo ""
-  echo "Available START_STAGE selections (based on ${CONFIG}):"
+  if [[ "${CONFIG_LOADED}" == "1" ]]; then
+    echo "Available START_STAGE selections (based on ${CONFIG}):"
+  else
+    if [[ -n "${CONFIG_CLI:-}" ]]; then
+      echo "Note: Specified config file '${CONFIG}' was not found."
+    else
+      echo "Note: No config file was specified."
+    fi
+    echo "Showing default pipeline stages. For config-specific help and stages, specify your config file:"
+    echo "  ./pipeline.sh CONFIG=path/to/config.sh --help"
+    echo ""
+    echo "Available START_STAGE selections (default template):"
+  fi
   for stage in "${PIPELINE_STAGES[@]}"; do
     echo "  - ${stage}"
   done
@@ -326,6 +371,8 @@ jid_fl1=$( sbatch_submit "flag_native" "${FLAG_TIME}" "${FLAG_CPUS}" "${FLAG_MEM
 jid_fl1=$(chain "$jid_fl1" "flag_native")
 
 # 4) apply bandpass (B0) to native res
+
+
 jid_ac1=$( sbatch_submit "bandpass_B0" "${BANDPASS_TIME}" "${SC_CPUS}" "${SC_MEM}" "${ARRAY_SPEC}" "${RUN_BANDPASS}" "${jid_fl1}" \
            SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${BANDPASS_INPUT_PATTERN}" FLINT_CASA_SIF="${FLINT_CASA_SIF}" BIND_SRC="${BIND_SRC}" \
            SCRIPT="${BANDPASS_SCRIPT}" CAL_DIR="${BANDPASS_CAL_DIR:-CRACO-Calibration-Tables-${SBID}}" EXTENSION="B0" DELETE_PREVIOUS="--delete-previous" )
@@ -355,16 +402,22 @@ jid_cat=$(chain "$jid_cat" "concat")
 # -------------------- Imaging / Mask / Predict / Selfcal (looped) --------------------
 # We operate on concatenated MS: *beam{beam:02d}.avg.calB0.ms
 # Initial scratch image/mask/predict before the rounds loop
+wsclean_opts_init="${WSCLEAN_OPTS[0]}"
+
 jid_img_init=$( sbatch_submit "wsclean_initial_scratch" "${WSCLEAN_TIME}" "${WSCLEAN_CPUS}" "${WSCLEAN_MEM}" "${ARRAY_SPEC}" "${RUN_WSCLEAN}" "${jid_cat}" \
                 SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" FLINT_WSCLEAN_SIF="${FLINT_WSCLEAN_SIF}" \
-                IMG_TAG="initial_scratch" INDEX="$(( SC_INDEX[0]-1 ))" BIND_SRC="${BIND_SRC}" WSCLEAN_OPTS="${WSCLEAN_OPTS[0]}" )
+                IMG_TAG="initial_scratch" INDEX="$(( SC_INDEX[0]-1 ))" BIND_SRC="${BIND_SRC}" WSCLEAN_OPTS="${wsclean_opts_init}" )
 jid_img_init=$(chain "$jid_img_init" "wsclean_initial_scratch")
 
-jid_fm_init=$( sbatch_submit "flintmask_initial_scratch" "${FM_TIME}" "${FM_CPUS}" "${FM_MEM}" "${ARRAY_SPEC}" "${RUN_FLINT_MASK}" "${jid_img_init}" \
+jid_fm_init=$( sbatch_submit "eyepatch_initial_scratch" "${EP_TIME}" "${EP_CPUS}" "${EP_MEM}" "${ARRAY_SPEC}" "${RUN_EYEPATCH}" "${jid_img_init}" \
                SELFCAL="1" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" IMG_TAG="${IMG_TAGS[0]}" INDEX="$(( SC_INDEX[0]-1 ))" \
-               FLOOD_FILL_POSITIVE_SEED_CLIP="${FLOOD_FILL_POSITIVE_SEED_CLIP}" FLOOD_FILL_POSITIVE_FLOOD_CLIP="${FLOOD_FILL_POSITIVE_FLOOD_CLIP}" \
-               FLOOD_FILL_MAC_BOX_SIZE="${FLOOD_FILL_MAC_BOX_SIZE}" BEAM_SHAPE_ERODE_MIN_RESPONSE="${BEAM_SHAPE_ERODE_MIN_RESPONSE}" )
-jid_fm_init=$(chain "$jid_fm_init" "flintmask_initial_scratch")
+               FLOOD_FILL_POSITIVE_SEED_CLIP="${EYEPATCH_SEED_CLIP[0]}" \
+               FLOOD_FILL_POSITIVE_FLOOD_CLIP="${EYEPATCH_FLOOD_CLIP[0]}" \
+               FLOOD_FILL_MAC_BOX_SIZE="${EYEPATCH_MAC_BOX_SIZE[0]}" \
+               BEAM_SHAPE_ERODE_MIN_RESPONSE="${EYEPATCH_BEAM_ERODE_MIN_RESPONSE[0]}" \
+               BEAM_SHAPE_ERODE_SCALES="${EYEPATCH_CLEAN_SCALES[0]:-}" \
+               FLOOD_FILL_MAC_ADAPTIVE_STEP_FACTOR="${EYEPATCH_MAC_ADAPTIVE_STEP_FACTOR[0]}" )
+jid_fm_init=$(chain "$jid_fm_init" "eyepatch_initial_scratch")
 
   # DON'T NEED TO DO CRYSTALBALL IF WSCLEAN RUNS WITH MGAIN
 # jid_cb_init=$( sbatch_submit "cb_predict" "${CB_TIME}" "${CB_CPUS}" "${CB_MEM}" "${ARRAY_SPEC}" "${RUN_CB}" "${jid_fm_init}" \
@@ -373,14 +426,15 @@ jid_fm_init=$(chain "$jid_fm_init" "flintmask_initial_scratch")
 #                MODEL_CHUNKS="${CB_MODEL_CHUNKS}" MEMORY_FRACTION="${CB_MEMORY_FRACTION}" CB_DISTRIBUTED="${CB_DISTRIBUTED}" CB_DASK_NWORKERS="${CB_DASK_NWORKERS}" \
 #                CB_DASK_WORKER_CPUS="${CB_DASK_WORKER_CPUS}" CB_DASK_WORKER_MEM="${CB_DASK_WORKER_MEM}" )
 # jid_cb_prev=$(chain "$jid_cb_init" "cb_initial_scratch")
-jid_fm_prev=$(chain "$jid_fm_init" "flintmask_initial_scratch")
+jid_fm_prev=$(chain "$jid_fm_init" "eyepatch_initial_scratch")
 
 # Loop over selfcal rounds 1..N using arrays
 for r in "${!SC_INDEX[@]}"; do
   idx="${SC_INDEX[$r]}"
   img_tag="${IMG_TAGS[$((r+1))]}"           # selfcal_1..selfcal_6
   prev_tag="${IMG_TAGS[$r]}"                # previous tag for FITS mask reference
-  opts="${WSCLEAN_OPTS[$((r+1))]:-${WSCLEAN_OPTS[$r]}}"
+  stage_idx=$((r+1))
+  opts="${WSCLEAN_OPTS[${stage_idx}]:-${WSCLEAN_OPTS[$r]}}"
   nspws_val="${SC_NSPWS[$r]:-16}"
 
   # Image with mask from previous round
@@ -390,11 +444,15 @@ for r in "${!SC_INDEX[@]}"; do
   jid_img=$(chain "$jid_img" "wsclean_${img_tag}")
 
   # Build mask
-  jid_fm=$( sbatch_submit "flintmask_${img_tag}" "${FM_TIME}" "${FM_CPUS}" "${FM_MEM}" "${ARRAY_SPEC}" "${RUN_FLINT_MASK}" "${jid_img}" \
+  jid_fm=$( sbatch_submit "eyepatch_${img_tag}" "${EP_TIME}" "${EP_CPUS}" "${EP_MEM}" "${ARRAY_SPEC}" "${RUN_EYEPATCH}" "${jid_img}" \
             SELFCAL="1" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" IMG_TAG="${img_tag}" INDEX="$(( idx-1 ))" \
-            FLOOD_FILL_POSITIVE_SEED_CLIP="${FLOOD_FILL_POSITIVE_SEED_CLIP}" FLOOD_FILL_POSITIVE_FLOOD_CLIP="${FLOOD_FILL_POSITIVE_FLOOD_CLIP}" \
-            FLOOD_FILL_MAC_BOX_SIZE="${FLOOD_FILL_MAC_BOX_SIZE}" BEAM_SHAPE_ERODE_MIN_RESPONSE="${BEAM_SHAPE_ERODE_MIN_RESPONSE}" )
-  jid_fm=$(chain "$jid_fm" "flintmask_${img_tag}")
+            FLOOD_FILL_POSITIVE_SEED_CLIP="${EYEPATCH_SEED_CLIP[${stage_idx}]}" \
+            FLOOD_FILL_POSITIVE_FLOOD_CLIP="${EYEPATCH_FLOOD_CLIP[${stage_idx}]}" \
+            FLOOD_FILL_MAC_BOX_SIZE="${EYEPATCH_MAC_BOX_SIZE[${stage_idx}]}" \
+            BEAM_SHAPE_ERODE_MIN_RESPONSE="${EYEPATCH_BEAM_ERODE_MIN_RESPONSE[${stage_idx}]}" \
+            BEAM_SHAPE_ERODE_SCALES="${EYEPATCH_CLEAN_SCALES[${stage_idx}]:-}" \
+            FLOOD_FILL_MAC_ADAPTIVE_STEP_FACTOR="${EYEPATCH_MAC_ADAPTIVE_STEP_FACTOR[${stage_idx}]}" )
+  jid_fm=$(chain "$jid_fm" "eyepatch_${img_tag}")
 
   # DON'T NEED TO DO CRYSTALBALL IF WSCLEAN RUNS WITH MGAIN
   # # Predict
@@ -431,10 +489,12 @@ done
 
 # Final image/mask after last A+P round
 last_idx="${SC_INDEX[$((${#SC_INDEX[@]}-1))]}"
+final_stage_idx="${last_idx}"
+final_opts="${WSCLEAN_OPTS[${final_stage_idx}]}"
 
 jid_img_final=$( sbatch_submit "wsclean_${IMG_TAGS[${last_idx}]}_final" "${WSCLEAN_TIME}" "${WSCLEAN_CPUS}" "${WSCLEAN_MEM}" "${ARRAY_SPEC}" "${RUN_WSCLEAN}" "${jid_fm_prev}" \
                  SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" FLINT_WSCLEAN_SIF="${FLINT_WSCLEAN_SIF}" \
-                 IMG_TAG="${IMG_TAGS[${last_idx}]}" INDEX="${last_idx}" BIND_SRC="${BIND_SRC}" WSCLEAN_OPTS="${WSCLEAN_OPTS[${last_idx}]}" FITS_MASK_TAG="${IMG_TAGS[${last_idx}]}" \
+                 IMG_TAG="${IMG_TAGS[${last_idx}]}" INDEX="${last_idx}" BIND_SRC="${BIND_SRC}" WSCLEAN_OPTS="${final_opts}" FITS_MASK_TAG="${IMG_TAGS[${last_idx}]}" \
                  KEEP_RESIDUALS=1 IGNORE_QC_FAIL="1" )
 jid_img_final=$(chain "$jid_img_final" "wsclean_${IMG_TAGS[${last_idx}]}_final")
 
@@ -446,11 +506,16 @@ jid_cp_final=$(
 jid_cp_final=$(chain "$jid_cp_final" "copy_continuum")
 
 # don't care about the copy_continuum job for the purposes of dependencies
-jid_fm_final=$( sbatch_submit "flintmask_${IMG_TAGS[${last_idx}]}_final" "${FM_TIME}" "${FM_CPUS}" "${FM_MEM}" "${ARRAY_SPEC}" "${RUN_FLINT_MASK}" "${jid_img_final}" \
+jid_fm_final=$( sbatch_submit "eyepatch_${IMG_TAGS[${last_idx}]}_final" "${EP_TIME}" "${EP_CPUS}" "${EP_MEM}" "${ARRAY_SPEC}" "${RUN_EYEPATCH}" "${jid_img_final}" \
                 SELFCAL="1" SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" PATTERN="${WSCLEAN_PATTERN}" IMG_TAG="${IMG_TAGS[${last_idx}]}" INDEX="${last_idx}" \
-                FLOOD_FILL_POSITIVE_SEED_CLIP="${FLOOD_FILL_POSITIVE_SEED_CLIP}" FLOOD_FILL_POSITIVE_FLOOD_CLIP="${FLOOD_FILL_POSITIVE_FLOOD_CLIP}" \
-                FLOOD_FILL_MAC_BOX_SIZE="${FLOOD_FILL_MAC_BOX_SIZE}" BEAM_SHAPE_ERODE_MIN_RESPONSE="${BEAM_SHAPE_ERODE_MIN_RESPONSE}" IGNORE_QC_FAIL="1" )
-jid_fm_final=$(chain "$jid_fm_final" "flintmask_${IMG_TAGS[${last_idx}]}_final")
+                FLOOD_FILL_POSITIVE_SEED_CLIP="${EYEPATCH_SEED_CLIP[${final_stage_idx}]}" \
+                FLOOD_FILL_POSITIVE_FLOOD_CLIP="${EYEPATCH_FLOOD_CLIP[${final_stage_idx}]}" \
+                FLOOD_FILL_MAC_BOX_SIZE="${EYEPATCH_MAC_BOX_SIZE[${final_stage_idx}]}" \
+                BEAM_SHAPE_ERODE_MIN_RESPONSE="${EYEPATCH_BEAM_ERODE_MIN_RESPONSE[${final_stage_idx}]}" \
+                BEAM_SHAPE_ERODE_SCALES="${EYEPATCH_CLEAN_SCALES[${final_stage_idx}]:-}" \
+                FLOOD_FILL_MAC_ADAPTIVE_STEP_FACTOR="${EYEPATCH_MAC_ADAPTIVE_STEP_FACTOR[${final_stage_idx}]}" \
+                IGNORE_QC_FAIL="1" )
+jid_fm_final=$(chain "$jid_fm_final" "eyepatch_${IMG_TAGS[${last_idx}]}_final")
 
 # # Final predict from latest source list (concatenated)
 # jid_cb6=$( sbatch_submit "cb_predict" "${CB_TIME}" "${CB_CPUS}" "${CB_MEM}" "${ARRAY_SPEC}" "${RUN_CB}" "${jid_fm_final}" \
@@ -539,7 +604,7 @@ jid_fastducc=$( sbatch_submit "fastducc" "${FD_TIME}" "${FD_CPUS}" "${FD_MEM}" "
                 FD_CHUNK_SIZE="${FD_CHUNK_SIZE:-512}" \
                 FD_PARALLEL_MODE="${FD_PARALLEL_MODE:-dask-slurm}" \
                 FD_DASK_WORKERS="${FD_DASK_WORKERS:-16}" \
-                FD_SLURM_CORES_PER_WORKER="${FD_SLURM_CORES_PER_WORKER:-4}" \
+                FD_SLURM_CORES_PER_WORKER="${FD_SLURM_CORES_PER_WORKER:-1}" \
                 FD_SLURM_MEM="${FD_SLURM_MEM:-32GB}" \
                 FD_DM="${FD_DM:-}" FD_DM_LIST="${FD_DM_LIST:-}" \
                 FD_DM_MIN="${FD_DM_MIN:-0.0}" FD_DM_MAX="${FD_DM_MAX:-1000.0}" FD_DM_TOL="${FD_DM_TOL:-1.25}" )

@@ -19,14 +19,14 @@
 # 1. Global Context & Resources
 # =============================================================================
 USER="$(whoami)"
-# SBID="${SBID:-SB82418}"
+SBID="${SBID:-SB82418}"
 # -----------------------------------------------------------------------------
 # System Profile 1: OzSTAR Default (/fred/oz451) [ACTIVE]
 # -----------------------------------------------------------------------------
 USER_PATH="/fred/oz451"
 DATA_SRC_ROOT="${DATA_SRC_ROOT:-${USER_PATH}/data/craco}"
-DATA_ROOT="${USER_PATH}/${USER}/data/continuum"
-OUT_ROOT="${USER_PATH}/${USER}/data/continuum"
+DATA_ROOT="${USER_PATH}/${USER}/data"
+OUT_ROOT="${USER_PATH}/${USER}/data"
 BIND_SRC="${USER_PATH}"
 CONTAINER_DIR="${USER_PATH}/${USER}/containers"
 LOG_DIR="${USER_PATH}/${USER}/lotrun_processing/logs"
@@ -86,7 +86,7 @@ CRYSTALBALL_SIF="${CONTAINER_DIR}/casacore.sif"
 # -------------------- General Parameters ----------------
 ARRAY_SPEC="0-35"
 BIGARRAY_SPEC="0-500"
-NATIVE10S_PATTERN="*beam{beam:02d}_averaged_cal.leakage.ms"
+NATIVE10S_PATTERN="continuum_visibilities/*beam{beam:02d}_averaged_cal.leakage.ms"
 
 # -------------------- download and symlink --------------
 CASDA_USERNAME="${CASDA_USERNAME:-andrew.zic@csiro.au}"
@@ -123,7 +123,7 @@ FLAG_COLUMN="DATA"
 FLAG_CPUS="4"
 FLAG_MEM="12G"
 FLAG_TIME="00:15:00"
-FLAG_SELFCAL_PATTERN="*beam{beam:02d}.selfcal_{index}.ms"
+FLAG_SELFCAL_PATTERN="continuum_visibilities/*beam{beam:02d}.selfcal_{index}.ms"
 
 RUN_FLAGOUTER="${SCRIPT_DIR}/scripts/slurm/run_flagouter_beams.sh"
 FLAGOUTER_SCRIPT="${SCRIPT_DIR}/src/casa/flagouter_beams.py"
@@ -167,37 +167,73 @@ CONCAT_TIME="00:30:00"
 # =============================================================================
 # WSClean
 RUN_WSCLEAN="${SCRIPT_DIR}/scripts/slurm/run_wsclean_beams.sh"
-WSCLEAN_CPUS="4"
-WSCLEAN_MEM="8G"
-WSCLEAN_TIME="00:30:00"
+WSCLEAN_CPUS="8"
+WSCLEAN_MEM="24G"
+WSCLEAN_TIME="03:00:00"
 WSCLEAN_PATTERN="${NATIVE10S_PATTERN}"
 
 # WSCLEAN_OPTS0..6 env vars can still be used to override individual rounds from outside.
 WSCLEAN_CHANNELS_OUT=4
 declare -ag WSCLEAN_OPTS
-WSCLEAN_OPTS[0]="${WSCLEAN_OPTS0:-"-data-column DATA -save-source-list -mgain 0.8 -multiscale -multiscale-scale-bias 0.8 -niter 25000 -pol i -weight briggs 0.5 -scale 2.5asec -size 8192 8192 -auto-threshold 3 -auto-mask 15.0 -join-channels   -channels-out ${WSCLEAN_CHANNELS_OUT} -fit-spectral-pol 3"}"
-WSCLEAN_OPTS[1]="${WSCLEAN_OPTS1:-"-data-column DATA -save-source-list -mgain 0.8 -multiscale -multiscale-scale-bias 0.8 -niter 100000 -pol i -weight briggs 0.5 -scale 2.5asec -size 8192 8192 -auto-threshold 2 -auto-mask 15.0 -join-channels  -channels-out ${WSCLEAN_CHANNELS_OUT} -fit-spectral-pol 3"}"
-WSCLEAN_OPTS[2]="${WSCLEAN_OPTS2:-"-data-column DATA -save-source-list -mgain 0.8 -multiscale -multiscale-scale-bias 0.8 -niter 100000 -pol i -weight briggs 0.5 -scale 2.5asec -size 8192 8192 -auto-threshold 1.0 -auto-mask 8.0 -join-channels -channels-out ${WSCLEAN_CHANNELS_OUT} -fit-spectral-pol 3"}"
-WSCLEAN_OPTS[3]="${WSCLEAN_OPTS3:-"-data-column DATA -save-source-list -mgain 0.8 -multiscale -multiscale-scale-bias 0.8 -niter 100000 -pol i -weight briggs 0.5 -scale 2.5asec -size 8192 8192 -auto-threshold 1.0 -auto-mask 5.0 -join-channels -channels-out ${WSCLEAN_CHANNELS_OUT} -fit-spectral-pol 3"}"
-WSCLEAN_OPTS[4]="${WSCLEAN_OPTS4:-"-data-column DATA -save-source-list -mgain 0.8 -multiscale -multiscale-scale-bias 0.8 -niter 100000 -pol i -weight briggs 0.5 -scale 2.5asec -size 8192 8192 -auto-threshold 1.0 -auto-mask 3.0 -join-channels -channels-out ${WSCLEAN_CHANNELS_OUT} -fit-spectral-pol 3"}"
-WSCLEAN_OPTS[5]="${WSCLEAN_OPTS5:-"-data-column DATA -save-source-list -mgain 0.8 -multiscale -multiscale-scale-bias 0.8 -niter 100000 -pol i -weight briggs 0.5 -scale 2.5asec -size 8192 8192 -auto-threshold 0.5 -auto-mask 5.0 -join-channels -channels-out ${WSCLEAN_CHANNELS_OUT} -fit-spectral-pol 3"}"
-WSCLEAN_OPTS[6]="${WSCLEAN_OPTS6:-"-data-column DATA -save-source-list -mgain 0.8 -multiscale -multiscale-scale-bias 0.8 -niter 100000 -pol i -weight briggs 0.5 -scale 2.5asec -size 8192 8192 -auto-threshold 0.5 -auto-mask 5.0 -join-channels -channels-out ${WSCLEAN_CHANNELS_OUT} -fit-spectral-pol 3"}"
+WSCLEAN_OPTS[0]="${WSCLEAN_OPTS0:-"-abs-mem $(( ${WSCLEAN_MEM/G/} - 4 )) -data-column DATA -save-source-list -mgain 0.8 -multiscale -multiscale-scale-bias 0.8 -multiscale-max-scales 5 -minuvw-m 200.0 -niter 25000 -pol i -weight briggs 0.5 -scale 2.5asec -size 8192 8192 -auto-threshold 3 -auto-mask 15.0 -join-channels -channels-out ${WSCLEAN_CHANNELS_OUT} -fit-spectral-pol 3"}"
+WSCLEAN_OPTS[1]="${WSCLEAN_OPTS1:-"-abs-mem $(( ${WSCLEAN_MEM/G/} - 4 )) -data-column DATA -save-source-list -mgain 0.8 -multiscale -multiscale-scale-bias 0.8 -multiscale-max-scales 5 -minuvw-m 200.0 -niter 100000 -pol i -weight briggs 0.5 -scale 2.5asec -size 8192 8192 -auto-threshold 2 -auto-mask 15.0 -join-channels -channels-out ${WSCLEAN_CHANNELS_OUT} -fit-spectral-pol 3"}"
+WSCLEAN_OPTS[2]="${WSCLEAN_OPTS2:-"-abs-mem $(( ${WSCLEAN_MEM/G/} - 4 )) -data-column DATA -save-source-list -mgain 0.8 -multiscale -multiscale-scale-bias 0.8 -multiscale-max-scales 5 -minuvw-m 200.0 -niter 100000 -pol i -weight briggs 0.5 -scale 2.5asec -size 8192 8192 -auto-threshold 1.0 -auto-mask 8.0 -join-channels -channels-out ${WSCLEAN_CHANNELS_OUT} -fit-spectral-pol 3"}"
+WSCLEAN_OPTS[3]="${WSCLEAN_OPTS3:-"-abs-mem $(( ${WSCLEAN_MEM/G/} - 4 )) -data-column DATA -save-source-list -mgain 0.8 -multiscale -multiscale-scale-bias 0.8 -multiscale-max-scales 5 -minuvw-m 200.0 -niter 100000 -pol i -weight briggs 0.5 -scale 2.5asec -size 8192 8192 -auto-threshold 1.0 -auto-mask 5.0 -join-channels -channels-out ${WSCLEAN_CHANNELS_OUT} -fit-spectral-pol 3"}"
+WSCLEAN_OPTS[4]="${WSCLEAN_OPTS4:-"-abs-mem $(( ${WSCLEAN_MEM/G/} - 4 )) -data-column DATA -save-source-list -mgain 0.8 -multiscale -multiscale-scale-bias 0.8 -multiscale-max-scales 5 -minuvw-m 200.0 -niter 100000 -pol i -weight briggs 0.5 -scale 2.5asec -size 8192 8192 -auto-threshold 1.0 -auto-mask 3.0 -join-channels -channels-out ${WSCLEAN_CHANNELS_OUT} -fit-spectral-pol 3"}"
+WSCLEAN_OPTS[5]="${WSCLEAN_OPTS5:-"-abs-mem $(( ${WSCLEAN_MEM/G/} - 4 )) -data-column DATA -save-source-list -mgain 0.8 -multiscale -multiscale-scale-bias 0.8 -multiscale-max-scales 5 -minuvw-m 200.0 -niter 100000 -pol i -weight briggs 0.5 -scale 2.5asec -size 8192 8192 -auto-threshold 0.5 -auto-mask 5.0 -join-channels -channels-out ${WSCLEAN_CHANNELS_OUT} -fit-spectral-pol 3"}"
+WSCLEAN_OPTS[6]="${WSCLEAN_OPTS6:-"-abs-mem $(( ${WSCLEAN_MEM/G/} - 4 )) -data-column DATA -save-source-list -mgain 0.8 -multiscale -multiscale-scale-bias 0.8 -multiscale-max-scales 5 -minuvw-m 200.0 -niter 100000 -pol i -weight briggs 0.5 -scale 2.5asec -size 8192 8192 -auto-threshold 0.5 -auto-mask 5.0 -join-channels -channels-out ${WSCLEAN_CHANNELS_OUT} -fit-spectral-pol 3"}"
 
-# Flint Masking
-RUN_FLINT_MASK="${SCRIPT_DIR}/scripts/slurm/run_flintmask_beams.sh"
-FM_CPUS="1"
-FM_MEM="1G"
-FM_TIME="00:15:00"
-FLOOD_FILL_POSITIVE_SEED_CLIP="1.1"
-FLOOD_FILL_POSITIVE_FLOOD_CLIP="0.7"
-FLOOD_FILL_MAC_BOX_SIZE="350"
-BEAM_SHAPE_ERODE_MIN_RESPONSE="0.75"
+# Eye-patch Masking
+RUN_EYEPATCH="${SCRIPT_DIR}/scripts/slurm/run_eyepatch_beams.sh"
+RUN_FLINT_MASK="${RUN_EYEPATCH}"    # legacy alias
+EP_CPUS="8"
+EP_MEM="12G"
+EP_TIME="00:30:00"
+FM_CPUS="${EP_CPUS}"
+FM_MEM="${EP_MEM}"
+FM_TIME="${EP_TIME}"
+
+# Eye-patch per-selfcal-stage masking parameters
+# Index 0 corresponds to initial_scratch; indices 1..N correspond to selfcal_1..N.
+# If fewer values than total stages are provided, the last value is used for remaining rounds.
+declare -ag EYEPATCH_SEED_CLIP=("1.1" "1.1" "1.1" "1.1" "1.1" "1.1" "1.1" "1.1")
+declare -ag EYEPATCH_FLOOD_CLIP=("0.7" "0.5" "0.1" "0.1" "0.1" "0.1" "0.1" "0.1")
+declare -ag EYEPATCH_MAC_BOX_SIZE=("350" "350" "250" "250" "250" "250" "250" "250")
+declare -ag EYEPATCH_BEAM_ERODE_MIN_RESPONSE=("0.75" "0.75" "0.75" "0.75" "0.75" "0.75" "0.75" "0.75")
+# Leave EYEPATCH_CLEAN_SCALES commented out for automatic multi-scale discovery from WSClean logs:
+# declare -ag EYEPATCH_CLEAN_SCALES=("0,8,16,32,64,128" "0,8,16,32,64,128" "0,8,16,32,64,128" "0,8,16,32,64,128" "0,8,16,32,64,128" "0,8,16,32,64,128" "0,8,16,32,64,128" "0,8,16,32,64,128")
+declare -ag EYEPATCH_MAC_ADAPTIVE_STEP_FACTOR=("2" "1.5" "1.5" "1.5" "1.5" "1.5" "1.5" "1.5")
+declare -ag EYEPATCH_POSITIVITY=(
+  "[false, false, true, true, true, true]"
+  "[false, false, true, true, true, true]"
+  "[false, false, true, true, true, true]"
+  "[false, false, true, true, true, true]"
+  "[false, false, true, true, true, true]"
+  "[false, false, true, true, true, true]"
+  "[false, false, true, true, true, true]"
+  "[false, false, true, true, true, true]"
+)
+
+# Aliases matching colleague naming conventions for convenience
+seedclipOptions=("${EYEPATCH_SEED_CLIP[@]}")
+floodclipOptions=("${EYEPATCH_FLOOD_CLIP[@]}")
+macboxsizeOptions=("${EYEPATCH_MAC_BOX_SIZE[@]}")
+beamerodeminresponseOptions=("${EYEPATCH_BEAM_ERODE_MIN_RESPONSE[@]}")
+# cleanscalesOptions=("${EYEPATCH_CLEAN_SCALES[@]}")
+useMacAdaptiveStepFactorOptions=("${EYEPATCH_MAC_ADAPTIVE_STEP_FACTOR[@]}")
+positivityOptions=("${EYEPATCH_POSITIVITY[@]}")
+
+# Default single-value fallbacks (for legacy / override compatibility)
+FLOOD_FILL_POSITIVE_SEED_CLIP="${EYEPATCH_SEED_CLIP[0]}"
+FLOOD_FILL_POSITIVE_FLOOD_CLIP="${EYEPATCH_FLOOD_CLIP[0]}"
+FLOOD_FILL_MAC_BOX_SIZE="${EYEPATCH_MAC_BOX_SIZE[0]}"
+BEAM_SHAPE_ERODE_MIN_RESPONSE="${EYEPATCH_BEAM_ERODE_MIN_RESPONSE[0]}"
 
 # Selfcal
 RUN_SELFCAL="${SCRIPT_DIR}/scripts/slurm/run_selfcal_beams.sh"
 SELFCAL_SCRIPT="${SCRIPT_DIR}/src/casa/selfcal_ms_beams.py"
 SC_CPUS="8"
-SC_MEM="4G"
+SC_MEM="12G"
 SC_TIME="00:15:00"
 SC_FIELD=""
 SC_SPW=""
@@ -234,7 +270,7 @@ else
 fi
 
 # Crystalball specifics
-CB_SOURCE_LIST_PATTERN="*beam{beam:02d}_averaged_cal.leakage.ms"
+CB_SOURCE_LIST_PATTERN="continuum_visibilities/*beam{beam:02d}_averaged_cal.leakage.ms"
 CB_SUBDIR=""
 CB_SRCLIST_SUBDIR=""
 CB_OUTPUT_COLUMN="MODEL_DATA"
@@ -279,15 +315,15 @@ UVSUB_OUT_PREFIX="uvsub"
 RUN_FASTDUCC="${SCRIPT_DIR}/scripts/slurm/run_fastducc_beams.sh"
 RUN_FASTDUCC_AGG="${SCRIPT_DIR}/scripts/slurm/run_fastducc_aggregate_chunks.sh"
 FD_CPUS="1"
-FD_MEM="32G"
-FD_TIME="06:00:00"
+FD_MEM="18G"
+FD_TIME="24:00:00"
 AGG_TIME="00:15:00"
 AGG_CPUS="1"
 AGG_MEM="1G"
 
 CHUNK_GLOB="202?*"
 KIND="boxcar"
-FASTDUCC_INPUT_PATTERN="*beam{beam:02d}*.uvsub.ms"
+FASTDUCC_INPUT_PATTERN="continuum_visibilities/*beam{beam:02d}*.uvsub.ms"
 
 # options for fastducc search/no search/plot_cands/only
 # set to 1 to enable the option; leave empty string to disable
@@ -299,30 +335,31 @@ FD_ENABLE_VAR_SCAN="1"  # 1 to enable per-scan variance search; 0 to disable
 FD_ENABLE_VAR_OBS="1"   # 1 to enable whole per-obs variance search; 0 to disable
 
 # FastDUCC algorithm and worker settings
-FD_CHUNK_SIZE="512"
+FD_CHUNK_SIZE="256"
 FD_CORR_MODE="single"
 FD_BASIS="linear"
 FD_SINGLE_POL="XX"
-FD_NPIX_X="384"
-FD_NPIX_Y="384"
-FD_PIXSIZE_ARCSEC="22.0"
+FD_NPIX_X="1920"
+FD_NPIX_Y="1920"
+FD_PIXSIZE_ARCSEC="4.4"
 FD_THRESHOLD_SIGMA="8.0"
 FD_BOXCAR_WIDTHS="1 2 4 8 12 16 24 32 48 64 96 128"
 FD_VAR_THRESHOLD_SIGMA="8.0"
 FD_ENABLE_LOCAL_STATS="1"
-FD_LOCAL_BOX_SIZE="64"
+FD_LOCAL_BOX_SIZE="128"
 FD_PARALLEL_MODE="dask-slurm"
 FD_DASK_WORKERS="0" # 0 scales to match the expected number of time chunks
-FD_SLURM_CORES_PER_WORKER="4"
-FD_SLURM_MEM="32GB"
-FD_WORKER_TIME="06:00:00"
+FD_ARRAY_CONCURRENCY="6" # throttle concurrent beams in SLURM array
+FD_SLURM_CORES_PER_WORKER="1"
+FD_SLURM_MEM="64GB"
+FD_WORKER_TIME="08:00:00"
 
-# FastDUCC DedispersionPlan settings
-FD_DM=""
+# FastDUCC DedispersionPlan settings (disabled DM trials - search at DM=0.0 only)
+FD_DM="0.0"
 FD_DM_LIST=""
-FD_DM_MIN="0.0"
-FD_DM_MAX="1000.0"
-FD_DM_TOL="1.25"
+FD_DM_MIN=""
+FD_DM_MAX=""
+FD_DM_TOL=""
 
 # =============================================================================
 # 10. Dstools Extraction
@@ -363,6 +400,15 @@ RUN_COPY_CONTINUUM="${SCRIPT_DIR}/scripts/slurm/run_copy_continuum.sh"
 COPY_TIME="00:15:00"
 COPY_CPUS="1"
 COPY_MEM="2G"
+
+# =============================================================================
+# 11. Extra CRACO-matching 24-antenna Imaging
+# =============================================================================
+RUN_IMAGE_24ANT="${SCRIPT_DIR}/scripts/slurm/run_image_24ant_beams.sh"
+IMAGE_24ANT_TIME="01:00:00"
+IMAGE_24ANT_CPUS="8"
+IMAGE_24ANT_MEM="32G"
+IMAGE_24ANT_ENABLED="1"
 
 RUN_CLEARCAL="${SCRIPT_DIR}/scripts/slurm/run_clearcal_beams.sh"
 

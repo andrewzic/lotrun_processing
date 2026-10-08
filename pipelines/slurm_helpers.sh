@@ -8,11 +8,14 @@ log(){ printf '[%s] %s\n' "$(date +'%F %T')" "$*" >&2; }
 validate_stages() {
   local start_stage="${START_STAGE:-}"
   local end_stage="${END_STAGE:-}"
+  start_stage="${start_stage/#flintmask_/eyepatch_}"
+  end_stage="${end_stage/#flintmask_/eyepatch_}"
   
   if [[ -n "$start_stage" ]]; then
     local found=0
     for stage in "${PIPELINE_STAGES[@]}"; do
-      if [[ "$stage" == "$start_stage" ]]; then
+      local s="${stage/#flintmask_/eyepatch_}"
+      if [[ "$s" == "$start_stage" ]]; then
         found=1
         break
       fi
@@ -26,7 +29,8 @@ validate_stages() {
   if [[ -n "$end_stage" ]]; then
     local found=0
     for stage in "${PIPELINE_STAGES[@]}"; do
-      if [[ "$stage" == "$end_stage" ]]; then
+      local s="${stage/#flintmask_/eyepatch_}"
+      if [[ "$s" == "$end_stage" ]]; then
         found=1
         break
       fi
@@ -39,9 +43,11 @@ validate_stages() {
 }
 
 should_skip() {
-  local target_stage="$1"
+  local target_stage="${1/#flintmask_/eyepatch_}"
   local start_stage="${START_STAGE:-}"
   local end_stage="${END_STAGE:-}"
+  start_stage="${start_stage/#flintmask_/eyepatch_}"
+  end_stage="${end_stage/#flintmask_/eyepatch_}"
   
   # If START_STAGE and END_STAGE are not set or empty, never skip
   if [[ -z "$start_stage" ]] && [[ -z "$end_stage" ]]; then
@@ -54,13 +60,14 @@ should_skip() {
   local target_idx=-1
   local i
   for i in "${!PIPELINE_STAGES[@]}"; do
-    if [[ -n "$start_stage" ]] && [[ "${PIPELINE_STAGES[$i]}" == "$start_stage" ]]; then
+    local s="${PIPELINE_STAGES[$i]/#flintmask_/eyepatch_}"
+    if [[ -n "$start_stage" ]] && [[ "$s" == "$start_stage" ]]; then
       start_idx=$i
     fi
-    if [[ -n "$end_stage" ]] && [[ "${PIPELINE_STAGES[$i]}" == "$end_stage" ]]; then
+    if [[ -n "$end_stage" ]] && [[ "$s" == "$end_stage" ]]; then
       end_idx=$i
     fi
-    if [[ "${PIPELINE_STAGES[$i]}" == "$target_stage" ]]; then
+    if [[ "$s" == "$target_stage" ]]; then
       target_idx=$i
     fi
   done

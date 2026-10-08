@@ -213,15 +213,63 @@ WSCLEAN_OPTS[6]="${WSCLEAN_OPTS6:-"-data-column DATA -save-source-list -multisca
 WSCLEAN_OPTS[7]="${WSCLEAN_OPTS7:-"-data-column DATA -save-source-list -multiscale -mgain 0.8 -multiscale-scale-bias 0.8 -multiscale-max-scales 5 -niter 100000 -pol xx -weight briggs 0.5 -scale 12asec -size 1536 1536 -auto-threshold 1.0 -auto-mask 4.0 -join-channels -channels-out ${WSCLEAN_CHANNELS_OUT} -fit-spectral-pol 3"}"
 
 
+#
 # Flint Masking
-RUN_FLINT_MASK="${SCRIPT_DIR}/scripts/slurm/run_flintmask_beams.sh"
-FM_CPUS="1"
-FM_MEM="1G"
-FM_TIME="00:15:00"
-FLOOD_FILL_POSITIVE_SEED_CLIP="1.1"
-FLOOD_FILL_POSITIVE_FLOOD_CLIP="0.7"
-FLOOD_FILL_MAC_BOX_SIZE="350"
-BEAM_SHAPE_ERODE_MIN_RESPONSE="0.75"
+# RUN_FLINT_MASK="${SCRIPT_DIR}/scripts/slurm/run_flintmask_beams.sh"
+# FM_CPUS="1"
+# FM_MEM="1G"
+# FM_TIME="00:15:00"
+# FLOOD_FILL_POSITIVE_SEED_CLIP="1.1"
+# FLOOD_FILL_POSITIVE_FLOOD_CLIP="0.7"
+# FLOOD_FILL_MAC_BOX_SIZE="350"
+# BEAM_SHAPE_ERODE_MIN_RESPONSE="0.75"
+
+
+# Eye-patch Masking
+RUN_EYEPATCH="${SCRIPT_DIR}/scripts/slurm/run_eyepatch_beams.sh"
+RUN_FLINT_MASK="${RUN_EYEPATCH}"    # legacy alias
+EP_CPUS="1"
+EP_MEM="2G"
+EP_TIME="00:20:00"
+FM_CPUS="${EP_CPUS}"
+FM_MEM="${EP_MEM}"
+FM_TIME="${EP_TIME}"
+
+# Eye-patch per-selfcal-stage masking parameters
+# Index 0 corresponds to initial_scratch; indices 1..N correspond to selfcal_1..N.
+# If fewer values than total stages are provided, the last value is used for remaining rounds.
+declare -ag EYEPATCH_SEED_CLIP=("1.1" "1.1" "1.1" "1.1" "1.1" "1.1" "1.1" "1.1")
+declare -ag EYEPATCH_FLOOD_CLIP=("0.7" "0.5" "0.1" "0.1" "0.1" "0.1" "0.1" "0.1")
+declare -ag EYEPATCH_MAC_BOX_SIZE=("350" "350" "250" "250" "250" "250" "250" "250")
+declare -ag EYEPATCH_BEAM_ERODE_MIN_RESPONSE=("0.75" "0.75" "0.75" "0.75" "0.75" "0.75" "0.75" "0.75")
+# Leave EYEPATCH_CLEAN_SCALES commented out for automatic multi-scale discovery from WSClean logs:
+# declare -ag EYEPATCH_CLEAN_SCALES=("0,8,16,32,64,128" "0,8,16,32,64,128" "0,8,16,32,64,128" "0,8,16,32,64,128" "0,8,16,32,64,128" "0,8,16,32,64,128" "0,8,16,32,64,128" "0,8,16,32,64,128")
+declare -ag EYEPATCH_MAC_ADAPTIVE_STEP_FACTOR=("2" "1.5" "1.5" "1.5" "1.5" "1.5" "1.5" "1.5")
+declare -ag EYEPATCH_POSITIVITY=(
+  "[false, false, true, true, true, true]"
+  "[false, false, true, true, true, true]"
+  "[false, false, true, true, true, true]"
+  "[false, false, true, true, true, true]"
+  "[false, false, true, true, true, true]"
+  "[false, false, true, true, true, true]"
+  "[false, false, true, true, true, true]"
+  "[false, false, true, true, true, true]"
+)
+
+# Aliases matching colleague naming conventions for convenience
+seedclipOptions=("${EYEPATCH_SEED_CLIP[@]}")
+floodclipOptions=("${EYEPATCH_FLOOD_CLIP[@]}")
+macboxsizeOptions=("${EYEPATCH_MAC_BOX_SIZE[@]}")
+beamerodeminresponseOptions=("${EYEPATCH_BEAM_ERODE_MIN_RESPONSE[@]}")
+# cleanscalesOptions=("${EYEPATCH_CLEAN_SCALES[@]}")
+useMacAdaptiveStepFactorOptions=("${EYEPATCH_MAC_ADAPTIVE_STEP_FACTOR[@]}")
+positivityOptions=("${EYEPATCH_POSITIVITY[@]}")
+
+# Default single-value fallbacks (for legacy / override compatibility)
+FLOOD_FILL_POSITIVE_SEED_CLIP="${EYEPATCH_SEED_CLIP[0]}"
+FLOOD_FILL_POSITIVE_FLOOD_CLIP="${EYEPATCH_FLOOD_CLIP[0]}"
+FLOOD_FILL_MAC_BOX_SIZE="${EYEPATCH_MAC_BOX_SIZE[0]}"
+BEAM_SHAPE_ERODE_MIN_RESPONSE="${EYEPATCH_BEAM_ERODE_MIN_RESPONSE[0]}"
 
 # Selfcal
 RUN_SELFCAL="${SCRIPT_DIR}/scripts/slurm/run_selfcal_beams.sh"
@@ -322,9 +370,9 @@ RUN_FASTDUCC_AGG="${SCRIPT_DIR}/scripts/slurm/run_fastducc_aggregate_chunks.sh"
 # Optional obs-level aggregation (leave unset/comment out to skip)
 RUN_FASTDUCC_OBSAGG="${SCRIPT_DIR}/scripts/slurm/run_fastducc_aggregate_obs.sh"
 FD_CPUS="1"
-FD_MEM="32G" #mem request for main fastducc driver
-FD_TIME="04:00:00"
-FD_WORKER_TIME="02:00:00"
+FD_MEM="18G" #mem request for main fastducc driver
+FD_TIME="24:00:00"
+FD_WORKER_TIME="08:00:00"
 AGG_TIME="00:15:00"
 AGG_CPUS="1"
 AGG_MEM="1G"
@@ -358,9 +406,9 @@ FD_ENABLE_LOCAL_STATS="1"
 FD_LOCAL_BOX_SIZE="64"
 FD_PARALLEL_MODE="dask-slurm"
 FD_DASK_WORKERS="0" # 0 scales to match the expected number of time chunks (1 worker per chunk)
-FD_ARRAY_CONCURRENCY="4" # throttle concurrent beams in SLURM array (e.g. 4 beams * ~118 workers = ~472 total)
-FD_SLURM_CORES_PER_WORKER="4"
-FD_SLURM_MEM="24GB"
+FD_ARRAY_CONCURRENCY="6" # throttle concurrent beams in SLURM array (e.g. 6 beams * ~118 workers = ~708 total)
+FD_SLURM_CORES_PER_WORKER="1"
+FD_SLURM_MEM="22GB"
 
 # FastDUCC DedispersionPlan settings
 FD_DM=""
