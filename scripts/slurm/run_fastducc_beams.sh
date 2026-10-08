@@ -2,9 +2,9 @@
 #SBATCH --job-name=fastducc_ms
 #SBATCH --output=logs/fastducc_%A_%a.out
 #SBATCH --error=logs/fastducc_%A_%a.err
-#SBATCH --time=04:00:00
+#SBATCH --time=24:00:00
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=64G
+#SBATCH --mem=32G
 #SBATCH --array=0-35
 
 set -euo pipefail
@@ -19,7 +19,7 @@ DATA_ROOT=${DATA_ROOT:-${USER_PATH:-/fred/oz451}/${USER}/data}
 EXTENSION=${EXTENSION:-"B0"}
 # pattern relative to data-root/SBID; {beam:02d} will be replaced with the beam index
 PATTERN=${PATTERN:-"*beam{beam:02d}*.cal${EXTENSION}.ms"}
-FD_WORKER_TIME="${FD_WORKER_TIME:-${FD_TIME:-02:00:00}}"
+FD_WORKER_TIME="${FD_WORKER_TIME:-${FD_TIME:-08:00:00}}"
 
 OUT_PREFIX=${OUT_PREFIX:-"uvsub"}  # not used by fastducc; kept for compatibility/logging
 INDEX=${INDEX:-1}
@@ -34,6 +34,16 @@ FD_ENABLE_VAR_SCAN=${FD_ENABLE_VAR_SCAN:-1}
 FD_ENABLE_VAR_OBS=${FD_ENABLE_VAR_OBS:-1}
 
 # Configuration options for fastducc
+# If processing continuum visibilities, ensure full-array resolution, box size, and bounded chunk size/memory:
+if [[ "${PATTERN}" == *"continuum"* ]]; then
+  [[ -z "${FD_NPIX_X:-}" || "${FD_NPIX_X}" == "384" ]] && FD_NPIX_X=1920
+  [[ -z "${FD_NPIX_Y:-}" || "${FD_NPIX_Y}" == "384" ]] && FD_NPIX_Y=1920
+  [[ -z "${FD_PIXSIZE_ARCSEC:-}" || "${FD_PIXSIZE_ARCSEC}" == "22.0" ]] && FD_PIXSIZE_ARCSEC=4.4
+  [[ -z "${FD_LOCAL_BOX_SIZE:-}" || "${FD_LOCAL_BOX_SIZE}" == "64" ]] && FD_LOCAL_BOX_SIZE=128
+  [[ -z "${FD_CHUNK_SIZE:-}" || "${FD_CHUNK_SIZE}" -gt 256 ]] && FD_CHUNK_SIZE=256
+  [[ -z "${FD_SLURM_MEM:-}" || "${FD_SLURM_MEM}" == "32GB" || "${FD_SLURM_MEM}" == "24GB" || "${FD_SLURM_MEM}" == "22GB" ]] && FD_SLURM_MEM="64GB"
+fi
+
 FD_CHUNK_SIZE="${FD_CHUNK_SIZE:-512}"
 FD_CORR_MODE="${FD_CORR_MODE:-single}"
 FD_BASIS="${FD_BASIS:-linear}"
@@ -48,8 +58,8 @@ FD_ENABLE_LOCAL_STATS="${FD_ENABLE_LOCAL_STATS:-1}"
 FD_LOCAL_BOX_SIZE="${FD_LOCAL_BOX_SIZE:-64}"
 FD_PARALLEL_MODE="${FD_PARALLEL_MODE:-dask-slurm}"
 FD_DASK_WORKERS="${FD_DASK_WORKERS:-0}"
-FD_SLURM_CORES_PER_WORKER="${FD_SLURM_CORES_PER_WORKER:-4}"
-FD_SLURM_MEM="${FD_SLURM_MEM:-24GB}"
+FD_SLURM_CORES_PER_WORKER="${FD_SLURM_CORES_PER_WORKER:-1}"
+FD_SLURM_MEM="${FD_SLURM_MEM:-22GB}"
 
 # Dedispersion & chunk filtering options
 FD_DM="${FD_DM:-}"
@@ -72,14 +82,14 @@ glob="${PATTERN//\{beam:02d\}/${beam2}}"
 if (( SELFCAL == 1 )); then
   if (( INDEX > 0 )); then
     glob2="${glob/calB0/selfcal_${INDEX}}"
-    glob2="${glob2/_averaged_cal.leakage/selfcal_${INDEX}}" # catch all for continuum
+    glob2="${glob2/_averaged_cal.leakage/.selfcal_${INDEX}}" # catch all for continuum
   else
     glob2="${glob}"
   fi
 else
   if (( INDEX > 0 )); then
     glob2="${glob/calB0/calG${INDEX}}"
-    glob2="${glob2/_averaged_cal.leakage/selfcal_${INDEX}}" # catch all for continuum
+    glob2="${glob2/_averaged_cal.leakage/.selfcal_${INDEX}}" # catch all for continuum
   else
     glob2="${glob}"
   fi
