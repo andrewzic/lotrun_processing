@@ -147,6 +147,10 @@ RUN_EYEPATCH="${RUN_EYEPATCH:-${RUN_FLINT_MASK:-${SCRIPT_DIR}/scripts/slurm/run_
 EP_TIME="${EP_TIME:-${FM_TIME:-00:20:00}}"
 EP_CPUS="${EP_CPUS:-${FM_CPUS:-1}}"
 EP_MEM="${EP_MEM:-${FM_MEM:-2G}}"
+AGG_TIME="${AGG_TIME:-00:30:00}"
+AGG_CPUS="${AGG_CPUS:-1}"
+AGG_MEM="${AGG_MEM:-8G}"
+MAX_N_CANDIDATES_PER_SOURCE="${MAX_N_CANDIDATES_PER_SOURCE:-100}"
 
 # -------------------- STAGE SKIP LIST --------------------
 declare -ag PIPELINE_STAGES=(
@@ -612,13 +616,13 @@ jid_fastducc=$(chain "$jid_fastducc" "fastducc")
 
 # aggregate per chunk
 jid_agg=$( sbatch_submit "fastducc_aggregate_chunks" "${AGG_TIME}" "${AGG_CPUS}" "${AGG_MEM}" "${CHUNK_ARRAY_SPEC}" "${RUN_FASTDUCC_AGG}" "${jid_fastducc}" \
-           SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" CHUNK_GLOB="${FD_CHUNK_GLOB}" )
+           SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" CHUNK_GLOB="${FD_CHUNK_GLOB}" MAX_N_CANDIDATES_PER_SOURCE="${MAX_N_CANDIDATES_PER_SOURCE}" )
 jid_agg=$(chain "$jid_agg" "fastducc_aggregate_chunks")
 
 # (optional) aggregate observation if wrapper provided
 if [[ -n "${RUN_FASTDUCC_OBSAGG:-}" ]]; then
   jid_obs=$( sbatch_submit "fastducc_obsagg" "${AGG_TIME}" "${AGG_CPUS}" "${AGG_MEM}" "" "${RUN_FASTDUCC_OBSAGG}" "${jid_agg}" \
-             SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" )
+             SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" MAX_N_CANDIDATES_PER_SOURCE="${MAX_N_CANDIDATES_PER_SOURCE}" )
   jid_obs=$(chain "$jid_obs" "fastducc_obsagg")
   jid_prev="$jid_obs"
 else
@@ -644,7 +648,7 @@ done
 # Redo observation aggregation after ds extraction to populate candidate dynamic_spectra/ directories
 if [[ -n "${RUN_FASTDUCC_OBSAGG:-}" ]]; then
   jid_obs_final=$( sbatch_submit "fastducc_obsagg_final" "${AGG_TIME}" "${AGG_CPUS}" "${AGG_MEM}" "" "${RUN_FASTDUCC_OBSAGG}" "${jid_prev}" \
-                   SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" )
+                   SBID="${SBID}" DATA_ROOT="${DATA_ROOT}" MAX_N_CANDIDATES_PER_SOURCE="${MAX_N_CANDIDATES_PER_SOURCE}" )
   jid_obs_final=$(chain "$jid_obs_final" "fastducc_obsagg_final")
   jid_prev="$jid_obs_final"
 fi

@@ -373,9 +373,10 @@ FD_CPUS="1"
 FD_MEM="18G" #mem request for main fastducc driver
 FD_TIME="24:00:00"
 FD_WORKER_TIME="08:00:00"
-AGG_TIME="00:15:00"
+AGG_TIME="00:30:00"
 AGG_CPUS="1"
-AGG_MEM="1G"
+AGG_MEM="8G"
+MAX_N_CANDIDATES_PER_SOURCE="100"
 
 CHUNK_GLOB="202?*" #was 202?*
 FD_CHUNK_GLOB="native_combined*" #was 202?*

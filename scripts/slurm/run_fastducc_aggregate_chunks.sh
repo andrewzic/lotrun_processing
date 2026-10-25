@@ -4,7 +4,7 @@
 #SBATCH --error=logs/fastducc_agg_%A_%a.err
 #SBATCH --time=00:30:00
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=2G
+#SBATCH --mem=8G
 
 set -euo pipefail
 
@@ -53,8 +53,12 @@ else
     FASTDUCC=${CRYSTALBALL:-fastducc}
 fi
 
+export PYTHONUNBUFFERED=1
+
+MAX_N_CANDIDATES_PER_SOURCE=${MAX_N_CANDIDATES_PER_SOURCE:-100}
+
 # Run both kinds
-${FASTDUCC} aggregate --obs-root "${chunkdir}/" --kind boxcar --outdir "${chunkdir}/candidates/"
-${FASTDUCC} aggregate --obs-root "${chunkdir}/" --kind variance --outdir "${chunkdir}/candidates/"
+${FASTDUCC} aggregate --obs-root "${chunkdir}/" --kind boxcar --outdir "${chunkdir}/candidates/" --max-n-candidates-per-source "${MAX_N_CANDIDATES_PER_SOURCE}"
+${FASTDUCC} aggregate --obs-root "${chunkdir}/" --kind variance --outdir "${chunkdir}/candidates/" --max-n-candidates-per-source "${MAX_N_CANDIDATES_PER_SOURCE}"
 
 echo "Done: ${chunkdir}"

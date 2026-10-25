@@ -2,7 +2,7 @@
 #SBATCH --job-name=fastducc_obsagg
 #SBATCH --time=00:30:00
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=2G
+#SBATCH --mem=8G
 #SBATCH --output=logs/fastducc_obsagg_%A.out
 #SBATCH --error=logs/fastducc_obsagg_%A.err
 
@@ -32,6 +32,8 @@ else
     FASTDUCC=${CRYSTALBALL:-fastducc}
 fi
 
+export PYTHONUNBUFFERED=1
+
 # -------------------- Run obs-level aggregation for each kind ------------------------
 obs_root="${DATA_ROOT}/${SBID}"
 outdir="${OUTDIR_DEFAULT}"
@@ -40,10 +42,12 @@ mkdir -p "${outdir}"
 
 ORGANIZE_EXTRA_FLAGS=${ORGANIZE_EXTRA_FLAGS:-""}
 
+MAX_N_CANDIDATES_PER_SOURCE=${MAX_N_CANDIDATES_PER_SOURCE:-100}
+
 for kind in ${KIND_LIST}; do
-  echo "[ObsAgg] SBID=${SBID} kind=${kind} sky_tol=${SKY_TOL_ARCSEC} outdir=${outdir}"
+  echo "[ObsAgg] SBID=${SBID} kind=${kind} sky_tol=${SKY_TOL_ARCSEC} outdir=${outdir} max_n=${MAX_N_CANDIDATES_PER_SOURCE}"
   # use fastducc_run.py’s CLI entrypoint to dispatch into candidates.aggregate_observation_from_super_summaries
-  ${FASTDUCC} aggregate_obs --obs-root "${obs_root}" --kind "${kind}" --sky-tol-arcsec "${SKY_TOL_ARCSEC}" --outdir "${outdir}" ${ORGANIZE_EXTRA_FLAGS}
+  ${FASTDUCC} aggregate_obs --obs-root "${obs_root}" --kind "${kind}" --sky-tol-arcsec "${SKY_TOL_ARCSEC}" --outdir "${outdir}" --max-n-candidates-per-source "${MAX_N_CANDIDATES_PER_SOURCE}" ${ORGANIZE_EXTRA_FLAGS}
 done
 
 echo "[ObsAgg] Done: outputs in ${outdir}"
