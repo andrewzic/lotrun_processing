@@ -114,3 +114,6 @@ variance_snr_data.csv
 variance_snr_scaling.png
 variance_snr_vs_window.png
 configs/config_beam16.sh
+plots/
+*.png
+core.*
