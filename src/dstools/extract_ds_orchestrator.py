@@ -41,19 +41,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Dict, Tuple, Optional, Set
 
-# ---- dstools imports -----------------------------------------
+# ---- dstools imports (lazy loaded in extract_single_ms) ------
 import warnings
-from importlib.metadata import version
 import h5py
 import numpy as np
 from astropy.wcs import FITSFixedWarning
 warnings.filterwarnings("ignore", category=FITSFixedWarning, append=True)
-
-from dstools.logger import setupLogger
-from dstools.ms import MeasurementSet, combine_spws
-from dstools.imaging import get_pb_correction
-from dstools.utils import parse_coordinates
-from dstools.ms import extract_baselines
 
 # ---- Dask -------------------------------------------------------------------
 from dask.distributed import Client, as_completed
@@ -83,6 +76,9 @@ class ExtractTask:
     ms_path: Path
     out_file: Path
     dm: float = 0.0
+    snr: float = np.nan
+    field: str = ""
+    sbid: str = ""
 
 # ---------------- CLI args ---------------------------------------------------
 def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
@@ -118,6 +114,20 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     # Filtering
     p.add_argument('--min-snr', type=float, default=None, help='Optional min S/N threshold (filter rows)')
     p.add_argument('--source-id', type=str, default='', help='Only run for this source_id (useful for debugging)')
+
+    # Engine & Performance Tuning
+    p.add_argument('--engine', choices=['fastducc', 'dstools'], default='fastducc',
+                   help="Dynamic spectrum extraction engine: 'fastducc' (in-memory streaming visibility engine) or 'dstools' (legacy CASA).")
+    p.add_argument('--max-cands-per-pass', type=int, default=10,
+                   help="Maximum candidates batched per MS in a single streaming pass (fastducc engine).")
+    p.add_argument('--chunk-rows', type=int, default=100000,
+                   help="Number of rows per MS streaming chunk (fastducc engine).")
+    p.add_argument('--pol', default='I',
+                   help="Polarization to extract ('I', 'XX', 'YY', etc.) (fastducc engine).")
+    p.add_argument('--update-summary-plots', action='store_true', default=True,
+                   help="Update candidate summary diagnostic plots to incorporate dynamic spectrum waterfall and lightcurve.")
+    p.add_argument('--no-update-summary-plots', action='store_false', dest='update_summary_plots',
+                   help="Disable updating candidate summary diagnostic plots.")
 
     # dstools extraction options (mirrors extract_ds.py)
     p.add_argument('--datacolumn', choices=['data','corrected','model'], default='data')
@@ -339,6 +349,12 @@ def extract_single_ms(ms_path: Path, out_file: Path, *,
     - out_file: path to output .ds (HDF5)
     - phasecentre: (ra_deg, dec_deg) or None
     """
+    from importlib.metadata import version
+    from dstools.logger import setupLogger
+    from dstools.ms import MeasurementSet, combine_spws, extract_baselines
+    from dstools.imaging import get_pb_correction
+    from dstools.utils import parse_coordinates
+
     setupLogger(verbose=verbose)
     columns = {
         'data': 'DATA',
@@ -436,6 +452,16 @@ def build_tasks(
         ra = float(row['ra_deg']); dec = float(row['dec_deg'])
         union_beams = row['beams_all']
         max_beam = str(row.get('max_snr_beam', '') or '').strip()
+        try:
+            cand_dm = float(str(row.get('dm', 0.0)).split(',')[0])
+        except Exception:
+            cand_dm = 0.0
+
+        snr_raw = row.get('max_snr', row.get('snr', np.nan))
+        try:
+            cand_snr = float(str(snr_raw).split(',')[0])
+        except Exception:
+            cand_snr = np.nan
 
         if mode == 'combined':
             scan_dir = sbid_dir / combined_dir
@@ -453,7 +479,7 @@ def build_tasks(
                 out_name = f"{fieldname}.{sbid}.{b}.combined_cand_{name}.ds"
                 out_file = cand_dir / out_name
                 for ms in ms_list:
-                    tasks.append(ExtractTask(sid, name, ra, dec, 'combined', b, ms, out_file))
+                    tasks.append(ExtractTask(sid, name, ra, dec, 'combined', b, ms, out_file, dm=cand_dm, snr=cand_snr, field=fieldname, sbid=sbid))
         else:
             scan_ids = all_scans if (all_scans is not None) else row['scan_ids'] #choose according to scope
             for sc in scan_ids:
@@ -480,19 +506,216 @@ def build_tasks(
                     cand_dir = scan_dir / 'candidates'
                     cand_dir.mkdir(parents=True, exist_ok=True)
                     out_name = f"{fieldname}.{sbid}.{b}.{sc}_cand_{name}.ds"
-                    try:
-                        cand_dm = float(str(row.get('dm', 0.0)).split(',')[0])
-                    except Exception:
-                        cand_dm = 0.0
                     for ms in ms_list:
-                        tasks.append(ExtractTask(sid, name, ra, dec, sc, b, ms, out_file, dm=cand_dm))
+                        tasks.append(ExtractTask(sid, name, ra, dec, sc, b, ms, out_file, dm=cand_dm, snr=cand_snr, field=fieldname, sbid=sbid))
     return tasks
+
+# ---------------- Dynamic Spectrum & Plot Updating Helpers -------------------
+
+def _maybe_update_candidate_summary_plot(task: ExtractTask, ds_file: Path, max_plots: int = 10) -> bool:
+    """
+    Search for existing candidate diagnostic summary plot(s) (*cand_<srcname>*_summary.pdf)
+    and update them in-place with the newly extracted dynamic spectrum waterfall and lightcurve.
+    """
+    try:
+        from fastducc.candidate_tools.plotting import update_candidate_summary_with_dynspec
+    except ImportError:
+        return False
+
+    search_dirs = [
+        task.out_file.parent,
+        task.out_file.parent / "plots",
+        task.out_file.parent.parent / "candidates",
+        task.out_file.parent.parent / "plots",
+    ]
+
+    # Search upwards for the SBID directory, e.g. /path/to/<SBID>/...
+    sbid_dir = None
+    for p in task.out_file.parents:
+        if re.match(r"^SB\d+$", p.name):
+            sbid_dir = p
+            break
+
+    if sbid_dir is not None:
+        for kind in ("boxcar", "variance"):
+            cand_plot_dir = sbid_dir / "candidates" / kind / task.srcname / "plots"
+            if cand_plot_dir.is_dir():
+                search_dirs.append(cand_plot_dir)
+
+    found_plots = []
+    seen = set()
+    for sdir in search_dirs:
+        if not sdir.is_dir():
+            continue
+        matches = (
+            list(sdir.glob(f"*{task.srcname}*_summary.pdf"))
+            + list(sdir.glob(f"*cand_{task.srcname}*_summary.pdf"))
+        )
+        for p in matches:
+            resolved = p.resolve()
+            if resolved not in seen and resolved.is_file():
+                seen.add(resolved)
+                found_plots.append(resolved)
+
+    # Sort plots: prioritize matching scan_id or beam_id if present in filename
+    def sort_key(p: Path):
+        name = p.name
+        score = 0
+        if task.scan_id and task.scan_id != 'combined' and task.scan_id in name:
+            score += 10
+        if task.beam_id and f"beam{task.beam_id.replace('beam', '')}" in name:
+            score += 5
+        w_m = re.search(r'_w(\d+)', name)
+        if w_m:
+            score += min(int(w_m.group(1)), 10)
+        return -score
+
+    found_plots.sort(key=sort_key)
+
+    updated_any = False
+    count = 0
+    ds_mtime = ds_file.stat().st_mtime if ds_file.exists() else 0
+    cand_info = {
+        "srcname": task.srcname,
+        "snr": getattr(task, "snr", np.nan),
+        "dm": getattr(task, "dm", 0.0),
+        "sbid": getattr(task, "sbid", ""),
+        "beam": getattr(task, "beam_id", ""),
+        "scan": getattr(task, "scan_id", ""),
+        "field": getattr(task, "field", ""),
+        "ra_deg": getattr(task, "ra_deg", None),
+        "dec_deg": getattr(task, "dec_deg", None),
+    }
+    for p in found_plots:
+        png_p = p.with_suffix(".png")
+        # If PNG already exists and was modified after the .ds file, skip re-rendering
+        if png_p.is_file() and png_p.stat().st_mtime >= ds_mtime:
+            continue
+        try:
+            update_candidate_summary_with_dynspec(p, ds_file, candidate_info=cand_info)
+            updated_any = True
+            count += 1
+            if max_plots > 0 and count >= max_plots:
+                break
+        except Exception:
+            pass
+
+    return updated_any
+
+
+def run_ms_batch_fastducc(
+    ms_path: Path,
+    tasks: List[ExtractTask],
+    *,
+    overwrite: bool = False,
+    dry_run: bool = False,
+    chunk_rows: int = 100000,
+    pol: str = "I",
+    datacolumn: str = "data",
+    update_summary_plots: bool = True,
+) -> List[Tuple[str, str, int]]:
+    """
+    Extract dynamic spectra for multiple candidates sharing the same Measurement Set
+    in a single in-memory streaming pass using fastducc.dynspec.
+    """
+    results: List[Tuple[str, str, int]] = []
+    pending_tasks: List[ExtractTask] = []
+
+    for t in tasks:
+        if (not overwrite) and t.out_file.exists() and t.out_file.stat().st_size > 0:
+            # Full observation .ds already on disk: passing as no-op for MS extraction.
+            # Rather than extracting from MS, pull chunk ds out of presaved .ds on disk to update plot.
+            plot_updated = False
+            if update_summary_plots:
+                try:
+                    plot_updated = _maybe_update_candidate_summary_plot(t, t.out_file)
+                except Exception:
+                    pass
+            msg = "exists (no-op)" + (" (summary plot updated from presaved ds)" if plot_updated else "")
+            results.append((str(t.out_file), msg, 0))
+        else:
+            pending_tasks.append(t)
+
+    if not pending_tasks:
+        return results
+
+    if dry_run:
+        for t in pending_tasks:
+            results.append((str(t.out_file), f"dry-run: fastducc in-memory extract for {t.srcname} from {ms_path.name}", 0))
+        return results
+
+    try:
+        from fastducc.dynspec import extract_phased_dynamic_spectra_from_ms, write_dynamic_spectrum_hdf5
+    except ImportError as e:
+        for t in pending_tasks:
+            results.append((str(t.out_file), f"failed to import fastducc.dynspec: {e}", 1))
+        return results
+
+    # Deduplicate pending targets by srcname so we only stream-phase-rotate once per source
+    unique_targets = {}
+    for t in pending_tasks:
+        if t.srcname not in unique_targets:
+            unique_targets[t.srcname] = {
+                "id": t.srcname,
+                "ra_deg": t.ra_deg,
+                "dec_deg": t.dec_deg,
+            }
+    targets = list(unique_targets.values())
+
+    try:
+        dynspecs = extract_phased_dynamic_spectra_from_ms(
+            ms_path=ms_path,
+            targets=targets,
+            chunk_rows=chunk_rows,
+            pol=pol,
+            datacolumn=datacolumn,
+            verbose=False,
+        )
+    except Exception as e:
+        for t in pending_tasks:
+            results.append((str(t.out_file), f"extraction exception: {e}", 1))
+        return results
+
+    # Save full observation .ds to disk once per candidate file, then update summary plots
+    saved_files = set()
+    for t in pending_tasks:
+        spec_data = dynspecs.get(t.srcname)
+        if spec_data is None:
+            results.append((str(t.out_file), "candidate missing from extraction output", 1))
+            continue
+        try:
+            if t.out_file not in saved_files:
+                spec_data["cand_id"] = t.srcname
+                extra_attrs = {"dm": float(t.dm)} if t.dm else {}
+                write_dynamic_spectrum_hdf5(
+                    spec_data=spec_data,
+                    out_path=t.out_file,
+                    datacolumn=datacolumn,
+                    attrs=extra_attrs,
+                )
+                saved_files.add(t.out_file)
+
+            plot_updated = False
+            if update_summary_plots:
+                try:
+                    plot_updated = _maybe_update_candidate_summary_plot(t, t.out_file)
+                except Exception:
+                    pass
+
+            msg = "ok" + (" (summary plot updated from presaved ds)" if plot_updated else "")
+            results.append((str(t.out_file), msg, 0))
+        except Exception as e:
+            results.append((str(t.out_file), f"write/plot exception: {e}", 1))
+
+    return results
+
 
 # ---------------- Dask submission -------------------------------------------
 
 def run_task(task: ExtractTask, *, overwrite: bool, dry_run: bool,
              datacolumn: str, primary_beam: str, noflag: bool,
-             baseline_average: bool, minuvdist: float, verbose: bool) -> Tuple[str, str, int]:
+             baseline_average: bool, minuvdist: float, verbose: bool,
+             update_summary_plots: bool = True) -> Tuple[str, str, int]:
     """Run one extraction task via the Python API."""
     if (not overwrite) and task.out_file.exists() and task.out_file.stat().st_size > 0:
         return (str(task.out_file), 'exists', 0)
@@ -541,7 +764,14 @@ def run_task(task: ExtractTask, *, overwrite: bool, dry_run: bool,
             minuvdist=minuvdist,
             verbose=verbose,
         )
-        return (str(task.out_file), 'ok', 0)
+        plot_updated = False
+        if update_summary_plots:
+            try:
+                plot_updated = _maybe_update_candidate_summary_plot(task, task.out_file)
+            except Exception:
+                pass
+        msg = 'ok' + (' (summary plot updated)' if plot_updated else '')
+        return (str(task.out_file), msg, 0)
     except Exception as e:
         return (str(task.out_file), f'exception: {e}', 1)
     finally:
@@ -625,41 +855,101 @@ def main(argv: Optional[List[str]] = None) -> int:
     client = make_client(args)
     print(f"[INFO] Connected to scheduler: {client}", flush=True)
 
-    batch = []
     completed = 0
     failures = 0
 
-    def submit_batch(batch_tasks: List[ExtractTask]):
-        nonlocal completed, failures
-        if not batch_tasks:
-            return
-        futs = []
-        for t in batch_tasks:
-            fut = client.submit(
-                run_task, t,
-                overwrite=args.overwrite, dry_run=args.dry_run,
-                datacolumn=args.datacolumn, primary_beam=args.primary_beam,
-                noflag=args.noflag, baseline_average=args.baseline_average,
-                minuvdist=args.minuvdist, verbose=args.verbose,
-                retries=args.retries,
-            )
-            futs.append(fut)
-        for f in as_completed(futs):
-            out_file, msg, rc = f.result()
-            status = 'OK' if rc == 0 else 'FAIL'
-            if rc != 0:
-                failures += 1
-            completed += 1
-            print(f"[{status}] {out_file}: {msg[:200]}", flush=True)
+    if args.engine == "fastducc":
+        from collections import defaultdict
+        tasks_by_ms = defaultdict(list)
+        for t in tasks:
+            tasks_by_ms[t.ms_path].append(t)
 
-    for t in tasks:
-        batch.append(t)
-        if len(batch) >= args.batch_size:
-            submit_batch(batch)
-            batch = []
-            if args.sleep_between_batches > 0:
-                time.sleep(args.sleep_between_batches)
-    submit_batch(batch)
+        job_batches: List[Tuple[Path, List[ExtractTask]]] = []
+        for ms_path, ms_tasks in tasks_by_ms.items():
+            for idx in range(0, len(ms_tasks), args.max_cands_per_pass):
+                job_batches.append((ms_path, ms_tasks[idx : idx + args.max_cands_per_pass]))
+
+        print(
+            f"[INFO] Engine: fastducc | Grouped {len(tasks)} candidate extraction(s) across "
+            f"{len(tasks_by_ms)} MS file(s) into {len(job_batches)} batch job(s) "
+            f"(max {args.max_cands_per_pass} cands/pass)",
+            flush=True,
+        )
+
+        def submit_ms_batches(batches: List[Tuple[Path, List[ExtractTask]]]):
+            nonlocal completed, failures
+            if not batches:
+                return
+            futs = []
+            for ms_p, b_tasks in batches:
+                fut = client.submit(
+                    run_ms_batch_fastducc,
+                    ms_p,
+                    b_tasks,
+                    overwrite=args.overwrite,
+                    dry_run=args.dry_run,
+                    chunk_rows=args.chunk_rows,
+                    pol=args.pol,
+                    datacolumn=args.datacolumn,
+                    update_summary_plots=args.update_summary_plots,
+                    retries=args.retries,
+                )
+                futs.append(fut)
+            for f in as_completed(futs):
+                batch_results = f.result()
+                for out_file, msg, rc in batch_results:
+                    status = 'OK' if rc == 0 else 'FAIL'
+                    if rc != 0:
+                        failures += 1
+                    completed += 1
+                    print(f"[{status}] {out_file}: {msg[:200]}", flush=True)
+
+        batch = []
+        for b in job_batches:
+            batch.append(b)
+            if len(batch) >= args.batch_size:
+                submit_ms_batches(batch)
+                batch = []
+                if args.sleep_between_batches > 0:
+                    time.sleep(args.sleep_between_batches)
+        submit_ms_batches(batch)
+
+    else:
+        # Legacy dstools engine
+        print(f"[INFO] Engine: dstools | Running {len(tasks)} individual task(s)", flush=True)
+        batch = []
+        def submit_batch(batch_tasks: List[ExtractTask]):
+            nonlocal completed, failures
+            if not batch_tasks:
+                return
+            futs = []
+            for t in batch_tasks:
+                fut = client.submit(
+                    run_task, t,
+                    overwrite=args.overwrite, dry_run=args.dry_run,
+                    datacolumn=args.datacolumn, primary_beam=args.primary_beam,
+                    noflag=args.noflag, baseline_average=args.baseline_average,
+                    minuvdist=args.minuvdist, verbose=args.verbose,
+                    update_summary_plots=args.update_summary_plots,
+                    retries=args.retries,
+                )
+                futs.append(fut)
+            for f in as_completed(futs):
+                out_file, msg, rc = f.result()
+                status = 'OK' if rc == 0 else 'FAIL'
+                if rc != 0:
+                    failures += 1
+                completed += 1
+                print(f"[{status}] {out_file}: {msg[:200]}", flush=True)
+
+        for t in tasks:
+            batch.append(t)
+            if len(batch) >= args.batch_size:
+                submit_batch(batch)
+                batch = []
+                if args.sleep_between_batches > 0:
+                    time.sleep(args.sleep_between_batches)
+        submit_batch(batch)
 
     print(f"[DONE] completed={completed} failures={failures}", flush=True)
     return 0 if failures == 0 else 1

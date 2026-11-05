@@ -29,6 +29,12 @@ export DS_WALLTIME=${DS_WALLTIME:-01:00:00}
 export DS_QUEUE="${DS_QUEUE:-}"                     # e.g. 'workq' or cluster-specific
 export DS_PROJECT="${DS_PROJECT:-}"                 # SLURM account/project
 
+# Engine selection & batching (fastducc in-memory streaming vs legacy dstools)
+export DS_ENGINE="${DS_ENGINE:-fastducc}"
+export DS_MAX_CANDS_PER_PASS="${DS_MAX_CANDS_PER_PASS:-10}"
+export DS_CHUNK_ROWS="${DS_CHUNK_ROWS:-100000}"
+export DS_UPDATE_SUMMARY_PLOTS="${DS_UPDATE_SUMMARY_PLOTS:-true}"
+
 # Orchestrator knobs
 export DS_BATCH_SIZE="${DS_BATCH_SIZE:-200}"
 export DS_RETRIES="${DS_RETRIES:-1}"
@@ -90,9 +96,15 @@ cmd=( ${PYTHON} -u "${SCRIPT}"
   --match-arcsec "${DS_MATCH_ARCSEC}"
   --ms-glob-template "${DS_MS_GLOB_TEMPLATE}"
   --datacolumn "${DS_DATACOLUMN}"
+  --engine "${DS_ENGINE}"
+  --max-cands-per-pass "${DS_MAX_CANDS_PER_PASS}"
+  --chunk-rows "${DS_CHUNK_ROWS}"
 )
 
 # Optional flags/args
+if [[ "${DS_UPDATE_SUMMARY_PLOTS}" == "false" ]]; then
+  cmd+=( --no-update-summary-plots )
+fi
 if [[ -n "${DS_CATALOGUE:-}" ]]; then
   cmd+=( --catalogue "${DS_CATALOGUE}" )
 fi
